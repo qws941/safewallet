@@ -47,7 +47,7 @@ jobs:
       - name: Build worker-app
         run: npm run build --workspace=apps/worker-app
         env:
-          NEXT_PUBLIC_API_URL: https://api.safework2.jclee.me
+          NEXT_PUBLIC_API_URL: /api
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -78,7 +78,7 @@ jobs:
       - name: Build admin-app
         run: npm run build --workspace=apps/admin-app
         env:
-          NEXT_PUBLIC_API_URL: https://api.safework2.jclee.me
+          NEXT_PUBLIC_API_URL: https://safework2-api.jclee.workers.dev
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
