@@ -1,12 +1,17 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
-import { users, attendance, siteMemberships } from "../db/schema";
-import { hmac, decrypt } from "../lib/crypto";
+import { users, attendance, siteMemberships, auditLogs } from "../db/schema";
+import { hmac, decrypt, encrypt } from "../lib/crypto";
 import { signJwt } from "../lib/jwt";
 import { success, error } from "../lib/response";
 import { authMiddleware } from "../middleware/auth";
+import {
+  checkDeviceRegistrationLimit,
+  normalizeDeviceId,
+  recordDeviceRegistration,
+} from "../lib/device-registrations";
 import type { Env, AuthContext } from "../types";
 
 const ACCESS_TOKEN_EXPIRY_SECONDS = 86400;
@@ -23,6 +28,13 @@ interface LoginBody {
   name: string;
   phone: string;
   dob: string;
+}
+
+interface RegisterBody {
+  name: string;
+  phone: string;
+  dob: string;
+  deviceId?: string;
 }
 
 interface RefreshBody {
@@ -146,6 +158,21 @@ function getTodayRange(): { start: Date; end: Date } {
   return { start, end };
 }
 
+function maskName(name: string): string {
+  if (name.length <= 1) return "*";
+  if (name.length === 2) return name[0] + "*";
+  return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
+}
+
+function resolveDeviceId(c: Context, bodyDeviceId?: string): string | null {
+  const headerDeviceId =
+    c.req.header("device-id") ||
+    c.req.header("x-device-id") ||
+    c.req.header("deviceid") ||
+    c.req.header("deviceId");
+  return normalizeDeviceId(bodyDeviceId ?? headerDeviceId);
+}
+
 const auth = new Hono<{ Bindings: Env; Variables: { auth: AuthContext } }>();
 
 interface RateLimitState {
@@ -235,6 +262,87 @@ async function checkRateLimit(
 
   return checkInMemoryLimit(key, limit, windowMs, map);
 }
+
+auth.post("/register", async (c) => {
+  let body: RegisterBody;
+  try {
+    body = await c.req.json();
+  } catch {
+    return error(c, "INVALID_JSON", "Invalid JSON", 400);
+  }
+
+  if (!body.name || !body.phone || !body.dob) {
+    return error(c, "MISSING_FIELDS", "name, phone, and dob are required", 400);
+  }
+
+  const deviceId = resolveDeviceId(c, body.deviceId);
+  if (deviceId) {
+    const deviceCheck = await checkDeviceRegistrationLimit(
+      c.env.KV,
+      deviceId,
+      Date.now(),
+    );
+    if (!deviceCheck.allowed) {
+      return error(
+        c,
+        "DEVICE_LIMIT",
+        "Too many accounts from this device",
+        429,
+      );
+    }
+  }
+
+  const db = drizzle(c.env.DB);
+  const normalizedPhone = body.phone.replace(/[^0-9]/g, "");
+  const normalizedDob = body.dob.replace(/[^0-9]/g, "");
+  const phoneHash = await hmac(c.env.HMAC_SECRET, normalizedPhone);
+  const dobHash = await hmac(c.env.HMAC_SECRET, normalizedDob);
+
+  const existingUser = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.phoneHash, phoneHash), eq(users.dobHash, dobHash)))
+    .get();
+
+  if (existingUser) {
+    return error(c, "USER_EXISTS", "User already registered", 409);
+  }
+
+  const phoneEncrypted = await encrypt(c.env.ENCRYPTION_KEY, normalizedPhone);
+  const dobEncrypted = await encrypt(c.env.ENCRYPTION_KEY, normalizedDob);
+  const nameMasked = maskName(body.name);
+
+  const newUser = await db
+    .insert(users)
+    .values({
+      name: body.name,
+      nameMasked,
+      phone: phoneHash,
+      phoneHash,
+      phoneEncrypted,
+      dob: null,
+      dobHash,
+      dobEncrypted,
+      role: "WORKER",
+    })
+    .returning()
+    .get();
+
+  if (deviceId) {
+    await recordDeviceRegistration(c.env.KV, deviceId, newUser.id, Date.now());
+    await db.insert(auditLogs).values({
+      action: "DEVICE_REGISTRATION",
+      actorId: newUser.id,
+      targetType: "DEVICE",
+      targetId: deviceId,
+      reason: "User registration",
+      ip: c.req.header("CF-Connecting-IP") || undefined,
+      userAgent: c.req.header("User-Agent") || undefined,
+    });
+  }
+
+  return success(c, { userId: newUser.id }, 201);
+});
 
 auth.post("/login", async (c) => {
   const startedAt = Date.now();

@@ -35,18 +35,23 @@ const idempotencyCache = new Map<
   }
 >();
 
-// Clean up old entries every 5 minutes (TTL: 1 hour)
+// TTL: 1 hour - cleanup happens lazily on cache access
 const IDEMPOTENCY_TTL = 3600000;
-const CACHE_CLEANUP_INTERVAL = 300000;
+let lastCleanup = Date.now();
 
-setInterval(() => {
+// Lazy cleanup - runs when accessing cache if enough time has passed
+function cleanupIdempotencyCache() {
   const now = Date.now();
+  // Only cleanup every 5 minutes
+  if (now - lastCleanup < 300000) return;
+  lastCleanup = now;
+
   for (const [key, value] of idempotencyCache.entries()) {
     if (now - value.timestamp > IDEMPOTENCY_TTL) {
       idempotencyCache.delete(key);
     }
   }
-}, CACHE_CLEANUP_INTERVAL);
+}
 
 function getTodayRange(): { start: Date; end: Date } {
   const now = new Date();
@@ -74,6 +79,7 @@ const attendanceRoute = new Hono<{
 }>();
 
 attendanceRoute.post("/sync", async (c) => {
+  cleanupIdempotencyCache();
   const idempotencyKey = c.req.header("Idempotency-Key");
   if (idempotencyKey) {
     const cached = idempotencyCache.get(idempotencyKey);
