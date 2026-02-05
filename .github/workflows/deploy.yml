@@ -45,10 +45,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy API Worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiKey: ${{ secrets.CLOUDFLARE_API_KEY }}
-          email: ${{ secrets.CLOUDFLARE_EMAIL }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/api-worker
-          command: deploy
+        working-directory: apps/api-worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
