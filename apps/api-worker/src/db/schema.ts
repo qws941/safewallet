@@ -2,7 +2,6 @@ import {
   sqliteTable,
   text,
   integer,
-  real,
   index,
   unique,
 } from "drizzle-orm/sqlite-core";
@@ -73,10 +72,12 @@ export const users = sqliteTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     phone: text("phone").unique().notNull(),
+    phoneEncrypted: text("phone_encrypted"),
     phoneHash: text("phone_hash"),
     name: text("name"),
     nameMasked: text("name_masked"),
     dob: text("dob"),
+    dobEncrypted: text("dob_encrypted"),
     dobHash: text("dob_hash"),
     externalSystem: text("external_system"),
     externalWorkerId: text("external_worker_id"),
@@ -92,6 +93,8 @@ export const users = sqliteTable(
     canManageUsers: integer("can_manage_users", { mode: "boolean" })
       .default(false)
       .notNull(),
+    falseReportCount: integer("false_report_count").default(0).notNull(),
+    restrictedUntil: integer("restricted_until", { mode: "timestamp" }),
     otpCode: text("otp_code"),
     otpExpiresAt: integer("otp_expires_at", { mode: "timestamp" }),
     otpAttemptCount: integer("otp_attempt_count").default(0).notNull(),

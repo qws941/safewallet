@@ -9,6 +9,7 @@ import type { Env, AuthContext } from "../types";
 
 interface SubmitVoteBody {
   candidateId: string;
+  siteId?: string;
 }
 
 const votesRoute = new Hono<{
@@ -115,7 +116,7 @@ votesRoute.get("/current", authMiddleware, async (c) => {
   });
 });
 
-votesRoute.post("/", authMiddleware, attendanceMiddleware, async (c) => {
+votesRoute.post("/", authMiddleware, async (c) => {
   const { user } = c.get("auth");
 
   let body: SubmitVoteBody;
@@ -129,19 +130,25 @@ votesRoute.post("/", authMiddleware, attendanceMiddleware, async (c) => {
     return error(c, "MISSING_CANDIDATE_ID", "candidateId is required", 400);
   }
 
+  await attendanceMiddleware(c, async () => {}, body.siteId);
+
   const { candidateId } = body;
   const db = drizzle(c.env.DB);
   const currentMonth = getCurrentMonth();
 
+  const membershipConditions = [
+    eq(siteMemberships.userId, user.id),
+    eq(siteMemberships.status, "ACTIVE"),
+  ];
+
+  if (body.siteId) {
+    membershipConditions.push(eq(siteMemberships.siteId, body.siteId));
+  }
+
   const membership = await db
     .select()
     .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.status, "ACTIVE"),
-      ),
-    )
+    .where(and(...membershipConditions))
     .get();
 
   if (!membership) {

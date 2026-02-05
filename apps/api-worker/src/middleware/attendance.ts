@@ -2,7 +2,7 @@ import { Context, Next } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, gte, lt } from "drizzle-orm";
-import { attendance } from "../db/schema";
+import { attendance, manualApprovals } from "../db/schema";
 import type { Env, AuthContext } from "../types";
 
 const DAY_CUTOFF_HOUR = 5;
@@ -30,31 +30,56 @@ function getTodayRange(): { start: Date; end: Date } {
 export async function attendanceMiddleware(
   c: Context<{ Bindings: Env; Variables: { auth: AuthContext } }>,
   next: Next,
+  siteId?: string,
 ) {
   const auth = c.get("auth");
   if (!auth) {
     throw new HTTPException(401, { message: "인증이 필요합니다." });
   }
 
+  const resolvedSiteId = siteId?.trim() || undefined;
   const db = drizzle(c.env.DB);
   const { start, end } = getTodayRange();
 
-  const record = await db
-    .select()
-    .from(attendance)
-    .where(
-      and(
-        eq(attendance.userId, auth.user.id),
-        eq(attendance.result, "SUCCESS"),
-        gte(attendance.checkinAt, start),
-        lt(attendance.checkinAt, end),
-      ),
-    )
-    .limit(1);
+  const attendanceConditions = [
+    eq(attendance.userId, auth.user.id),
+    eq(attendance.result, "SUCCESS"),
+    gte(attendance.checkinAt, start),
+    lt(attendance.checkinAt, end),
+  ];
 
-  if (record.length === 0) {
+  if (resolvedSiteId) {
+    attendanceConditions.push(eq(attendance.siteId, resolvedSiteId));
+  }
+
+  const record = await db
+    .select({ id: attendance.id })
+    .from(attendance)
+    .where(and(...attendanceConditions))
+    .get();
+
+  let hasAttendance = !!record;
+
+  if (!hasAttendance && resolvedSiteId) {
+    const approval = await db
+      .select({ id: manualApprovals.id })
+      .from(manualApprovals)
+      .where(
+        and(
+          eq(manualApprovals.userId, auth.user.id),
+          eq(manualApprovals.siteId, resolvedSiteId),
+          gte(manualApprovals.validDate, start),
+          lt(manualApprovals.validDate, end),
+        ),
+      )
+      .get();
+
+    hasAttendance = !!approval;
+  }
+
+  if (!hasAttendance) {
     throw new HTTPException(403, {
-      message: "오늘 출근 확인 후 이용 가능합니다.",
+      message: "해당 현장에 오늘 출근 기록이 없습니다",
     });
   }
 

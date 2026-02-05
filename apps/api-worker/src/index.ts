@@ -76,6 +76,6 @@ app.notFound((c) => {
   return c.json({ error: "Not Found", path: c.req.path }, 404);
 });
 
-export { RateLimiter } from "./durable-objects/rate-limiter";
+export { RateLimiter } from "./durable-objects/RateLimiter";
 
 export default app;

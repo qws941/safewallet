@@ -5,6 +5,7 @@ import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { users, siteMemberships, sites, pointsLedger } from "../db/schema";
 import { success, error } from "../lib/response";
+import { decrypt } from "../lib/crypto";
 
 interface UpdateProfileBody {
   name?: string;
@@ -26,7 +27,8 @@ app.get("/me", async (c) => {
       id: users.id,
       name: users.name,
       nameMasked: users.nameMasked,
-      phone: users.phone,
+      phoneEncrypted: users.phoneEncrypted,
+      piiViewFull: users.piiViewFull,
       role: users.role,
       createdAt: users.createdAt,
     })
@@ -37,6 +39,11 @@ app.get("/me", async (c) => {
   if (!fullUser) {
     return error(c, "USER_NOT_FOUND", "User not found", 404);
   }
+
+  const phone =
+    fullUser.piiViewFull && fullUser.phoneEncrypted
+      ? await decrypt(c.env.ENCRYPTION_KEY, fullUser.phoneEncrypted)
+      : null;
 
   const memberships = await db
     .select({
@@ -68,7 +75,12 @@ app.get("/me", async (c) => {
 
   return success(c, {
     user: {
-      ...fullUser,
+      id: fullUser.id,
+      name: fullUser.name,
+      nameMasked: fullUser.nameMasked,
+      phone,
+      role: fullUser.role,
+      createdAt: fullUser.createdAt,
       memberships,
       totalPoints: pointsResult?.total || 0,
     },
@@ -110,12 +122,28 @@ app.patch("/me", async (c) => {
       id: users.id,
       name: users.name,
       nameMasked: users.nameMasked,
-      phone: users.phone,
+      phoneEncrypted: users.phoneEncrypted,
+      piiViewFull: users.piiViewFull,
       role: users.role,
     })
     .get();
 
-  return success(c, { user: updated });
+  const updatedPhone =
+    updated?.piiViewFull && updated.phoneEncrypted
+      ? await decrypt(c.env.ENCRYPTION_KEY, updated.phoneEncrypted)
+      : null;
+
+  return success(c, {
+    user: updated
+      ? {
+          id: updated.id,
+          name: updated.name,
+          nameMasked: updated.nameMasked,
+          phone: updatedPhone,
+          role: updated.role,
+        }
+      : null,
+  });
 });
 
 app.get("/me/points", async (c) => {

@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, desc, or, isNull, gte } from "drizzle-orm";
+import { eq, and, desc, or, isNull } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { attendanceMiddleware } from "../middleware/attendance";
 import { announcements, siteMemberships, users } from "../db/schema";
 import { success, error } from "../lib/response";
 
@@ -17,7 +18,8 @@ app.get("/", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const siteId = c.req.query("siteId");
-  const now = new Date();
+
+  await attendanceMiddleware(c, async () => {}, siteId);
 
   if (siteId) {
     const membership = await db

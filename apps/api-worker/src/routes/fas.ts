@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import type { Env } from "../types";
 import { users } from "../db/schema";
-import { hmac } from "../lib/crypto";
+import { hmac, encrypt } from "../lib/crypto";
 import { success, error } from "../lib/response";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -67,6 +67,11 @@ app.post("/workers/sync", async (c) => {
       const normalizedPhone = worker.phone.replace(/[^0-9]/g, "");
       const phoneHash = await hmac(c.env.HMAC_SECRET, normalizedPhone);
       const dobHash = await hmac(c.env.HMAC_SECRET, worker.dob);
+      const phoneEncrypted = await encrypt(
+        c.env.ENCRYPTION_KEY,
+        normalizedPhone,
+      );
+      const dobEncrypted = await encrypt(c.env.ENCRYPTION_KEY, worker.dob);
       const nameMasked = maskName(worker.name);
 
       const existing = await db
@@ -81,10 +86,12 @@ app.post("/workers/sync", async (c) => {
           .set({
             name: worker.name,
             nameMasked,
-            phone: normalizedPhone,
+            phone: phoneHash,
             phoneHash,
-            dob: worker.dob,
+            phoneEncrypted,
+            dob: null,
             dobHash,
+            dobEncrypted,
             companyName: worker.companyName ?? null,
             tradeType: worker.tradeType ?? null,
             updatedAt: new Date(),
@@ -98,10 +105,12 @@ app.post("/workers/sync", async (c) => {
           externalWorkerId: worker.externalWorkerId,
           name: worker.name,
           nameMasked,
-          phone: normalizedPhone,
+          phone: phoneHash,
           phoneHash,
-          dob: worker.dob,
+          phoneEncrypted,
+          dob: null,
           dobHash,
+          dobEncrypted,
           companyName: worker.companyName ?? null,
           tradeType: worker.tradeType ?? null,
           role: "WORKER",

@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq, and } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { users, attendance, siteMemberships } from "../db/schema";
-import { hmac } from "../lib/crypto";
+import { hmac, decrypt } from "../lib/crypto";
 import { signJwt } from "../lib/jwt";
 import { success, error } from "../lib/response";
 import { authMiddleware } from "../middleware/auth";
@@ -148,7 +148,93 @@ function getTodayRange(): { start: Date; end: Date } {
 
 const auth = new Hono<{ Bindings: Env; Variables: { auth: AuthContext } }>();
 
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+interface RateLimitState {
+  count: number;
+  resetAt: number;
+}
+
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetAt: number;
+}
+
+const rateLimitMap = new Map<string, RateLimitState>();
+
+async function checkDurableLimit(
+  env: Env,
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitResult | null> {
+  if (!env.RATE_LIMITER) {
+    return null;
+  }
+
+  try {
+    const id = env.RATE_LIMITER.idFromName(key);
+    const stub = env.RATE_LIMITER.get(id);
+    const response = await stub.fetch("https://rate-limiter/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "checkLimit", key, limit, windowMs }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as RateLimitResult;
+  } catch {
+    return null;
+  }
+}
+
+function checkInMemoryLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  map: Map<string, RateLimitState>,
+): RateLimitResult {
+  const now = Date.now();
+  const record = map.get(key);
+
+  if (!record || record.resetAt <= now) {
+    const next: RateLimitState = { count: 1, resetAt: now + windowMs };
+    map.set(key, next);
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - next.count),
+      resetAt: next.resetAt,
+    };
+  }
+
+  if (record.count >= limit) {
+    return { allowed: false, remaining: 0, resetAt: record.resetAt };
+  }
+
+  record.count += 1;
+  return {
+    allowed: true,
+    remaining: Math.max(0, limit - record.count),
+    resetAt: record.resetAt,
+  };
+}
+
+async function checkRateLimit(
+  env: Env,
+  key: string,
+  limit: number,
+  windowMs: number,
+  map: Map<string, RateLimitState>,
+): Promise<RateLimitResult> {
+  const durableResult = await checkDurableLimit(env, key, limit, windowMs);
+  if (durableResult) {
+    return durableResult;
+  }
+
+  return checkInMemoryLimit(key, limit, windowMs, map);
+}
 
 auth.post("/login", async (c) => {
   const startedAt = Date.now();
@@ -172,9 +258,16 @@ auth.post("/login", async (c) => {
 
   const clientIp = c.req.header("CF-Connecting-IP") || "unknown";
 
-  const now = Date.now();
-  const rateLimit = rateLimitMap.get(clientIp);
-  if (rateLimit && rateLimit.resetAt > now && rateLimit.count >= 5) {
+  const rateLimitKey = `auth:login:ip:${clientIp}`;
+  const rateLimit = await checkRateLimit(
+    c.env,
+    rateLimitKey,
+    5,
+    60 * 1000,
+    rateLimitMap,
+  );
+
+  if (!rateLimit.allowed) {
     return respondWithDelay(
       error(
         c,
@@ -183,12 +276,6 @@ auth.post("/login", async (c) => {
         429,
       ),
     );
-  }
-
-  if (!rateLimit || rateLimit.resetAt <= now) {
-    rateLimitMap.set(clientIp, { count: 1, resetAt: now + 60000 });
-  } else {
-    rateLimit.count++;
   }
 
   const db = drizzle(c.env.DB);
@@ -341,8 +428,12 @@ auth.post("/login", async (c) => {
     }
   }
 
+  const phoneForToken =
+    user.piiViewFull && user.phoneEncrypted
+      ? await decrypt(c.env.ENCRYPTION_KEY, user.phoneEncrypted)
+      : "";
   const accessToken = await signJwt(
-    { sub: user.id, phone: user.phone || "", role: user.role },
+    { sub: user.id, phone: phoneForToken, role: user.role },
     c.env.JWT_SECRET,
   );
   const refreshToken = crypto.randomUUID();
@@ -363,7 +454,7 @@ auth.post("/login", async (c) => {
         expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
         user: {
           id: user.id,
-          phone: user.phone,
+          phone: phoneForToken,
           role: user.role,
           name: user.name,
           nameMasked: user.nameMasked,
@@ -400,8 +491,12 @@ auth.post("/refresh", async (c) => {
 
   const user = userResults[0];
   const newRefreshToken = crypto.randomUUID();
+  const phoneForToken =
+    user.piiViewFull && user.phoneEncrypted
+      ? await decrypt(c.env.ENCRYPTION_KEY, user.phoneEncrypted)
+      : "";
   const accessToken = await signJwt(
-    { sub: user.id, phone: user.phone || "", role: user.role },
+    { sub: user.id, phone: phoneForToken, role: user.role },
     c.env.JWT_SECRET,
   );
 

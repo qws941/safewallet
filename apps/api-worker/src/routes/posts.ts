@@ -35,8 +35,6 @@ const validCategories: CategoryType[] = [
   "BEST_PRACTICE",
 ];
 
-const validVisibilities: VisibilityType[] = ["WORKER_PUBLIC", "ADMIN_ONLY"];
-
 interface CreatePostBody {
   siteId: string;
   content: string;
@@ -51,7 +49,6 @@ interface CreatePostBody {
 }
 
 app.use("*", authMiddleware);
-app.use("*", attendanceMiddleware);
 
 app.post("/", async (c) => {
   const db = drizzle(c.env.DB);
@@ -68,9 +65,26 @@ app.post("/", async (c) => {
     return error(c, "MISSING_FIELDS", "siteId and content are required", 400);
   }
 
+  await attendanceMiddleware(c, async () => {}, data.siteId);
+
   data.category = data.category || "HAZARD";
   data.visibility = data.visibility || "WORKER_PUBLIC";
   data.isAnonymous = data.isAnonymous ?? false;
+
+  const userRecord = await db
+    .select({ restrictedUntil: users.restrictedUntil })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .get();
+
+  if (userRecord?.restrictedUntil && userRecord.restrictedUntil > new Date()) {
+    return error(
+      c,
+      "USER_RESTRICTED",
+      `Posting restricted until ${userRecord.restrictedUntil.toISOString()}`,
+      403,
+    );
+  }
 
   const membership = await db
     .select()
@@ -137,6 +151,7 @@ app.get("/", async (c) => {
   const db = drizzle(c.env.DB);
 
   const siteId = c.req.query("siteId");
+  await attendanceMiddleware(c, async () => {}, siteId);
   const categoryParam = c.req.query("category") as CategoryType | undefined;
   const category =
     categoryParam && validCategories.includes(categoryParam)
@@ -187,6 +202,7 @@ app.get("/", async (c) => {
 });
 
 app.get("/me", async (c) => {
+  await attendanceMiddleware(c, async () => {});
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
 
@@ -201,6 +217,7 @@ app.get("/me", async (c) => {
 });
 
 app.get("/:id", async (c) => {
+  await attendanceMiddleware(c, async () => {});
   const db = drizzle(c.env.DB);
   const postId = c.req.param("id");
 
@@ -237,6 +254,7 @@ app.get("/:id", async (c) => {
 });
 
 app.post("/:id/images", async (c) => {
+  await attendanceMiddleware(c, async () => {});
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const postId = c.req.param("id");
@@ -293,6 +311,7 @@ app.post("/:id/images", async (c) => {
 });
 
 app.delete("/:id", async (c) => {
+  await attendanceMiddleware(c, async () => {});
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const postId = c.req.param("id");
