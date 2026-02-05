@@ -208,6 +208,43 @@ app.get("/unlock-user/:phoneHash", requireAdmin, async (c) => {
   return success(c, { unlocked: true });
 });
 
+app.post("/unlock-user-by-phone", requireAdmin, async (c) => {
+  const body = await c.req.json<{ phone: string }>();
+  const phone = body?.phone;
+
+  if (!phone) {
+    return error(c, "PHONE_REQUIRED", "phone is required", 400);
+  }
+
+  const normalizedPhone = phone.replace(/\D/g, "");
+  if (normalizedPhone.length < 10) {
+    return error(c, "INVALID_PHONE", "Invalid phone number", 400);
+  }
+
+  const phoneHash = await hmac(c.env.HMAC_SECRET, normalizedPhone);
+  const db = drizzle(c.env.DB);
+  const { user: currentUser } = c.get("auth");
+  const key = `login_attempts:${phoneHash}`;
+
+  await c.env.KV.delete(key);
+
+  await db.insert(auditLogs).values({
+    action: "LOGIN_LOCKOUT_RESET",
+    actorId: currentUser.id,
+    targetType: "LOGIN_LOCKOUT",
+    targetId: phoneHash,
+    reason: "Admin unlock by phone",
+  });
+
+  if (c.env.RATE_LIMITER) {
+    const rateLimiterId = c.env.RATE_LIMITER.idFromName(`login:${phoneHash}`);
+    const rateLimiter = c.env.RATE_LIMITER.get(rateLimiterId);
+    await rateLimiter.fetch(new Request("https://dummy/reset"));
+  }
+
+  return success(c, { unlocked: true, phone: normalizedPhone });
+});
+
 app.get("/export/posts", requireExportAccess, exportRateLimit, async (c) => {
   const db = drizzle(c.env.DB);
   const { user: currentUser } = c.get("auth");

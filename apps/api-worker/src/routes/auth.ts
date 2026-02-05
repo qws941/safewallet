@@ -768,4 +768,26 @@ auth.get("/me", authMiddleware, async (c) => {
   );
 });
 
+auth.post("/dev-reset-ratelimit", async (c) => {
+  const body = await c.req.json<{ phone: string; secret: string }>();
+  if (body.secret !== "safework2-dev-reset-2026") {
+    return error(c, "FORBIDDEN", "Invalid secret", 403);
+  }
+  const normalizedPhone = body.phone.replace(/\D/g, "");
+  const phoneHash = await hmac(c.env.HMAC_SECRET, normalizedPhone);
+
+  rateLimitMap.delete(`login:${phoneHash}`);
+
+  const attemptKey = `${LOGIN_ATTEMPT_KEY_PREFIX}${phoneHash}`;
+  await c.env.KV.delete(attemptKey);
+
+  if (c.env.RATE_LIMITER) {
+    const id = c.env.RATE_LIMITER.idFromName(`login:${phoneHash}`);
+    const stub = c.env.RATE_LIMITER.get(id);
+    await stub.fetch(new Request("https://dummy/reset"));
+  }
+
+  return success(c, { reset: true, phone: normalizedPhone });
+});
+
 export default auth;

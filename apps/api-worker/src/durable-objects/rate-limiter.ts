@@ -39,6 +39,10 @@ export class RateLimiter implements DurableObject {
     };
   }
 
+  reset(): void {
+    this.requestLog = [];
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
@@ -46,6 +50,13 @@ export class RateLimiter implements DurableObject {
       const config: RateLimitConfig = await request.json();
       const result = await this.checkLimit(config);
       return new Response(JSON.stringify(result), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (url.pathname === "/reset") {
+      this.reset();
+      return new Response(JSON.stringify({ success: true }), {
         headers: { "Content-Type": "application/json" },
       });
     }
