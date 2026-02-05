@@ -49,3 +49,4 @@ tmp/
 
 # In-Memoria (local dev tool)
 in-memoria.db
+apps/api-worker/.wrangler/

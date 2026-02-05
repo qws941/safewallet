@@ -51,3 +51,17 @@ jobs:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Build Admin App (Cloudflare Pages)
+        working-directory: apps/admin-app
+        run: npx @cloudflare/next-on-pages
+        env:
+          NEXT_PUBLIC_API_URL: "https://safework2.jclee.me/api"
+
+      - name: Deploy Admin App to Pages
+        working-directory: apps/admin-app
+        run: npx wrangler pages deploy .vercel/output/static --project-name=safework2-admin
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
