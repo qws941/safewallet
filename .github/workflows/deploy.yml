@@ -24,9 +24,7 @@ jobs:
         run: npm ci
 
       - name: Build packages
-        run: |
-          npm run build --workspace=packages/types
-          npm run build --workspace=packages/ui
+        run: npm run build --workspace=packages/types
 
       - name: Build Next.js (static export)
         working-directory: apps/worker-app
