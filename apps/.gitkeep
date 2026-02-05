@@ -1,0 +1,5 @@
+# Placeholder for apps directory
+# This directory will contain:
+# - worker-app (Next.js PWA for workers)
+# - admin-app (Next.js for administrators)
+# - api (NestJS backend)

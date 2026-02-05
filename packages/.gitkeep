@@ -1,0 +1,6 @@
+# Placeholder for packages directory
+# This directory will contain:
+# - database (Prisma schema and client)
+# - types (Shared TypeScript types)
+# - ui (Shared UI components with shadcn/ui)
+# - config (Shared configurations)

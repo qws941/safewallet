@@ -1,0 +1,112 @@
+name: Deploy SafetyWallet
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  build-types:
+    name: Build Shared Types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace=packages/types
+      - uses: actions/upload-artifact@v4
+        with:
+          name: types-dist
+          path: packages/types/dist
+
+  deploy-worker-app:
+    name: Deploy Worker App to Cloudflare Pages
+    needs: build-types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: types-dist
+          path: packages/types/dist
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build worker-app
+        run: npm run build --workspace=apps/worker-app
+        env:
+          NEXT_PUBLIC_API_URL: https://api.safework2.jclee.me
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/worker-app/.next --project-name=safework2-worker
+
+  deploy-admin-app:
+    name: Deploy Admin App to Cloudflare Pages
+    needs: build-types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: types-dist
+          path: packages/types/dist
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build admin-app
+        run: npm run build --workspace=apps/admin-app
+        env:
+          NEXT_PUBLIC_API_URL: https://api.safework2.jclee.me
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/admin-app/.next --project-name=safework2-admin
+
+  deploy-api:
+    name: Deploy API Worker to Cloudflare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build api-worker
+        run: npm run build --workspace=apps/api-worker
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api-worker
+          command: deploy

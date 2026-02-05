@@ -1,0 +1,42 @@
+name = "safework2-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "safework2-db"
+database_id = "9d62c0d4-b264-4378-8219-da540f35d9d9"
+
+# R2 Bucket for images
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "safework2-images"
+
+# KV Namespace for cache/sessions
+[[kv_namespaces]]
+binding = "KV"
+id = "57ab28dca9dd4193a8f59f93e57122d8"
+
+# Durable Objects for rate limiting
+[durable_objects]
+bindings = [
+  { name = "RATE_LIMITER", class_name = "RateLimiter" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RateLimiter"]
+
+[env.dev]
+name = "safework2-api-dev"
+vars = { ENVIRONMENT = "development" }
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "safework2-db-dev"
+database_id = "f0a2bc59-80b6-483e-87ed-09a234acfe8b"

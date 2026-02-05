@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+.turbo/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+!docker/.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Database
+*.db
+*.sqlite
+prisma/migrations/*.sql.backup
+
+# MinIO data (Docker volume)
+minio-data/
+
+# Misc
+.cache/
+tmp/
+*.tsbuildinfo
+
+# In-Memoria (local dev tool)
+in-memoria.db
