@@ -1,34 +1,55 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@safetywallet/ui';
-import { useAuth } from '@/hooks/use-auth';
-import { apiFetch } from '@/lib/api';
-import type { ApiResponse } from '@safetywallet/types';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Button,
+  Input,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@safetywallet/ui";
+import { useAuth } from "@/hooks/use-auth";
+import { apiFetch } from "@/lib/api";
+import type { ApiResponse } from "@safetywallet/types";
 
 export default function JoinPage() {
   const router = useRouter();
   const { setCurrentSite } = useAuth();
-  const [joinCode, setJoinCode] = useState('');
-  const [error, setError] = useState('');
+  const [joinCode, setJoinCode] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      const response = await apiFetch<ApiResponse<{ siteId: string }>>('/sites/join', {
-        method: 'POST',
-        body: JSON.stringify({ joinCode }),
-      });
+      const response = await apiFetch<ApiResponse<{ site: { id: string } }>>(
+        "/sites/join",
+        {
+          method: "POST",
+          body: JSON.stringify({ code: joinCode }),
+        },
+      );
 
-      setCurrentSite(response.data.siteId);
-      router.replace('/home');
-    } catch (err) {
-      setError('유효하지 않은 코드입니다.');
+      setCurrentSite(response.data.site.id);
+      router.replace("/home");
+    } catch (err: unknown) {
+      const apiError = err as { message?: string };
+      try {
+        const parsed = JSON.parse(apiError.message || "{}");
+        if (parsed.error?.code === "ALREADY_MEMBER") {
+          router.replace("/home");
+          return;
+        }
+        setError(parsed.error?.message || "유효하지 않은 코드입니다.");
+      } catch {
+        setError("유효하지 않은 코드입니다.");
+      }
     } finally {
       setLoading(false);
     }
@@ -55,16 +76,24 @@ export default function JoinPage() {
                 disabled={loading}
               />
             </div>
-            {error && <p className="text-sm text-destructive text-center">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || !joinCode}>
-              {loading ? '참여 중...' : '현장 참여하기'}
+            {error && (
+              <p className="text-sm text-destructive text-center">{error}</p>
+            )}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || !joinCode}
+            >
+              {loading ? "참여 중..." : "현장 참여하기"}
             </Button>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">or</span>
+                <span className="bg-background px-2 text-muted-foreground">
+                  or
+                </span>
               </div>
             </div>
             <Button
@@ -73,7 +102,7 @@ export default function JoinPage() {
               className="w-full"
               onClick={() => {
                 // TODO: Implement QR scanner
-                alert('QR 스캐너 기능은 준비 중입니다.');
+                alert("QR 스캐너 기능은 준비 중입니다.");
               }}
             >
               QR 코드 스캔

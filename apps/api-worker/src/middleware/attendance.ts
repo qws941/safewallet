@@ -32,6 +32,10 @@ export async function attendanceMiddleware(
   next: Next,
   siteId?: string,
 ) {
+  if (c.env.REQUIRE_ATTENDANCE_FOR_POST === "false") {
+    return next();
+  }
+
   const auth = c.get("auth");
   if (!auth) {
     throw new HTTPException(401, { message: "인증이 필요합니다." });

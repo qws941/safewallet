@@ -1,8 +1,8 @@
 # PROJECT KNOWLEDGE BASE
 
 **Generated:** 2026-02-05  
-**Commit:** local  
-**Branch:** feature/cloudflare-migration
+**Commit:** 1180b34  
+**Branch:** main
 
 ## OVERVIEW
 
@@ -91,11 +91,19 @@ safework2/
 | Pattern                            | Why Forbidden                          |
 | ---------------------------------- | -------------------------------------- |
 | `as unknown as Type`               | Defeats TypeScript safety              |
+| `as any`                           | Defeats TypeScript safety              |
 | `confirm()` / `alert()`            | Use modal components instead           |
 | `console.*` in production          | Use structured logging                 |
 | `Record<string, unknown>` for DTOs | Use strict Zod schemas                 |
 | Padding crypto keys with "0"       | Use proper key derivation              |
 | `Promise.resolve()` mocks          | Never ship placeholder implementations |
+
+### Known Violations (TODO)
+
+- `apps/api-worker/src/lib/jwt.ts:36` - `as unknown as JwtPayload`
+- `apps/api-worker/src/lib/response.ts:10,21` - `status as any`
+- `apps/worker-app/src/app/profile/page.tsx:24` - `alert()` usage
+- `apps/worker-app/src/app/join/page.tsx:76` - `alert()` usage
 
 ## COMMANDS
 
@@ -146,6 +154,7 @@ docker compose -f docker/docker-compose.yml up -d
 
 - **5 AM KST cutoff**: All "today" logic uses Korea timezone with 5 AM as day boundary
 - **Dual API**: Both `apps/api` and `apps/api-worker` exist during migration
-- **Package manager mismatch**: `package.json` declares npm but `pnpm-workspace.yaml` exists
+- **Package manager**: npm (declared in package.json), pnpm-workspace.yaml exists but unused
 - **.sisyphus/**: AI agent planning directory - contains drafts, plans, evidence
 - **Testing**: E2E tests only in `apps/api/test/`, no unit tests or frontend tests
+- **No ESLint/Prettier configs**: Project relies on TypeScript strict mode only

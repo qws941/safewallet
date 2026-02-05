@@ -2,14 +2,6 @@
   "version": 3,
   "routes": [
     {
-      "src": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$",
-      "headers": {
-        "Location": "/$1"
-      },
-      "status": 308,
-      "continue": true
-    },
-    {
       "src": "/_next/__private/trace",
       "dest": "/404",
       "status": 404,
@@ -18,58 +10,30 @@
     {
       "src": "/404/?",
       "status": 404,
-      "continue": true,
+      "continue": true
+    },
+    {
+      "src": "^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+))/$",
+      "headers": {
+        "Location": "/$1"
+      },
+      "status": 308,
       "missing": [
         {
           "type": "header",
-          "key": "x-prerender-revalidate"
+          "key": "x-nextjs-data"
         }
       ]
     },
     {
-      "src": "/500",
-      "status": 500,
-      "continue": true
-    },
-    {
-      "src": "^/?",
-      "has": [
-        {
-          "type": "header",
-          "key": "rsc",
-          "value": "1"
-        }
-      ],
-      "dest": "/index.rsc",
+      "src": "^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+))$",
       "headers": {
-        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch"
+        "Location": "/$1/"
       },
-      "continue": true,
-      "override": true
-    },
-    {
-      "src": "^/((?!.+\\.rsc).+?)(?:/)?$",
-      "has": [
-        {
-          "type": "header",
-          "key": "rsc",
-          "value": "1"
-        }
-      ],
-      "dest": "/$1.rsc",
-      "headers": {
-        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch"
-      },
-      "continue": true,
-      "override": true
+      "status": 308
     },
     {
       "handle": "filesystem"
-    },
-    {
-      "src": "/index(\\.action|\\.rsc)",
-      "dest": "/",
-      "continue": true
     },
     {
       "src": "/_next/data/(.*)",
@@ -77,24 +41,8 @@
       "check": true
     },
     {
-      "src": "/\\.prefetch\\.rsc$",
-      "dest": "/__index.prefetch.rsc",
-      "check": true
-    },
-    {
-      "src": "/(.+)/\\.prefetch\\.rsc$",
-      "dest": "/$1.prefetch.rsc",
-      "check": true
-    },
-    {
-      "src": "/\\.rsc$",
-      "dest": "/index.rsc",
-      "check": true
-    },
-    {
-      "src": "/(.+)/\\.rsc$",
-      "dest": "/$1.rsc",
-      "check": true
+      "src": "/_next/data/(.*)",
+      "status": 404
     },
     {
       "handle": "resource"
@@ -116,44 +64,12 @@
       }
     },
     {
-      "handle": "rewrite"
-    },
-    {
-      "src": "/_next/data/(.*)",
-      "dest": "/404",
-      "status": 404
-    },
-    {
-      "src": "^/posts/(?<nxtPid>[^/]+?)(?:\\.rsc)(?:/)?$",
-      "dest": "/posts/[id].rsc?nxtPid=$nxtPid"
-    },
-    {
-      "src": "^/posts/(?<nxtPid>[^/]+?)(?:/)?$",
-      "dest": "/posts/[id]?nxtPid=$nxtPid"
-    },
-    {
       "handle": "hit"
     },
     {
-      "src": "/_next/static/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|cLjd1m4NQ9h58YFr2QKWh)/.+",
+      "src": "/_next/static/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|zp9L12EeeNq1WrHFUtirk)/.+",
       "headers": {
         "cache-control": "public,max-age=31536000,immutable"
-      },
-      "continue": true,
-      "important": true
-    },
-    {
-      "src": "/index(?:/)?",
-      "headers": {
-        "x-matched-path": "/"
-      },
-      "continue": true,
-      "important": true
-    },
-    {
-      "src": "/((?!index$).*?)(?:/)?",
-      "headers": {
-        "x-matched-path": "/$1"
       },
       "continue": true,
       "important": true
@@ -162,20 +78,9 @@
       "handle": "error"
     },
     {
-      "src": "/.*",
-      "dest": "/404",
       "status": 404,
-      "headers": {
-        "x-next-error-status": "404"
-      }
-    },
-    {
-      "src": "/.*",
-      "dest": "/500",
-      "status": 500,
-      "headers": {
-        "x-next-error-status": "500"
-      }
+      "src": ".*",
+      "dest": "/404"
     }
   ],
   "overrides": {
@@ -183,28 +88,53 @@
       "path": "404",
       "contentType": "text/html; charset=utf-8"
     },
-    "500.html": {
-      "path": "500",
+    "404/index.html": {
+      "path": "404/index",
       "contentType": "text/html; charset=utf-8"
     },
-    "_app.rsc.json": {
-      "path": "_app.rsc",
-      "contentType": "application/json"
+    "announcements/index.html": {
+      "path": "announcements/index",
+      "contentType": "text/html; charset=utf-8"
     },
-    "_error.rsc.json": {
-      "path": "_error.rsc",
-      "contentType": "application/json"
+    "home/index.html": {
+      "path": "home/index",
+      "contentType": "text/html; charset=utf-8"
     },
-    "_document.rsc.json": {
-      "path": "_document.rsc",
-      "contentType": "application/json"
+    "index.html": {
+      "path": "index",
+      "contentType": "text/html; charset=utf-8"
     },
-    "404.rsc.json": {
-      "path": "404.rsc",
-      "contentType": "application/json"
+    "join/index.html": {
+      "path": "join/index",
+      "contentType": "text/html; charset=utf-8"
     },
-    "_next/static/not-found.txt": {
-      "contentType": "text/plain"
+    "login/index.html": {
+      "path": "login/index",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "points/index.html": {
+      "path": "points/index",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "posts/index.html": {
+      "path": "posts/index",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "posts/new/index.html": {
+      "path": "posts/new/index",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "posts/view/index.html": {
+      "path": "posts/view/index",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "profile/index.html": {
+      "path": "profile/index",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "votes/index.html": {
+      "path": "votes/index",
+      "contentType": "text/html; charset=utf-8"
     }
   },
   "framework": {

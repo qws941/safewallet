@@ -2,10 +2,16 @@ name = "safework2-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+workers_dev = false
+
+routes = [
+  { pattern = "safework2.jclee.me/*", zone_name = "jclee.me" }
+]
 
 [vars]
 ENVIRONMENT = "production"
+REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
+REQUIRE_ATTENDANCE_FOR_POST = "false"
 
 # D1 Database
 [[d1_databases]]
@@ -37,6 +43,9 @@ bindings = [
 [[migrations]]
 tag = "v1"
 new_classes = ["RateLimiter"]
+
+[triggers]
+crons = ["0 0 1 * *", "0 3 * * SUN"]
 
 [env.dev]
 name = "safework2-api-dev"

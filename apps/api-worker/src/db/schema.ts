@@ -60,6 +60,18 @@ export const taskStatusEnum = ["OPEN", "IN_PROGRESS", "DONE"] as const;
 export const attendanceResultEnum = ["SUCCESS", "FAIL"] as const;
 export const attendanceSourceEnum = ["FAS", "MANUAL"] as const;
 export const voteCandidateSourceEnum = ["ADMIN", "AUTO"] as const;
+export const disputeStatusEnum = [
+  "OPEN",
+  "IN_REVIEW",
+  "RESOLVED",
+  "REJECTED",
+] as const;
+export const disputeTypeEnum = [
+  "REVIEW_APPEAL",
+  "POINT_DISPUTE",
+  "ATTENDANCE_DISPUTE",
+  "OTHER",
+] as const;
 
 // ============================================================================
 // TABLES
@@ -588,6 +600,53 @@ export const voteCandidates = sqliteTable(
   }),
 );
 
+export const disputes = sqliteTable(
+  "disputes",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type", { enum: disputeTypeEnum }).notNull(),
+    status: text("status", { enum: disputeStatusEnum })
+      .default("OPEN")
+      .notNull(),
+    refReviewId: text("ref_review_id").references(() => reviews.id, {
+      onDelete: "set null",
+    }),
+    refPointsLedgerId: text("ref_points_ledger_id").references(
+      () => pointsLedger.id,
+      { onDelete: "set null" },
+    ),
+    refAttendanceId: text("ref_attendance_id").references(() => attendance.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    resolvedById: text("resolved_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    resolutionNote: text("resolution_note"),
+    resolvedAt: integer("resolved_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteIdx: index("disputes_site_idx").on(table.siteId),
+    userIdx: index("disputes_user_idx").on(table.userId),
+    statusIdx: index("disputes_status_idx").on(table.status),
+  }),
+);
+
 // ============================================================================
 // RELATIONS
 // ============================================================================
@@ -608,6 +667,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   votesCandidacy: many(voteCandidates),
   approvalsGiven: many(manualApprovals, { relationName: "approvalAdmin" }),
   approvalsReceived: many(manualApprovals, { relationName: "approvalUser" }),
+  disputesFiled: many(disputes, { relationName: "disputeUser" }),
+  disputesResolved: many(disputes, { relationName: "disputeResolver" }),
 }));
 
 export const sitesRelations = relations(sites, ({ one, many }) => ({
@@ -619,6 +680,7 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
   accessPolicy: one(accessPolicies),
   manualApprovals: many(manualApprovals),
   votes: many(votes),
+  disputes: many(disputes),
   voteCandidates: many(voteCandidates),
 }));
 
@@ -757,3 +819,192 @@ export const voteCandidatesRelations = relations(voteCandidates, ({ one }) => ({
   site: one(sites, { fields: [voteCandidates.siteId], references: [sites.id] }),
   user: one(users, { fields: [voteCandidates.userId], references: [users.id] }),
 }));
+
+export const disputesRelations = relations(disputes, ({ one }) => ({
+  site: one(sites, { fields: [disputes.siteId], references: [sites.id] }),
+  user: one(users, {
+    fields: [disputes.userId],
+    references: [users.id],
+    relationName: "disputeUser",
+  }),
+  resolvedBy: one(users, {
+    fields: [disputes.resolvedById],
+    references: [users.id],
+    relationName: "disputeResolver",
+  }),
+  refReview: one(reviews, {
+    fields: [disputes.refReviewId],
+    references: [reviews.id],
+  }),
+  refPointsLedger: one(pointsLedger, {
+    fields: [disputes.refPointsLedgerId],
+    references: [pointsLedger.id],
+  }),
+  refAttendance: one(attendance, {
+    fields: [disputes.refAttendanceId],
+    references: [attendance.id],
+  }),
+}));
+
+// ============================================================================
+// NEW TABLES FOR REMAINING REQUIREMENTS
+// ============================================================================
+
+// QR Code History - Track previous join codes for invalidation
+export const joinCodeHistory = sqliteTable(
+  "join_code_history",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    joinCode: text("join_code").notNull(),
+    isActive: integer("is_active", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    createdById: text("created_by_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    invalidatedAt: integer("invalidated_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteIdx: index("join_code_history_site_idx").on(table.siteId),
+    codeIdx: index("join_code_history_code_idx").on(table.joinCode),
+  }),
+);
+
+// Device Registrations - Track device IDs for fraud prevention
+export const deviceRegistrations = sqliteTable(
+  "device_registrations",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deviceId: text("device_id").notNull(),
+    deviceInfo: text("device_info"),
+    firstSeenAt: integer("first_seen_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    isTrusted: integer("is_trusted", { mode: "boolean" })
+      .default(true)
+      .notNull(),
+    isBanned: integer("is_banned", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+  },
+  (table) => ({
+    userDeviceUnique: unique().on(table.userId, table.deviceId),
+    deviceIdx: index("device_registrations_device_idx").on(table.deviceId),
+    userIdx: index("device_registrations_user_idx").on(table.userId),
+  }),
+);
+
+// Point Policies - Configurable point rules per site
+export const pointPolicies = sqliteTable(
+  "point_policies",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    reasonCode: text("reason_code").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    defaultAmount: integer("default_amount").notNull(),
+    minAmount: integer("min_amount"),
+    maxAmount: integer("max_amount"),
+    dailyLimit: integer("daily_limit"),
+    monthlyLimit: integer("monthly_limit"),
+    isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteReasonUnique: unique().on(table.siteId, table.reasonCode),
+    siteIdx: index("point_policies_site_idx").on(table.siteId),
+  }),
+);
+
+// Push Subscriptions - Web Push notification subscriptions
+export const pushSubscriptions = sqliteTable(
+  "push_subscriptions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+  },
+  (table) => ({
+    userIdx: index("push_subscriptions_user_idx").on(table.userId),
+    endpointUnique: unique().on(table.endpoint),
+  }),
+);
+
+// ============================================================================
+// NEW RELATIONS
+// ============================================================================
+
+export const joinCodeHistoryRelations = relations(
+  joinCodeHistory,
+  ({ one }) => ({
+    site: one(sites, {
+      fields: [joinCodeHistory.siteId],
+      references: [sites.id],
+    }),
+    createdBy: one(users, {
+      fields: [joinCodeHistory.createdById],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const deviceRegistrationsRelations = relations(
+  deviceRegistrations,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [deviceRegistrations.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const pointPoliciesRelations = relations(pointPolicies, ({ one }) => ({
+  site: one(sites, { fields: [pointPolicies.siteId], references: [sites.id] }),
+}));
+
+export const pushSubscriptionsRelations = relations(
+  pushSubscriptions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [pushSubscriptions.userId],
+      references: [users.id],
+    }),
+  }),
+);

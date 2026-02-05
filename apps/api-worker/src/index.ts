@@ -15,6 +15,9 @@ import adminRoute from "./routes/admin";
 import pointsRoute from "./routes/points";
 import reviewsRoute from "./routes/reviews";
 import fasRoute from "./routes/fas";
+import disputesRoute from "./routes/disputes";
+import notificationsRoute from "./routes/notifications";
+import policiesRoute from "./routes/policies";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -52,6 +55,9 @@ api.route("/admin", adminRoute);
 api.route("/points", pointsRoute);
 api.route("/reviews", reviewsRoute);
 api.route("/fas", fasRoute);
+api.route("/disputes", disputesRoute);
+api.route("/notifications", notificationsRoute);
+api.route("/policies", policiesRoute);
 
 app.route("/api", api);
 
@@ -123,16 +129,46 @@ app.get("*", async (c) => {
 
 app.onError((err, c) => {
   console.error("Unhandled error:", err);
+
+  // Handle HTTPException properly (auth errors, validation errors, etc.)
+  if (err instanceof Error && "getResponse" in err) {
+    const httpErr = err as { status?: number; message: string };
+    const status = (httpErr.status || 500) as 401 | 403 | 500;
+    return c.json(
+      {
+        success: false,
+        error: {
+          code:
+            status === 401
+              ? "UNAUTHORIZED"
+              : status === 403
+                ? "FORBIDDEN"
+                : "ERROR",
+          message: httpErr.message,
+        },
+        timestamp: new Date().toISOString(),
+      },
+      status,
+    );
+  }
+
   return c.json(
     {
-      error: "Internal Server Error",
-      message:
-        c.env.ENVIRONMENT === "development" ? err.message : "An error occurred",
+      success: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message:
+          c.env.ENVIRONMENT === "development"
+            ? err.message
+            : "An error occurred",
+      },
+      timestamp: new Date().toISOString(),
     },
     500,
   );
 });
 
 export { RateLimiter } from "./durable-objects/RateLimiter";
+export { scheduled } from "./scheduled";
 
 export default app;

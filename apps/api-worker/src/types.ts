@@ -7,8 +7,14 @@ export interface Env {
   HMAC_SECRET: string;
   ENCRYPTION_KEY: string;
   REQUIRE_ATTENDANCE_FOR_LOGIN: string;
+  REQUIRE_ATTENDANCE_FOR_POST: string;
   ENVIRONMENT: string;
   RATE_LIMITER?: DurableObjectNamespace;
+  SMS_API_KEY?: string;
+  SMS_API_SECRET?: string;
+  SMS_SENDER?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
 }
 
 export interface User {

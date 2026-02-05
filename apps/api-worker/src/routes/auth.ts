@@ -2,7 +2,13 @@ import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
-import { users, attendance, siteMemberships, auditLogs } from "../db/schema";
+import {
+  users,
+  attendance,
+  siteMemberships,
+  auditLogs,
+  deviceRegistrations,
+} from "../db/schema";
 import { hmac, decrypt, encrypt } from "../lib/crypto";
 import { signJwt } from "../lib/jwt";
 import { success, error } from "../lib/response";
@@ -327,6 +333,31 @@ auth.post("/register", async (c) => {
       Date.now(),
       deviceCheck?.recent,
     );
+
+    // Also store in D1 for persistent tracking
+    const existingDevice = await db
+      .select()
+      .from(deviceRegistrations)
+      .where(
+        and(
+          eq(deviceRegistrations.userId, newUser.id),
+          eq(deviceRegistrations.deviceId, deviceId),
+        ),
+      )
+      .get();
+
+    if (!existingDevice) {
+      await db.insert(deviceRegistrations).values({
+        userId: newUser.id,
+        deviceId,
+        deviceInfo: c.req.header("User-Agent") || null,
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+        isTrusted: true,
+        isBanned: false,
+      });
+    }
+
     await db.insert(auditLogs).values({
       action: "DEVICE_REGISTRATION",
       actorId: newUser.id,
@@ -547,6 +578,37 @@ auth.post("/login", async (c) => {
     .update(users)
     .set({ refreshToken, updatedAt: new Date() })
     .where(eq(users.id, user.id));
+
+  const loginDeviceId = resolveDeviceId(c);
+  if (loginDeviceId) {
+    const existingDevice = await db
+      .select()
+      .from(deviceRegistrations)
+      .where(
+        and(
+          eq(deviceRegistrations.userId, user.id),
+          eq(deviceRegistrations.deviceId, loginDeviceId),
+        ),
+      )
+      .get();
+
+    if (existingDevice) {
+      await db
+        .update(deviceRegistrations)
+        .set({ lastSeenAt: new Date() })
+        .where(eq(deviceRegistrations.id, existingDevice.id));
+    } else {
+      await db.insert(deviceRegistrations).values({
+        userId: user.id,
+        deviceId: loginDeviceId,
+        deviceInfo: c.req.header("User-Agent") || null,
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+        isTrusted: true,
+        isBanned: false,
+      });
+    }
+  }
 
   await c.env.KV.delete(attemptKey);
 
