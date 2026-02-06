@@ -58,6 +58,9 @@ jobs:
       - name: Generate Prisma Client
         run: npm run db:generate
 
+      - name: Build types package
+        run: npm run build --workspace=packages/types
+
       - name: Build ${{ matrix.app }}
         run: npm run build --workspace=apps/${{ matrix.app }}
 
