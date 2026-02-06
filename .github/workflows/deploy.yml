@@ -108,6 +108,10 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: "/api"
 
+      - name: Build Admin App for Cloudflare Pages
+        working-directory: apps/admin-app
+        run: npm run pages:build
+
       - name: Upload Worker App artifact
         uses: actions/upload-artifact@v4
         with:
@@ -119,7 +123,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: admin-app-out
-          path: apps/admin-app/out
+          path: apps/admin-app/.vercel/output/static
           retention-days: 1
 
   # Deploy API Worker (runs in parallel with other deploys)
@@ -142,7 +146,7 @@ jobs:
         run: npm run db:generate
 
       - name: Build packages
-        run: npm run build --workspace=packages/types --workspace=packages/database
+        run: npm run build --workspace=packages/types
 
       - name: Deploy API Worker
         working-directory: apps/api-worker
@@ -172,7 +176,7 @@ jobs:
             file_path="$1"
             key="${file_path#out/}"
             content_type="$(file --mime-type -b "$file_path")"
-            wrangler r2 object put "safework2-static/$key" --file "$file_path" --content-type "$content_type"
+            wrangler r2 object put "safework2-static/$key" --file "$file_path" --content-type "$content_type" --remote
           ' sh {}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
