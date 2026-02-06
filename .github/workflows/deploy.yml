@@ -31,7 +31,7 @@ jobs:
               return;
             }
 
-            const maxAttempts = 30; // 30 * 10s = 5 minutes max wait
+            const maxAttempts = 60; // 60 * 10s = 10 minutes max wait
             const delayMs = 10000; // 10 seconds between checks
 
             for (let attempt = 1; attempt <= maxAttempts; attempt++) {
