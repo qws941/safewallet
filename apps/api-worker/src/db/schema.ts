@@ -673,6 +673,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   approvalsReceived: many(manualApprovals, { relationName: "approvalUser" }),
   disputesFiled: many(disputes, { relationName: "disputeUser" }),
   disputesResolved: many(disputes, { relationName: "disputeResolver" }),
+  quizAttempts: many(quizAttempts),
+  statutoryTrainings: many(statutoryTrainings, {
+    relationName: "trainingUser",
+  }),
+  statutoryTrainingsCreated: many(statutoryTrainings, {
+    relationName: "trainingCreator",
+  }),
+  tbmRecordsLed: many(tbmRecords),
+  tbmAttendances: many(tbmAttendees),
 }));
 
 export const sitesRelations = relations(sites, ({ one, many }) => ({
@@ -686,6 +695,11 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
   votes: many(votes),
   disputes: many(disputes),
   voteCandidates: many(voteCandidates),
+  educationContents: many(educationContents),
+  quizzes: many(quizzes),
+  quizAttempts: many(quizAttempts),
+  statutoryTrainings: many(statutoryTrainings),
+  tbmRecords: many(tbmRecords),
 }));
 
 export const siteMembershipsRelations = relations(
@@ -1012,3 +1026,373 @@ export const pushSubscriptionsRelations = relations(
     }),
   }),
 );
+
+// ============================================================================
+// SAFETY EDUCATION (안전교육)
+// ============================================================================
+
+export const educationContentTypeEnum = [
+  "VIDEO",
+  "IMAGE",
+  "TEXT",
+  "DOCUMENT",
+] as const;
+export const quizStatusEnum = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+export const statutoryTrainingTypeEnum = [
+  "NEW_WORKER",
+  "SPECIAL",
+  "REGULAR",
+  "CHANGE_OF_WORK",
+] as const;
+export const trainingCompletionStatusEnum = [
+  "SCHEDULED",
+  "COMPLETED",
+  "EXPIRED",
+] as const;
+
+// Education Content - 교육 콘텐츠 (비디오/이미지/텍스트/문서)
+export const educationContents = sqliteTable(
+  "education_contents",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    contentType: text("content_type", {
+      enum: educationContentTypeEnum,
+    }).notNull(),
+    contentUrl: text("content_url"),
+    thumbnailUrl: text("thumbnail_url"),
+    durationMinutes: integer("duration_minutes"),
+    isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+    createdById: text("created_by_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteIdx: index("education_contents_site_idx").on(table.siteId),
+    siteActiveIdx: index("education_contents_site_active_idx").on(
+      table.siteId,
+      table.isActive,
+    ),
+  }),
+);
+
+// Quizzes - 퀴즈 (콘텐츠와 연결 가능)
+export const quizzes = sqliteTable(
+  "quizzes",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    contentId: text("content_id").references(() => educationContents.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    description: text("description"),
+    status: text("status", { enum: quizStatusEnum }).default("DRAFT").notNull(),
+    pointsReward: integer("points_reward").default(0).notNull(),
+    passingScore: integer("passing_score").default(70).notNull(),
+    timeLimitMinutes: integer("time_limit_minutes"),
+    createdById: text("created_by_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteIdx: index("quizzes_site_idx").on(table.siteId),
+    siteStatusIdx: index("quizzes_site_status_idx").on(
+      table.siteId,
+      table.status,
+    ),
+    contentIdx: index("quizzes_content_idx").on(table.contentId),
+  }),
+);
+
+// Quiz Questions - 퀴즈 문항
+export const quizQuestions = sqliteTable(
+  "quiz_questions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    quizId: text("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    options: text("options", { mode: "json" }).notNull().$type<string[]>(),
+    correctAnswer: integer("correct_answer").notNull(),
+    explanation: text("explanation"),
+    orderIndex: integer("order_index").default(0).notNull(),
+  },
+  (table) => ({
+    quizIdx: index("quiz_questions_quiz_idx").on(table.quizId),
+    quizOrderIdx: index("quiz_questions_quiz_order_idx").on(
+      table.quizId,
+      table.orderIndex,
+    ),
+  }),
+);
+
+// Quiz Attempts - 퀴즈 응시 기록
+export const quizAttempts = sqliteTable(
+  "quiz_attempts",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    quizId: text("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    answers: text("answers", { mode: "json" }).$type<number[]>(),
+    score: integer("score").default(0).notNull(),
+    passed: integer("passed", { mode: "boolean" }).default(false).notNull(),
+    pointsAwarded: integer("points_awarded").default(0).notNull(),
+    startedAt: integer("started_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    completedAt: integer("completed_at", { mode: "timestamp" }),
+  },
+  (table) => ({
+    quizUserIdx: index("quiz_attempts_quiz_user_idx").on(
+      table.quizId,
+      table.userId,
+    ),
+    siteIdx: index("quiz_attempts_site_idx").on(table.siteId),
+    userIdx: index("quiz_attempts_user_idx").on(table.userId),
+  }),
+);
+
+// Statutory Trainings - 법정 안전교육 이수 기록
+export const statutoryTrainings = sqliteTable(
+  "statutory_trainings",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    trainingType: text("training_type", {
+      enum: statutoryTrainingTypeEnum,
+    }).notNull(),
+    trainingName: text("training_name").notNull(),
+    trainingDate: text("training_date").notNull(),
+    expirationDate: text("expiration_date"),
+    provider: text("provider"),
+    certificateUrl: text("certificate_url"),
+    hoursCompleted: integer("hours_completed").default(0).notNull(),
+    status: text("status", { enum: trainingCompletionStatusEnum })
+      .default("SCHEDULED")
+      .notNull(),
+    createdById: text("created_by_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    notes: text("notes"),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteUserIdx: index("statutory_trainings_site_user_idx").on(
+      table.siteId,
+      table.userId,
+    ),
+    siteTypeIdx: index("statutory_trainings_site_type_idx").on(
+      table.siteId,
+      table.trainingType,
+    ),
+    userIdx: index("statutory_trainings_user_idx").on(table.userId),
+    statusIdx: index("statutory_trainings_status_idx").on(table.status),
+    expirationIdx: index("statutory_trainings_expiration_idx").on(
+      table.expirationDate,
+    ),
+  }),
+);
+
+// TBM Records - TBM(Toolbox Meeting) 교육 기록
+export const tbmRecords = sqliteTable(
+  "tbm_records",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    topic: text("topic").notNull(),
+    content: text("content"),
+    leaderId: text("leader_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weatherCondition: text("weather_condition"),
+    specialNotes: text("special_notes"),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteDateIdx: index("tbm_records_site_date_idx").on(
+      table.siteId,
+      table.date,
+    ),
+    siteIdx: index("tbm_records_site_idx").on(table.siteId),
+    leaderIdx: index("tbm_records_leader_idx").on(table.leaderId),
+  }),
+);
+
+// TBM Attendees - TBM 참석자 기록
+export const tbmAttendees = sqliteTable(
+  "tbm_attendees",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tbmRecordId: text("tbm_record_id")
+      .notNull()
+      .references(() => tbmRecords.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    attendedAt: integer("attended_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    tbmUserUnique: unique().on(table.tbmRecordId, table.userId),
+    tbmRecordIdx: index("tbm_attendees_tbm_record_idx").on(table.tbmRecordId),
+    userIdx: index("tbm_attendees_user_idx").on(table.userId),
+  }),
+);
+
+// ============================================================================
+// SAFETY EDUCATION RELATIONS
+// ============================================================================
+
+export const educationContentsRelations = relations(
+  educationContents,
+  ({ one, many }) => ({
+    site: one(sites, {
+      fields: [educationContents.siteId],
+      references: [sites.id],
+    }),
+    createdBy: one(users, {
+      fields: [educationContents.createdById],
+      references: [users.id],
+    }),
+    quizzes: many(quizzes),
+  }),
+);
+
+export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
+  site: one(sites, { fields: [quizzes.siteId], references: [sites.id] }),
+  content: one(educationContents, {
+    fields: [quizzes.contentId],
+    references: [educationContents.id],
+  }),
+  createdBy: one(users, {
+    fields: [quizzes.createdById],
+    references: [users.id],
+  }),
+  questions: many(quizQuestions),
+  attempts: many(quizAttempts),
+}));
+
+export const quizQuestionsRelations = relations(quizQuestions, ({ one }) => ({
+  quiz: one(quizzes, {
+    fields: [quizQuestions.quizId],
+    references: [quizzes.id],
+  }),
+}));
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
+  quiz: one(quizzes, {
+    fields: [quizAttempts.quizId],
+    references: [quizzes.id],
+  }),
+  user: one(users, {
+    fields: [quizAttempts.userId],
+    references: [users.id],
+  }),
+  site: one(sites, {
+    fields: [quizAttempts.siteId],
+    references: [sites.id],
+  }),
+}));
+
+export const statutoryTrainingsRelations = relations(
+  statutoryTrainings,
+  ({ one }) => ({
+    site: one(sites, {
+      fields: [statutoryTrainings.siteId],
+      references: [sites.id],
+    }),
+    user: one(users, {
+      fields: [statutoryTrainings.userId],
+      references: [users.id],
+      relationName: "trainingUser",
+    }),
+    createdBy: one(users, {
+      fields: [statutoryTrainings.createdById],
+      references: [users.id],
+      relationName: "trainingCreator",
+    }),
+  }),
+);
+
+export const tbmRecordsRelations = relations(tbmRecords, ({ one, many }) => ({
+  site: one(sites, {
+    fields: [tbmRecords.siteId],
+    references: [sites.id],
+  }),
+  leader: one(users, {
+    fields: [tbmRecords.leaderId],
+    references: [users.id],
+  }),
+  attendees: many(tbmAttendees),
+}));
+
+export const tbmAttendeesRelations = relations(tbmAttendees, ({ one }) => ({
+  tbmRecord: one(tbmRecords, {
+    fields: [tbmAttendees.tbmRecordId],
+    references: [tbmRecords.id],
+  }),
+  user: one(users, {
+    fields: [tbmAttendees.userId],
+    references: [users.id],
+  }),
+}));

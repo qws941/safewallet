@@ -77,3 +77,31 @@ export enum ApprovalStatus {
   APPROVED = "APPROVED",
   REJECTED = "REJECTED",
 }
+
+// === Safety Education (안전교육) ===
+
+export enum EducationContentType {
+  VIDEO = "VIDEO",
+  IMAGE = "IMAGE",
+  TEXT = "TEXT",
+  DOCUMENT = "DOCUMENT",
+}
+
+export enum QuizStatus {
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+  ARCHIVED = "ARCHIVED",
+}
+
+export enum StatutoryTrainingType {
+  NEW_WORKER = "NEW_WORKER",
+  SPECIAL = "SPECIAL",
+  REGULAR = "REGULAR",
+  CHANGE_OF_WORK = "CHANGE_OF_WORK",
+}
+
+export enum TrainingCompletionStatus {
+  SCHEDULED = "SCHEDULED",
+  COMPLETED = "COMPLETED",
+  EXPIRED = "EXPIRED",
+}
