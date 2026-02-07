@@ -21,31 +21,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-      - name: Cache npm dependencies
+      - name: Cache Turbo
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-npm-
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Generate Prisma client
-        run: npm run db:generate
-
-      - name: Build packages
-        run: npm run build --filter=@safework2/types --filter=@safework2/database
+      - name: Build all packages
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: "/api"
 
       - name: Deploy API Worker (staging)
         working-directory: apps/api-worker
         run: npx wrangler deploy --env dev
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Build Worker App for Pages
+        working-directory: apps/worker-app
+        run: npm run pages:build
+
+      - name: Deploy Worker App (staging)
+        working-directory: apps/worker-app
+        run: npx wrangler pages deploy .vercel/output/static --project-name=safework2-worker --branch=staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Build Admin App for Pages
+        working-directory: apps/admin-app
+        run: npm run pages:build
+
+      - name: Deploy Admin App (staging)
+        working-directory: apps/admin-app
+        run: npx wrangler pages deploy .vercel/output/static --project-name=safework2-admin --branch=staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

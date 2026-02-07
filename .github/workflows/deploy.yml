@@ -1,95 +1,38 @@
 name: Deploy SafeWork2
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches: [main]
+    types: [completed]
   workflow_dispatch:
 
-# Require CI to pass before deploying
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-production
   cancel-in-progress: false
 
 env:
   NODE_VERSION: "20"
 
 jobs:
-  # Wait for CI workflow to complete successfully
-  ci:
-    name: Wait for CI
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-    steps:
-      - name: Wait for CI to Complete
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // For workflow_dispatch, skip CI check
-            if (context.eventName === 'workflow_dispatch') {
-              console.log('Manual dispatch - skipping CI check');
-              return;
-            }
-
-            const maxAttempts = 60; // 60 * 10s = 10 minutes max wait
-            const delayMs = 10000; // 10 seconds between checks
-
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              console.log(`Attempt ${attempt}/${maxAttempts}: Checking CI status...`);
-              
-              const runs = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'ci.yml',
-                head_sha: context.sha,
-                per_page: 1
-              });
-
-              if (runs.data.workflow_runs.length === 0) {
-                if (attempt === maxAttempts) {
-                  core.setFailed('No CI workflow run found for this commit');
-                  return;
-                }
-                console.log('No CI run found yet, waiting...');
-                await new Promise(r => setTimeout(r, delayMs));
-                continue;
-              }
-
-              const run = runs.data.workflow_runs[0];
-              console.log(`CI run status: ${run.status}, conclusion: ${run.conclusion}`);
-
-              if (run.status === 'completed') {
-                if (run.conclusion === 'success') {
-                  console.log('CI passed successfully!');
-                  return;
-                } else {
-                  core.setFailed(`CI failed with conclusion: ${run.conclusion}`);
-                  return;
-                }
-              }
-
-              // Still in progress, wait and retry
-              if (attempt < maxAttempts) {
-                await new Promise(r => setTimeout(r, delayMs));
-              }
-            }
-
-            core.setFailed('Timeout waiting for CI workflow to complete');
-
-  # Build all apps (shared job, upload artifacts)
   build:
     name: Build All Apps
     runs-on: ubuntu-latest
-    needs: ci
+    # Skip if CI failed (workflow_dispatch always runs)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Cache Turbo build
+      - name: Cache Turbo
         uses: actions/cache@v4
         with:
           path: .turbo
@@ -97,16 +40,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma Client
-        run: npm run db:generate
+      - run: npm ci
 
       - name: Build all packages
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: "/api"
+
+      - name: Build Worker App for Cloudflare Pages
+        working-directory: apps/worker-app
+        run: npm run pages:build
 
       - name: Build Admin App for Cloudflare Pages
         working-directory: apps/admin-app
@@ -115,85 +58,73 @@ jobs:
       - name: Upload Worker App artifact
         uses: actions/upload-artifact@v4
         with:
-          name: worker-app-out
-          path: apps/worker-app/out
+          name: worker-app-pages
+          path: apps/worker-app/.vercel/output/static
           retention-days: 1
 
       - name: Upload Admin App artifact
         uses: actions/upload-artifact@v4
         with:
-          name: admin-app-out
+          name: admin-app-pages
           path: apps/admin-app/.vercel/output/static
           retention-days: 1
 
-  # Deploy API Worker (runs in parallel with other deploys)
   deploy-api-worker:
     name: Deploy API Worker
     runs-on: ubuntu-latest
     needs: build
+    environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma Client
-        run: npm run db:generate
-
-      - name: Build packages
-        run: npm run build --workspace=packages/types
+      - run: npm ci
+      - run: npm run build --workspace=packages/types
 
       - name: Deploy API Worker
         working-directory: apps/api-worker
         run: npx wrangler deploy
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  # Deploy Worker App to R2 (runs in parallel)
   deploy-worker-app:
-    name: Deploy Worker App to R2
+    name: Deploy Worker App to Pages
     runs-on: ubuntu-latest
     needs: build
+    environment: production
     steps:
       - name: Download Worker App artifact
         uses: actions/download-artifact@v4
         with:
-          name: worker-app-out
+          name: worker-app-pages
           path: out
 
       - name: Install wrangler
         run: npm install -g wrangler
 
-      - name: Upload static files to R2 (parallel)
-        run: |
-          find out -type f -print0 | xargs -0 -P 10 -I {} sh -c '
-            file_path="$1"
-            key="${file_path#out/}"
-            content_type="$(file --mime-type -b "$file_path")"
-            wrangler r2 object put "safework2-static/$key" --file "$file_path" --content-type "$content_type" --remote
-          ' sh {}
+      - name: Deploy to Cloudflare Pages
+        run: wrangler pages deploy out --project-name=safework2-worker --branch=main
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  # Deploy Admin App to Cloudflare Pages (runs in parallel)
   deploy-admin-app:
     name: Deploy Admin App to Pages
     runs-on: ubuntu-latest
     needs: build
+    environment: production
     steps:
       - name: Download Admin App artifact
         uses: actions/download-artifact@v4
         with:
-          name: admin-app-out
+          name: admin-app-pages
           path: out
 
       - name: Install wrangler
@@ -202,11 +133,9 @@ jobs:
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy out --project-name=safework2-admin --branch=main
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  # Cleanup artifacts after all deploys complete
   cleanup:
     name: Cleanup Artifacts
     runs-on: ubuntu-latest
@@ -217,5 +146,5 @@ jobs:
         uses: geekyeggo/delete-artifact@v4
         with:
           name: |
-            worker-app-out
-            admin-app-out
+            worker-app-pages
+            admin-app-pages

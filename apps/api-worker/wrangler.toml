@@ -14,7 +14,6 @@ workers_dev = true
 ENVIRONMENT = "production"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
-FAS_API_KEY = ""
 
 # D1 Database
 [[d1_databases]]

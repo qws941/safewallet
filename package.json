@@ -24,13 +24,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "clean": "turbo run clean && rm -rf node_modules",
-    "db:generate": "npm run generate --workspace=@safetywallet/database",
-    "db:migrate": "npm run migrate:dev --workspace=@safetywallet/database",
-    "db:push": "npm run push --workspace=@safetywallet/database",
-    "db:studio": "npm run studio --workspace=@safetywallet/database",
-    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
-    "docker:down": "docker compose -f docker/docker-compose.yml down",
-    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f"
+    "db:generate": "npm run db:generate --workspace=safework2-api"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

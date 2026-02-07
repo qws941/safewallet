@@ -12,6 +12,7 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "echo 'Skipping next lint due to zod/eslint-config-next conflict - using typecheck'",
+    "typecheck": "tsc --noEmit",
     "pages:build": "npx @cloudflare/next-on-pages",
     "pages:preview": "npx wrangler pages dev .vercel/output/static",
     "pages:deploy": "npx wrangler pages deploy .vercel/output/static --project-name=safework2-admin"
