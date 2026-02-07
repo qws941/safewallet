@@ -15,75 +15,114 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiFetch } from "@/lib/api";
 import type { ApiResponse, AuthResponseDto } from "@safetywallet/types";
 
+type LoginMethod = "acetime" | "phone";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  USER_NOT_FOUND: "등록되지 않은 사용자입니다. 현장 관리자에게 문의하세요.",
+  NAME_MISMATCH: "이름이 일치하지 않습니다. 다시 확인해주세요.",
+  ATTENDANCE_NOT_VERIFIED:
+    "오늘 출근 기록이 없습니다. 출입 후 다시 시도하세요.",
+  ACCOUNT_LOCKED: "계정이 일시 잠금되었습니다. 30분 후 다시 시도하세요.",
+  RATE_LIMIT_EXCEEDED: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+};
+
+function parseErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    try {
+      const parsed = JSON.parse(err.message);
+      const code = parsed?.error?.code;
+      if (code && ERROR_MESSAGES[code]) {
+        return ERROR_MESSAGES[code];
+      }
+      if (parsed?.error?.message) {
+        return parsed.error.message;
+      }
+    } catch {
+      return err.message || "로그인에 실패했습니다.";
+    }
+  }
+  return "로그인에 실패했습니다.";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [dob, setDob] = useState("");
+  const [method, setMethod] = useState<LoginMethod>("acetime");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const [employeeCode, setEmployeeCode] = useState("");
+  const [aceTimeName, setAceTimeName] = useState("");
+
+  const [phone, setPhone] = useState("");
+  const [phoneName, setPhoneName] = useState("");
+  const [dob, setDob] = useState("");
+
+  const handleAceTimeLogin = async () => {
+    const response = await apiFetch<ApiResponse<AuthResponseDto>>(
+      "/auth/acetime-login",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          employeeCode: employeeCode.trim(),
+          name: aceTimeName.trim(),
+        }),
+        skipAuth: true,
+      },
+    );
+    return response.data;
+  };
+
+  const handlePhoneLogin = async () => {
+    const response = await apiFetch<ApiResponse<AuthResponseDto>>(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name: phoneName.trim(),
+          phone: phone.trim(),
+          dob: dob.trim(),
+        }),
+        skipAuth: true,
+      },
+    );
+    return response.data;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      // Convert 6-digit DOB (YYMMDD) to 8-digit (YYYYMMDD)
-      const dob6 = dob.replace(/[^0-9]/g, "");
-      const year2 = parseInt(dob6.slice(0, 2), 10);
-      const fullYear =
-        year2 >= 0 && year2 <= 30
-          ? `20${dob6.slice(0, 2)}`
-          : `19${dob6.slice(0, 2)}`;
-      const dob8 = `${fullYear}${dob6.slice(2)}`;
+      const data =
+        method === "acetime"
+          ? await handleAceTimeLogin()
+          : await handlePhoneLogin();
 
-      const response = await apiFetch<ApiResponse<AuthResponseDto>>(
-        "/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            name: name.trim(),
-            phone: phone.replace(/[^0-9]/g, ""),
-            dob: dob8,
-          }),
-          skipAuth: true,
-        },
-      );
-
-      const { accessToken, refreshToken, user } = response.data;
-      login(user, accessToken, refreshToken);
+      login(data.user, data.accessToken, data.refreshToken);
       router.replace("/join");
     } catch (err) {
-      let errorMessage = "로그인에 실패했습니다.";
-      if (err instanceof Error) {
-        try {
-          const parsed = JSON.parse(err.message);
-          const code = parsed?.error?.code;
-          if (code === "USER_NOT_FOUND") {
-            errorMessage =
-              "등록되지 않은 사용자입니다. 현장 관리자에게 문의하세요.";
-          } else if (code === "ATTENDANCE_NOT_VERIFIED") {
-            errorMessage =
-              "오늘 출근 인증이 필요합니다. QR 코드를 스캔해주세요.";
-          } else if (parsed?.error?.message) {
-            errorMessage = parsed.error.message;
-          }
-        } catch {
-          errorMessage = err.message || "로그인에 실패했습니다.";
-        }
-      }
-      setError(errorMessage);
+      setError(parseErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const isFormValid =
-    name.trim().length > 0 &&
-    phone.replace(/[^0-9]/g, "").length >= 10 &&
-    dob.replace(/[^0-9]/g, "").length === 6;
+  const isAceTimeValid =
+    employeeCode.trim().length > 0 && aceTimeName.trim().length > 0;
+  const isPhoneValid =
+    phone.trim().length > 0 &&
+    phoneName.trim().length > 0 &&
+    dob.trim().length > 0;
+  const isFormValid = method === "acetime" ? isAceTimeValid : isPhoneValid;
+
+  const switchMethod = (newMethod: LoginMethod) => {
+    if (newMethod !== method) {
+      setMethod(newMethod);
+      setError("");
+    }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50">
@@ -93,54 +132,112 @@ export default function LoginPage() {
           <CardDescription>본인 확인을 위해 정보를 입력하세요</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">
-                이름
-              </label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="홍길동"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={loading}
-                autoComplete="name"
-              />
-            </div>
+          <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => switchMethod("acetime")}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                method === "acetime"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              사번 로그인
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMethod("phone")}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                method === "phone"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              전화번호 로그인
+            </button>
+          </div>
 
-            <div className="space-y-2">
-              <label htmlFor="phone" className="text-sm font-medium">
-                휴대폰 번호
-              </label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="010-0000-0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={loading}
-                autoComplete="tel"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="dob" className="text-sm font-medium">
-                생년월일 (6자리)
-              </label>
-              <Input
-                id="dob"
-                type="text"
-                inputMode="numeric"
-                placeholder="YYMMDD (예: 850101)"
-                value={dob}
-                onChange={(e) =>
-                  setDob(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))
-                }
-                disabled={loading}
-                maxLength={6}
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {method === "acetime" ? (
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="employeeCode" className="text-sm font-medium">
+                    사번
+                  </label>
+                  <Input
+                    id="employeeCode"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="사번을 입력하세요"
+                    value={employeeCode}
+                    onChange={(e) => setEmployeeCode(e.target.value)}
+                    disabled={loading}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="aceTimeName" className="text-sm font-medium">
+                    이름
+                  </label>
+                  <Input
+                    id="aceTimeName"
+                    type="text"
+                    placeholder="홍길동"
+                    value={aceTimeName}
+                    onChange={(e) => setAceTimeName(e.target.value)}
+                    disabled={loading}
+                    autoComplete="name"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="phone" className="text-sm font-medium">
+                    전화번호
+                  </label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="010-1234-5678"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    disabled={loading}
+                    autoComplete="tel"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="phoneName" className="text-sm font-medium">
+                    이름
+                  </label>
+                  <Input
+                    id="phoneName"
+                    type="text"
+                    placeholder="홍길동"
+                    value={phoneName}
+                    onChange={(e) => setPhoneName(e.target.value)}
+                    disabled={loading}
+                    autoComplete="name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="dob" className="text-sm font-medium">
+                    생년월일
+                  </label>
+                  <Input
+                    id="dob"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="19900101"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    disabled={loading}
+                    autoComplete="bday"
+                  />
+                </div>
+              </>
+            )}
 
             {error && (
               <p className="text-sm text-destructive text-center">{error}</p>
@@ -155,9 +252,19 @@ export default function LoginPage() {
             </Button>
 
             <p className="text-xs text-muted-foreground text-center mt-4">
-              FAS 안면인식 시스템에 등록된 정보로 로그인합니다.
-              <br />
-              등록되지 않은 경우 현장 관리자에게 문의하세요.
+              {method === "acetime" ? (
+                <>
+                  출입관리 시스템에 등록된 사번과 이름으로 로그인합니다.
+                  <br />
+                  등록되지 않은 경우 현장 관리자에게 문의하세요.
+                </>
+              ) : (
+                <>
+                  등록된 전화번호, 이름, 생년월일로 로그인합니다.
+                  <br />
+                  최초 이용 시 출근 기록이 필요할 수 있습니다.
+                </>
+              )}
             </p>
           </form>
         </CardContent>
