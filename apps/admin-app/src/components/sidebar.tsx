@@ -17,6 +17,7 @@ import {
   Trophy,
   CheckSquare,
   Clock,
+  GraduationCap,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/approvals", label: "승인 관리", icon: CheckSquare },
   { href: "/actions", label: "조치 현황", icon: ClipboardList },
   { href: "/announcements", label: "공지사항", icon: Megaphone },
+  { href: "/education", label: "안전교육", icon: GraduationCap },
   { href: "/votes/candidates", label: "투표 후보 관리", icon: Trophy },
   { href: "/settings", label: "설정", icon: Settings },
   { href: "/audit", label: "감사 로그", icon: ScrollText },
