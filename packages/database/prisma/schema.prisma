@@ -130,6 +130,11 @@ model User {
   votesCandidacy   VoteCandidate[]
   approvalsGiven   ManualApproval[] @relation("ApprovalAdmin")
   approvalsReceived ManualApproval[] @relation("ApprovalUser")
+  quizAttempts           QuizAttempt[]
+  statutoryTrainings     StatutoryTraining[] @relation("TrainingUser")
+  statutoryTrainingsCreated StatutoryTraining[] @relation("TrainingCreator")
+  tbmRecordsLed          TbmRecord[]
+  tbmAttendances         TbmAttendee[]
 
   @@index([phoneHash, dobHash])
   @@index([externalSystem, externalWorkerId])
@@ -153,8 +158,13 @@ model Site {
   attendances     Attendance[]
   accessPolicy    AccessPolicy?
   manualApprovals ManualApproval[]
-  votes           Vote[]
-  voteCandidates  VoteCandidate[]
+  votes              Vote[]
+  voteCandidates     VoteCandidate[]
+  educationContents  EducationContent[]
+  quizzes            Quiz[]
+  quizAttempts       QuizAttempt[]
+  statutoryTrainings StatutoryTraining[]
+  tbmRecords         TbmRecord[]
 
   @@map("sites")
 }
@@ -434,4 +444,171 @@ model VoteCandidate {
   @@unique([siteId, month, userId])
   @@index([siteId, month])
   @@map("vote_candidates")
+}
+
+// === Safety Education (안전교육) ===
+
+enum EducationContentType {
+  VIDEO
+  IMAGE
+  TEXT
+  DOCUMENT
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum StatutoryTrainingType {
+  NEW_WORKER
+  SPECIAL
+  REGULAR
+  CHANGE_OF_WORK
+}
+
+enum TrainingCompletionStatus {
+  SCHEDULED
+  COMPLETED
+  EXPIRED
+}
+
+model EducationContent {
+  id          String               @id @default(cuid())
+  siteId      String               @map("site_id")
+  title       String
+  description String?
+  contentType EducationContentType @map("content_type")
+  contentUrl  String?              @map("content_url")
+  contentBody String?              @map("content_body")
+  sortOrder   Int                  @default(0) @map("sort_order")
+  isActive    Boolean              @default(true) @map("is_active")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  site    Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  quizzes Quiz[]
+
+  @@index([siteId, isActive])
+  @@map("education_contents")
+}
+
+model Quiz {
+  id          String     @id @default(cuid())
+  siteId      String     @map("site_id")
+  contentId   String?    @map("content_id")
+  title       String
+  description String?
+  status      QuizStatus @default(DRAFT)
+  passScore   Int        @default(70) @map("pass_score")
+  pointsReward Int       @default(0) @map("points_reward")
+  timeLimitSec Int?      @map("time_limit_sec")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  site      Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  content   EducationContent? @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([siteId, status])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String @id @default(cuid())
+  quizId        String @map("quiz_id")
+  questionText  String @map("question_text")
+  options       String // JSON array of option strings
+  correctIndex  Int    @map("correct_index")
+  explanation   String?
+  sortOrder     Int    @default(0) @map("sort_order")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String   @map("quiz_id")
+  userId      String   @map("user_id")
+  siteId      String   @map("site_id")
+  score       Int
+  passed      Boolean
+  answers     String   // JSON array of selected indexes
+  startedAt   DateTime @map("started_at")
+  completedAt DateTime @default(now()) @map("completed_at")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, userId])
+  @@index([siteId, completedAt])
+  @@map("quiz_attempts")
+}
+
+model StatutoryTraining {
+  id             String                   @id @default(cuid())
+  siteId         String                   @map("site_id")
+  userId         String                   @map("user_id")
+  trainingType   StatutoryTrainingType    @map("training_type")
+  trainingName   String                   @map("training_name")
+  trainingHours  Float                    @map("training_hours")
+  scheduledDate  DateTime                 @map("scheduled_date")
+  completedDate  DateTime?                @map("completed_date")
+  expiryDate     DateTime?                @map("expiry_date")
+  status         TrainingCompletionStatus @default(SCHEDULED)
+  certificateUrl String?                  @map("certificate_url")
+  provider       String?
+  notes          String?
+  createdById    String                   @map("created_by_id")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  site      Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user      User @relation("TrainingUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("TrainingCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([siteId, trainingType])
+  @@index([userId, status])
+  @@index([siteId, scheduledDate])
+  @@map("statutory_trainings")
+}
+
+model TbmRecord {
+  id           String   @id @default(cuid())
+  siteId       String   @map("site_id")
+  conductorId  String   @map("conductor_id")
+  tbmDate      DateTime @map("tbm_date")
+  location     String?
+  topic        String
+  content      String?
+  weatherInfo  String?  @map("weather_info")
+  safetyIssues String?  @map("safety_issues")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  site      Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  conductor User          @relation(fields: [conductorId], references: [id], onDelete: Cascade)
+  attendees TbmAttendee[]
+
+  @@index([siteId, tbmDate])
+  @@map("tbm_records")
+}
+
+model TbmAttendee {
+  id          String   @id @default(cuid())
+  tbmRecordId String   @map("tbm_record_id")
+  userId      String   @map("user_id")
+  signedAt    DateTime @default(now()) @map("signed_at")
+
+  tbmRecord TbmRecord @relation(fields: [tbmRecordId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tbmRecordId, userId])
+  @@map("tbm_attendees")
 }

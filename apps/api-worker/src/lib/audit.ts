@@ -30,7 +30,13 @@ export type AuditAction =
   | "PUSH_NOTIFICATION_SENT"
   | "MONTHLY_SUMMARY_SENT"
   | "AUDIT_LOG_CLEANUP"
-  | "ROLE_CHANGE";
+  | "ROLE_CHANGE"
+  | "EDUCATION_CONTENT_CREATED"
+  | "EDUCATION_CONTENT_DELETED"
+  | "QUIZ_CREATED"
+  | "QUIZ_POINTS_AWARDED"
+  | "STATUTORY_TRAINING_CREATED"
+  | "TBM_CREATED";
 
 /**
  * Target types for audit logging
@@ -49,6 +55,10 @@ export type AuditTargetType =
   | "MANUAL_APPROVAL"
   | "LOGIN_LOCKOUT"
   | "NOTIFICATION"
+  | "EDUCATION_CONTENT"
+  | "QUIZ"
+  | "STATUTORY_TRAINING"
+  | "TBM_RECORD"
   | "SYSTEM";
 
 /**

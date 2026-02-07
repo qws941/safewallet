@@ -595,6 +595,171 @@ auth.post("/login", async (c) => {
   );
 });
 
+// AceTime login: employee code + name (no phone/dob required)
+auth.post("/acetime-login", async (c) => {
+  const startedAt = Date.now();
+  const respondWithDelay = async (response: Response) => {
+    await enforceMinimumResponseTime(startedAt);
+    return response;
+  };
+
+  let body: { employeeCode: string; name: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return respondWithDelay(error(c, "INVALID_JSON", "Invalid JSON", 400));
+  }
+
+  if (!body.employeeCode || !body.name) {
+    return respondWithDelay(
+      error(
+        c,
+        "MISSING_FIELDS",
+        "사번(employeeCode)과 이름(name)을 입력해주세요.",
+        400,
+      ),
+    );
+  }
+
+  const clientIp = c.req.header("CF-Connecting-IP") || "unknown";
+  const rateLimitKey = `auth:acetime:ip:${clientIp}`;
+  const rateLimit = await checkRateLimit(c.env, rateLimitKey, 5, 60 * 1000);
+
+  if (!rateLimit.allowed) {
+    return respondWithDelay(
+      error(
+        c,
+        "RATE_LIMIT_EXCEEDED",
+        "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+        429,
+      ),
+    );
+  }
+
+  const db = drizzle(c.env.DB);
+  const normalizedCode = body.employeeCode.trim();
+
+  const attemptKey = `login:lockout:acetime:${normalizedCode}`;
+  const nowMs = Date.now();
+  const existingAttempt = parseLoginLockoutRecord(
+    await c.env.KV.get(attemptKey),
+  );
+  if (isExpiredLock(existingAttempt, nowMs)) {
+    await c.env.KV.delete(attemptKey);
+  }
+  const currentAttempt = isExpiredLock(existingAttempt, nowMs)
+    ? null
+    : existingAttempt;
+
+  if (
+    typeof currentAttempt?.lockedUntil === "number" &&
+    currentAttempt.lockedUntil > nowMs
+  ) {
+    return respondWithDelay(
+      accountLockedResponse(c, currentAttempt.lockedUntil, nowMs),
+    );
+  }
+
+  const userResults = await db
+    .select()
+    .from(users)
+    .where(
+      and(
+        eq(users.externalSystem, "FAS"),
+        eq(users.externalWorkerId, normalizedCode),
+      ),
+    )
+    .limit(1);
+
+  if (userResults.length === 0) {
+    const updatedAttempt = await recordFailedLoginAttempt(
+      c.env.KV,
+      attemptKey,
+      currentAttempt,
+      Date.now(),
+    );
+    if (typeof updatedAttempt.lockedUntil === "number") {
+      return respondWithDelay(
+        accountLockedResponse(c, updatedAttempt.lockedUntil, Date.now()),
+      );
+    }
+
+    return respondWithDelay(
+      error(
+        c,
+        "USER_NOT_FOUND",
+        "등록되지 않은 사번입니다. 현장 관리자에게 문의하세요.",
+        401,
+      ),
+    );
+  }
+
+  const user = userResults[0];
+  const normalizedInputName = body.name.trim().toLowerCase();
+  const normalizedUserName = (user.name || "").trim().toLowerCase();
+
+  if (normalizedUserName !== normalizedInputName) {
+    const updatedAttempt = await recordFailedLoginAttempt(
+      c.env.KV,
+      attemptKey,
+      currentAttempt,
+      Date.now(),
+    );
+    if (typeof updatedAttempt.lockedUntil === "number") {
+      await logLoginLockoutEvent(
+        db,
+        c,
+        user.id,
+        `acetime:${normalizedCode}`,
+        updatedAttempt.attempts,
+        updatedAttempt.lockedUntil,
+      );
+      return respondWithDelay(
+        accountLockedResponse(c, updatedAttempt.lockedUntil, Date.now()),
+      );
+    }
+
+    return respondWithDelay(
+      error(c, "NAME_MISMATCH", "이름이 일치하지 않습니다.", 401),
+    );
+  }
+
+  // AceTime login skips attendance check - FAS-imported users
+  // may not have attendance data yet
+
+  const accessToken = await signJwt(
+    { sub: user.id, phone: "", role: user.role },
+    c.env.JWT_SECRET,
+  );
+  const refreshToken = crypto.randomUUID();
+
+  await db
+    .update(users)
+    .set({ refreshToken, updatedAt: new Date() })
+    .where(eq(users.id, user.id));
+
+  await c.env.KV.delete(attemptKey);
+
+  return respondWithDelay(
+    success(
+      c,
+      {
+        accessToken,
+        refreshToken,
+        expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
+        user: {
+          id: user.id,
+          phone: "",
+          role: user.role,
+          name: user.name,
+          nameMasked: user.nameMasked,
+        },
+      },
+      200,
+    ),
+  );
+});
+
 auth.post("/refresh", async (c) => {
   let body: RefreshBody;
   try {

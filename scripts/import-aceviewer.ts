@@ -97,12 +97,23 @@ async function main() {
 
   const db = new Database(dbPath, { readonly: true });
 
-  const employees = db.prepare("SELECT * FROM employee").all() as Array<{
+  // CAST AS BLOB to get raw EUC-KR bytes, then decode properly
+  const employees = db
+    .prepare(
+      `SELECT empl_cd,
+              CAST(empl_nm AS BLOB) as empl_nm,
+              CAST(part_nm AS BLOB) as part_nm,
+              CAST(jijo_nm AS BLOB) as jijo_nm,
+              CAST(gojo_nm AS BLOB) as gojo_nm,
+              last_dt
+       FROM employee`,
+    )
+    .all() as Array<{
     empl_cd: string;
-    empl_nm: Buffer | string;
-    part_nm: Buffer | string;
-    jijo_nm: Buffer | string;
-    gojo_nm: Buffer | string;
+    empl_nm: Buffer;
+    part_nm: Buffer;
+    jijo_nm: Buffer;
+    gojo_nm: Buffer;
     last_dt: string;
   }>;
 
@@ -115,20 +126,10 @@ async function main() {
 
   for (const emp of employees) {
     const id = generateId();
-    const emplCd =
-      typeof emp.empl_cd === "string" ? emp.empl_cd : String(emp.empl_cd);
-    const name =
-      typeof emp.empl_nm === "string"
-        ? emp.empl_nm
-        : decodeEucKr(emp.empl_nm as Buffer);
-    const companyName =
-      typeof emp.part_nm === "string"
-        ? emp.part_nm
-        : decodeEucKr(emp.part_nm as Buffer);
-    const tradeType =
-      typeof emp.jijo_nm === "string"
-        ? emp.jijo_nm
-        : decodeEucKr(emp.jijo_nm as Buffer);
+    const emplCd = String(emp.empl_cd);
+    const name = decodeEucKr(emp.empl_nm);
+    const companyName = decodeEucKr(emp.part_nm);
+    const tradeType = decodeEucKr(emp.jijo_nm);
 
     // AceViewer에 phone이 없어서 empl_cd를 임시로 사용
     const dummyPhone = `FAS-${emplCd}`;

@@ -19,6 +19,7 @@ import disputesRoute from "./routes/disputes";
 import notificationsRoute from "./routes/notifications";
 import policiesRoute from "./routes/policies";
 import approvalsRoute from "./routes/approvals";
+import educationRoute from "./routes/education";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -60,6 +61,7 @@ api.route("/disputes", disputesRoute);
 api.route("/notifications", notificationsRoute);
 api.route("/policies", policiesRoute);
 api.route("/approvals", approvalsRoute);
+api.route("/education", educationRoute);
 
 app.route("/api", api);
 
