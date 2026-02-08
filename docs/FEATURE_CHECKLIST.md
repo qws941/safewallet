@@ -56,8 +56,8 @@
   - [x] 출근시간
   - [x] 인증결과 (성공/실패)
   - [x] 장비 ID (옵션)
-- [ ] 중복 방지 (Idempotency)
-- [ ] 재처리 로직
+- [x] 중복 방지 (Idempotency) ✅ - Idempotency-Key 헤더 + onConflictDoNothing
+- [x] 재처리 로직 ✅ - withRetry 3회 + syncErrors 테이블 기록
 
 ### 2.3 연동 방식
 
@@ -88,7 +88,7 @@
 ### 3.3 다현장 지원
 
 - [x] 현장별 출근 로그 구분 (siteId 파라미터)
-- [ ] 해당 현장 출근 시에만 접속 허용
+- [x] 해당 현장 출근 시에만 접속 허용 ✅ NEW - accessPolicies per-site + attendanceMiddleware 연동
 
 ---
 
@@ -216,7 +216,7 @@
 - [x] FAS 등록자 수 vs SW 계정 수 ✅ NEW - GET /admin/sync-status
 - [ ] 미매칭 목록
 - [x] 최근 동기화 시간 ✅ NEW
-- [ ] 동기화 에러 내역
+- [x] 동기화 에러 내역 ✅ NEW - sync_errors 테이블 + admin API/UI
 
 ### 8.3 출근 로그 모니터링
 
@@ -248,7 +248,7 @@
 ### 8.7 투표 관리
 
 - [ ] 투표 기간 설정
-- [ ] 후보 등록/삭제
+- [x] 후보 등록/삭제
 - [x] 투표 결과 조회 (실명/전체)
 - [ ] 결과 내보내기
 
@@ -291,7 +291,7 @@
 - [x] `GET /votes/current` - 현재 투표 정보 (후보 목록 포함)
 - [x] `POST /votes` - 투표
 - [x] `GET /votes/results` - 결과 조회
-- [ ] `GET /votes/my` - 내 투표 확인
+- [x] `GET /votes/my` - 내 투표 확인 ✅ (votes.ts 구현됨)
 
 ### 9.6 포인트 API
 
@@ -302,7 +302,7 @@
 ### 9.7 관리자 API
 
 - [x] `GET /admin/sync-status` - 동기화 상태 ✅ NEW
-- [ ] `GET /admin/attendance-logs` - 출근 로그
+- [x] `GET /admin/attendance-logs` - 출근 로그 ✅ (관리자 8.3 구현됨)
 - [x] `POST /admin/manual-approval` - 수동 승인 ✅ NEW
 - [x] `GET /admin/manual-approvals` - 수동 승인 목록 ✅ NEW
 - [x] `GET /admin/users` - 회원 목록
@@ -395,9 +395,9 @@
 ### 11.3 감사 로그
 
 - [x] 기존 AuditLog 테이블 존재
-- [ ] 로그인 시도 로그
-- [ ] 수동 승인 로그
-- [ ] 관리자 행동 로그
+- [x] 로그인 시도 로그
+- [x] 수동 승인 로그
+- [x] 관리자 행동 로그
 
 ---
 
@@ -460,18 +460,18 @@
 | --------------- | ------- | ------- | ------- |
 | 사용자 인증     | 15      | 14      | 93%     |
 | FAS 연동        | 18      | 16      | 89%     |
-| 접근 제어       | 12      | 10      | 83%     |
+| 접근 제어       | 12      | 11      | 92%     |
 | 메인 화면       | 12      | 12      | 100%    |
 | 우수근로자 투표 | 14      | 13      | 93%     |
 | 포인트 시스템   | 8       | 8       | 100%    |
 | 게시물          | 12      | 12      | 100%    |
 | 관리자 기능     | 24      | 18      | 75%     |
-| API             | 22      | 20      | 91%     |
+| API             | 22      | 21      | 95%     |
 | 데이터베이스    | 32      | 30      | 94%     |
-| 보안            | 12      | 9       | 75%     |
+| 보안            | 12      | 12      | 100%    |
 | 운영            | 10      | 6       | 60%     |
 | 안전교육        | 13      | 13      | 100%    |
-| **합계**        | **204** | **184** | **90%** |
+| **합계**        | **204** | **188** | **92%** |
 
 ---
 
@@ -502,12 +502,11 @@
 
 ### P1 (High)
 
-- [ ] 해당 현장 출근 시에만 접속 허용
-- [ ] 투표 후보 관리 UI (Admin)
+- [x] 해당 현장 출근 시에만 접속 허용 ✅ NEW - accessPolicies per-site + attendanceMiddleware 연동
 - [x] 수동 승인 UI (Admin) ✅ (approvals 페이지 구현됨)
 
 ### P2 (Medium)
 
-- [ ] Idempotency (출근 동기화 중복 방지)
-- [ ] 감사 로그 강화
-- [ ] 미매칭 근로자 목록
+- [x] Idempotency (출근 동기화 중복 방지) ✅ - Idempotency-Key 헤더 + onConflictDoNothing
+- [x] 감사 로그 강화 ✅ NEW - disputes status, FAS sync audit 추가
+- [x] 미매칭 근로자 목록 ✅ - GET /attendance/unmatched 구현됨

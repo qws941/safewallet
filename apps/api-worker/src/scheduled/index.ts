@@ -12,7 +12,7 @@ import {
   fasGetUpdatedEmployees,
   testConnection as testFasConnection,
 } from "../lib/fas-mariadb";
-import { hmac } from "../lib/crypto";
+import { hmac, encrypt } from "../lib/crypto";
 
 function getKSTDate(): Date {
   const now = new Date();
@@ -206,41 +206,107 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
 
     console.log(`Found ${updatedEmployees.length} updated employees`);
 
-    let upsertCount = 0;
+    let updatedCount = 0;
+    let createdCount = 0;
+    let skippedCount = 0;
     for (const employee of updatedEmployees) {
-      const phoneHash = await hmac(env.HMAC_SECRET, employee.phone);
-      const dobHash = employee.birthDate
-        ? await hmac(env.HMAC_SECRET, employee.birthDate.replace(/-/g, ""))
-        : null;
+      if (!employee.phone) {
+        skippedCount++;
+        continue;
+      }
 
-      const existingUser = await db
+      const normalizedPhone = employee.phone.replace(/[^0-9]/g, "");
+      if (!normalizedPhone) {
+        skippedCount++;
+        continue;
+      }
+
+      const phoneHash = await hmac(env.HMAC_SECRET, normalizedPhone);
+      const phoneEncrypted = await encrypt(env.ENCRYPTION_KEY, normalizedPhone);
+      const dob = employee.birthDate
+        ? employee.birthDate.replace(/-/g, "")
+        : null;
+      const dobHash = dob ? await hmac(env.HMAC_SECRET, dob) : null;
+      const dobEncrypted = dob ? await encrypt(env.ENCRYPTION_KEY, dob) : null;
+      const nameMasked =
+        employee.name.length > 1
+          ? employee.name[0] + "*".repeat(employee.name.length - 1)
+          : employee.name;
+      const externalWorkerId = String(employee.id);
+
+      let existingUser = await db
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.phoneHash, phoneHash))
+        .where(
+          and(
+            eq(users.externalSystem, "FAS"),
+            eq(users.externalWorkerId, externalWorkerId),
+          ),
+        )
         .get();
+
+      if (!existingUser) {
+        existingUser = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.phoneHash, phoneHash))
+          .get();
+      }
 
       if (existingUser) {
         await db
           .update(users)
           .set({
+            externalWorkerId,
+            externalSystem: "FAS",
             name: employee.name,
+            nameMasked,
+            phone: phoneHash,
+            phoneHash,
+            phoneEncrypted,
+            dobHash,
+            dobEncrypted,
             updatedAt: new Date(),
           })
           .where(eq(users.id, existingUser.id));
+        updatedCount++;
       } else if (dobHash) {
         await db.insert(users).values({
           id: crypto.randomUUID(),
+          externalWorkerId,
+          externalSystem: "FAS",
           name: employee.name,
+          nameMasked,
           phone: phoneHash,
           phoneHash,
+          phoneEncrypted,
           dobHash,
+          dobEncrypted,
           role: "WORKER",
         });
+        createdCount++;
+      } else {
+        skippedCount++;
       }
-      upsertCount++;
     }
 
-    console.log(`FAS sync complete: ${upsertCount} users upserted`);
+    console.log(
+      `FAS sync complete: created=${createdCount}, updated=${updatedCount}, skipped=${skippedCount}`,
+    );
+
+    await db.insert(auditLogs).values({
+      actorId: "SYSTEM",
+      action: "FAS_SYNC_COMPLETED",
+      targetType: "FAS_SYNC",
+      targetId: "cron",
+      reason: JSON.stringify({
+        employeesFound: updatedEmployees.length,
+        createdCount,
+        updatedCount,
+        skippedCount,
+        since: fiveMinutesAgo.toISOString(),
+      }),
+    });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const errorCode =
@@ -259,6 +325,14 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
       errorCode,
       errorMessage,
       payload: JSON.stringify({ timestamp: new Date().toISOString() }),
+    });
+
+    await db.insert(auditLogs).values({
+      actorId: "SYSTEM",
+      action: "FAS_SYNC_FAILED",
+      targetType: "FAS_SYNC",
+      targetId: "cron",
+      reason: JSON.stringify({ errorCode, errorMessage }),
     });
 
     throw err;

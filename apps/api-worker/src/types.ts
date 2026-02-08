@@ -29,6 +29,8 @@ export interface Env {
   // AceTime FAS MariaDB via Hyperdrive
   FAS_HYPERDRIVE?: HyperdriveBinding;
   FAS_COMPANY_ID?: string;
+  // AceTime R2 bucket for photos + DB
+  ACETIME_BUCKET?: R2Bucket;
   // Admin credentials
   ADMIN_USERNAME?: string;
   ADMIN_PASSWORD?: string;

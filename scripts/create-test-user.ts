@@ -8,7 +8,7 @@
  *   이름: 테스트관리자
  *   전화번호: 01099990001
  *   생년월일: 19900101
- *   역할: ADMIN
+ *   역할: SUPER_ADMIN
  *
  * 출력: scripts/create-test-user.sql (wrangler d1 execute 로 적용)
  */
@@ -48,7 +48,7 @@ interface TestUser {
   name: string;
   phone: string;
   dob: string;
-  role: "ADMIN" | "WORKER" | "MANAGER";
+  role: "WORKER" | "SITE_ADMIN" | "SUPER_ADMIN" | "SYSTEM";
 }
 
 const testUsers: TestUser[] = [
@@ -56,7 +56,7 @@ const testUsers: TestUser[] = [
     name: "테스트관리자",
     phone: "01099990001",
     dob: "19900101",
-    role: "ADMIN",
+    role: "SUPER_ADMIN",
   },
   {
     name: "테스트작업자",
@@ -66,7 +66,7 @@ const testUsers: TestUser[] = [
   },
 ];
 
-const now = new Date().toISOString();
+const now = Math.floor(Date.now() / 1000); // Unix epoch seconds (schema uses integer timestamps)
 const lines: string[] = [
   `-- Test users generated at ${now}`,
   `-- Login credentials:`,
@@ -90,16 +90,7 @@ for (const user of testUsers) {
 
   lines.push(
     `INSERT INTO users (id, phone, phone_hash, dob, dob_hash, name, name_masked, role, created_at, updated_at)` +
-      ` VALUES (${escapeSQL(id)}, ${escapeSQL(user.phone)}, ${escapeSQL(phoneHash)}, ${escapeSQL(user.dob)}, ${escapeSQL(dobHash)}, ${escapeSQL(user.name)}, ${escapeSQL(nameMasked)}, ${escapeSQL(user.role)}, ${escapeSQL(now)}, ${escapeSQL(now)});`,
-  );
-
-  const refreshToken = randomUUID();
-  const refreshExpiry = new Date(
-    Date.now() + 30 * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  lines.push(
-    `INSERT OR REPLACE INTO refresh_tokens (id, user_id, token, expires_at, created_at)` +
-      ` VALUES (${escapeSQL(generateId())}, ${escapeSQL(id)}, ${escapeSQL(refreshToken)}, ${escapeSQL(refreshExpiry)}, ${escapeSQL(now)});`,
+      ` VALUES (${escapeSQL(id)}, ${escapeSQL(user.phone)}, ${escapeSQL(phoneHash)}, ${escapeSQL(user.dob)}, ${escapeSQL(dobHash)}, ${escapeSQL(user.name)}, ${escapeSQL(nameMasked)}, ${escapeSQL(user.role)}, ${now}, ${now});`,
   );
 
   lines.push("");

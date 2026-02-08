@@ -34,13 +34,33 @@ export function useCreatePost() {
 
   return useMutation({
     mutationFn: (data: CreatePostDto) =>
-      apiFetch<ApiResponse<PostDto>>("/posts", {
+      apiFetch<ApiResponse<{ post: PostDto }>>("/posts", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["posts", variables.siteId] });
     },
+  });
+}
+
+// Site Info
+export function useSiteInfo(siteId: string | null) {
+  return useQuery({
+    queryKey: ["site", siteId],
+    queryFn: () =>
+      apiFetch<
+        ApiResponse<{
+          site: {
+            id: string;
+            name: string;
+            address: string | null;
+            memberCount: number;
+          };
+        }>
+      >(`/sites/${siteId}`),
+    enabled: !!siteId,
+    staleTime: 1000 * 60 * 10,
   });
 }
 

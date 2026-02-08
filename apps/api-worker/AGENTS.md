@@ -11,13 +11,13 @@ Hono.js REST API on Cloudflare Workers. D1 (SQLite) via Drizzle ORM + R2 (images
 ```
 src/
 ├── index.ts           # Hono app entry, route mounting, CRON scheduled handler
-├── routes/            # 17 route modules
+├── routes/            # 18 route modules
 ├── middleware/         # 4 middleware (auth, attendance, fas-auth, rate-limit)
 ├── lib/               # 8 utility modules
 ├── db/
-│   └── schema.ts      # Drizzle ORM schema (26 tables, 16 enums, 1447 lines)
+│   └── schema.ts      # Drizzle ORM schema (32 tables, 20 enums, 1472 lines)
 ├── scheduled/
-│   └── index.ts       # CRON job handlers (292 lines)
+│   └── index.ts       # CRON job handlers (365 lines)
 ├── durable-objects/
 │   └── RateLimiter.ts # DO rate limiter (declared, not active)
 └── types.ts           # Env bindings, context types
@@ -83,12 +83,12 @@ const result = await db.select().from(users).where(eq(users.id, id));
 
 **NOT raw SQL** — Use Drizzle query builder.
 
-## ROUTE MODULES (17)
+## ROUTE MODULES (18)
 
 | Route          | File                 | Auth | Purpose                         |
 | -------------- | -------------------- | ---- | ------------------------------- |
-| /auth          | auth.ts (1009L)      | No   | Login, refresh, logout, lockout |
-| /admin         | admin.ts (1734L)     | Yes  | User/post/site mgmt, stats, CSV |
+| /auth          | auth.ts (1116L)      | No   | Login, refresh, logout, lockout |
+| /admin         | admin.ts (2135L)     | Yes  | User/post/site mgmt, stats, CSV |
 | /education     | education.ts (1508L) | Yes  | Courses, materials, quizzes     |
 | /posts         | posts.ts             | Yes  | Safety reports, R2 images       |
 | /sites         | sites.ts             | Yes  | Site CRUD, memberships          |
@@ -104,6 +104,7 @@ const result = await db.select().from(users).where(eq(users.id, id));
 | /policies      | policies.ts          | Yes  | Safety policies                 |
 | /reviews       | reviews.ts           | Yes  | Post reviews                    |
 | /announcements | announcements.ts     | Yes  | Site announcements              |
+| /acetime       | acetime.ts           | Yes  | AceTime integration, photo sync |
 
 ## MIDDLEWARE (4)
 
@@ -129,12 +130,15 @@ const result = await db.select().from(users).where(eq(users.id, id));
 
 ## BINDINGS (wrangler.toml)
 
-| Binding      | Type | Name               | Usage                            |
-| ------------ | ---- | ------------------ | -------------------------------- |
-| DB           | D1   | safework2-db       | All database queries (Drizzle)   |
-| IMAGES       | R2   | safework2-images   | Post image upload/serve          |
-| SESSIONS     | KV   | safework2-sessions | Token storage (unused)           |
-| RATE_LIMITER | DO   | RateLimiter        | Rate limiting (declared, unused) |
+| Binding        | Type | Name               | Usage                            |
+| -------------- | ---- | ------------------ | -------------------------------- |
+| DB             | D1   | safework2-db       | All database queries (Drizzle)   |
+| IMAGES         | R2   | safework2-images   | Post image upload/serve          |
+| STATIC         | R2   | safework2-static   | SPA static file hosting          |
+| ACETIME_BUCKET | R2   | safework2-acetime  | AceTime photo sync storage       |
+| SESSIONS       | KV   | safework2-sessions | Token storage (unused)           |
+| RATE_LIMITER   | DO   | RateLimiter        | Rate limiting (declared, unused) |
+| FAS_HYPERDRIVE | HD   | (env var)          | MariaDB proxy for FAS attendance |
 
 ## CRON SCHEDULED JOBS
 

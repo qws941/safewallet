@@ -376,6 +376,16 @@ disputesRoute.patch("/:id/status", async (c) => {
     .where(eq(disputes.id, disputeId))
     .returning();
 
+  await logAuditWithContext(
+    c,
+    db,
+    "DISPUTE_STATUS_CHANGED",
+    user.id,
+    "DISPUTE",
+    disputeId,
+    { previousStatus: dispute.status, newStatus: body.status },
+  );
+
   return success(c, updated);
 });
 

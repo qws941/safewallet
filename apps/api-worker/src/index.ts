@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
+import { users } from "./db/schema";
+import { hmac } from "./lib/crypto";
 import type { Env } from "./types";
 
 import auth from "./routes/auth";
@@ -20,6 +24,7 @@ import notificationsRoute from "./routes/notifications";
 import policiesRoute from "./routes/policies";
 import approvalsRoute from "./routes/approvals";
 import educationRoute from "./routes/education";
+import acetimeRoute from "./routes/acetime";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -45,6 +50,80 @@ api.get("/health", (c) => {
   return c.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
+// TODO: TEMPORARY seed endpoint - remove after test user created
+api.post("/seed/test-user", async (c) => {
+  const body = await c.req.json<{
+    name: string;
+    phone: string;
+    dob: string;
+    role?: string;
+    secret?: string;
+  }>();
+  const { name, phone, dob, role = "WORKER" } = body;
+
+  if (body.secret !== "safework2-seed-2026") {
+    return c.json({ success: false, error: "Invalid seed secret" }, 403);
+  }
+
+  if (!name || !phone || !dob) {
+    return c.json({ success: false, error: "name, phone, dob required" }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+  const phoneHash = await hmac(c.env.HMAC_SECRET, phone);
+  const dobHash = await hmac(c.env.HMAC_SECRET, dob);
+  const nameMasked =
+    name.length > 1 ? name[0] + "*".repeat(name.length - 1) : name;
+  const validRole =
+    role === "SUPER_ADMIN" || role === "SITE_ADMIN" || role === "SYSTEM"
+      ? role
+      : ("WORKER" as const);
+
+  const existing = await db
+    .select()
+    .from(users)
+    .where(eq(users.phoneHash, phoneHash))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(users)
+      .set({
+        name,
+        nameMasked,
+        dobHash,
+        role: validRole,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.phoneHash, phoneHash));
+
+    return c.json({
+      success: true,
+      action: "updated",
+      user: { id: existing[0].id, name, phone, role: validRole },
+      login: { name, phone, dob },
+    });
+  }
+
+  await db.insert(users).values({
+    phone,
+    name,
+    nameMasked,
+    phoneHash,
+    dobHash,
+    role: validRole,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  return c.json({
+    success: true,
+    action: "created",
+    user: { name, phone, role: validRole },
+    login: { name, phone, dob },
+  });
+});
+
 api.route("/auth", auth);
 api.route("/attendance", attendanceRoute);
 api.route("/votes", votesRoute);
@@ -62,6 +141,7 @@ api.route("/notifications", notificationsRoute);
 api.route("/policies", policiesRoute);
 api.route("/approvals", approvalsRoute);
 api.route("/education", educationRoute);
+api.route("/acetime", acetimeRoute);
 
 app.route("/api", api);
 

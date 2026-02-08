@@ -1,6 +1,8 @@
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from "@/stores/auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://safework2-api.jclee.workers.dev/api";
 
 interface FetchOptions extends RequestInit {
   skipAuth?: boolean;
@@ -8,19 +10,21 @@ interface FetchOptions extends RequestInit {
 
 export async function apiFetch<T>(
   endpoint: string,
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ): Promise<T> {
   const { skipAuth = false, headers: customHeaders, ...rest } = options;
-  
+
+  const isFormData = rest.body instanceof FormData;
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...customHeaders,
   };
 
   if (!skipAuth) {
     const accessToken = useAuthStore.getState().accessToken;
     if (accessToken) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
+      (headers as Record<string, string>)["Authorization"] =
+        `Bearer ${accessToken}`;
     }
   }
 
@@ -35,7 +39,8 @@ export async function apiFetch<T>(
     if (refreshed) {
       // Retry the request with new token
       const newAccessToken = useAuthStore.getState().accessToken;
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${newAccessToken}`;
+      (headers as Record<string, string>)["Authorization"] =
+        `Bearer ${newAccessToken}`;
       const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...rest,
         headers,
@@ -47,7 +52,7 @@ export async function apiFetch<T>(
     } else {
       // Logout user
       useAuthStore.getState().logout();
-      throw new ApiError(401, 'Session expired');
+      throw new ApiError(401, "Session expired");
     }
   }
 
@@ -64,15 +69,17 @@ async function refreshToken(): Promise<boolean> {
 
   try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
 
     if (!response.ok) return false;
 
     const data = await response.json();
-    useAuthStore.getState().setTokens(data.data.accessToken, data.data.refreshToken);
+    useAuthStore
+      .getState()
+      .setTokens(data.data.accessToken, data.data.refreshToken);
     return true;
   } catch {
     return false;
@@ -82,9 +89,9 @@ async function refreshToken(): Promise<boolean> {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }

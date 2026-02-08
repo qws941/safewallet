@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
 **Generated:** 2026-02-08  
-**Commit:** 0744957  
+**Commit:** 485242f  
 **Branch:** main
 
 ## OVERVIEW
@@ -17,7 +17,7 @@ safework2/
 │   ├── worker-app/       # Next.js 14 Worker PWA (CF Pages, port 3000)
 │   └── admin-app/        # Next.js 14 Admin Dashboard (CF Pages, port 3001)
 ├── packages/
-│   ├── types/            # Shared TypeScript types, 12 enums, 70+ DTOs
+│   ├── types/            # Shared TypeScript types, 15 enums, 10 DTOs
 │   └── ui/               # shadcn/ui component library (13 components)
 ├── docker/               # Development Docker Compose
 ├── docs/                 # PRD, implementation plans, status docs
@@ -28,14 +28,15 @@ safework2/
 
 | Task                  | Location                           | Notes                           |
 | --------------------- | ---------------------------------- | ------------------------------- |
-| Add API endpoint      | `apps/api-worker/src/routes/`      | Hono routes, 17 modules         |
-| Add/modify DB table   | `apps/api-worker/src/db/schema.ts` | Drizzle ORM, 26 tables          |
+| Add API endpoint      | `apps/api-worker/src/routes/`      | Hono routes, 18 modules         |
+| Add/modify DB table   | `apps/api-worker/src/db/schema.ts` | Drizzle ORM, 32 tables          |
 | Add shared type/DTO   | `packages/types/src/`              | Export via barrel in `index.ts` |
 | Add UI component      | `packages/ui/src/components/`      | shadcn conventions              |
 | Add worker page       | `apps/worker-app/src/app/`         | Next.js 14 App Router           |
 | Add admin page        | `apps/admin-app/src/app/`          | Next.js 14 App Router           |
-| Configure CF bindings | `apps/api-worker/wrangler.toml`    | D1, R2, KV, DO, CRON            |
+| Configure CF bindings | `apps/api-worker/wrangler.toml`    | D1, R2×3, KV, DO, CRON          |
 | Add middleware        | `apps/api-worker/src/middleware/`  | Manual invocation pattern       |
+| Add CRON job          | `apps/api-worker/src/scheduled/`   | Separate module, KST timezone   |
 
 ## CODE MAP
 
@@ -49,26 +50,35 @@ safework2/
 
 ### Key Modules
 
-| Module     | Location                              | Purpose                                      |
-| ---------- | ------------------------------------- | -------------------------------------------- |
-| Auth       | `api-worker/src/routes/auth.ts`       | JWT login, refresh, logout, lockout          |
-| Admin      | `api-worker/src/routes/admin.ts`      | User/post/site management, stats, CSV export |
-| Education  | `api-worker/src/routes/education.ts`  | Courses, materials, quizzes                  |
-| Posts      | `api-worker/src/routes/posts.ts`      | Safety reports with R2 images                |
-| Attendance | `api-worker/src/routes/attendance.ts` | FAS sync, daily check-in                     |
-| Sites      | `api-worker/src/routes/sites.ts`      | Site management, memberships                 |
-| Approvals  | `api-worker/src/routes/approvals.ts`  | Review workflow approvals                    |
-| Votes      | `api-worker/src/routes/votes.ts`      | Monthly worker voting                        |
-| Points     | `api-worker/src/routes/points.ts`     | Point ledger, balance                        |
-| DB Schema  | `api-worker/src/db/schema.ts`         | Drizzle ORM, 26 tables, 16 enums             |
+| Module     | Location                                 | Purpose                                      |
+| ---------- | ---------------------------------------- | -------------------------------------------- |
+| Auth       | `api-worker/src/routes/auth.ts`          | JWT login, refresh, logout, lockout          |
+| Admin      | `api-worker/src/routes/admin.ts`         | User/post/site management, stats, CSV export |
+| Education  | `api-worker/src/routes/education.ts`     | Courses, materials, quizzes                  |
+| Posts      | `api-worker/src/routes/posts.ts`         | Safety reports with R2 images                |
+| Attendance | `api-worker/src/routes/attendance.ts`    | FAS sync, daily check-in                     |
+| Sites      | `api-worker/src/routes/sites.ts`         | Site management, memberships                 |
+| Approvals  | `api-worker/src/routes/approvals.ts`     | Review workflow approvals                    |
+| Votes      | `api-worker/src/routes/votes.ts`         | Monthly worker voting                        |
+| Points     | `api-worker/src/routes/points.ts`        | Point ledger, balance, policies              |
+| Disputes   | `api-worker/src/routes/disputes.ts`      | Safety dispute resolution                    |
+| Actions    | `api-worker/src/routes/actions.ts`       | Corrective action tracking                   |
+| Reviews    | `api-worker/src/routes/reviews.ts`       | Post review workflow                         |
+| Notifs     | `api-worker/src/routes/notifications.ts` | Push notifications, device registration      |
+| Policies   | `api-worker/src/routes/policies.ts`      | Point calculation policies                   |
+| FAS        | `api-worker/src/routes/fas.ts`           | Foreign worker attendance system             |
+| Users      | `api-worker/src/routes/users.ts`         | User profile management                      |
+| AceTime    | `api-worker/src/routes/acetime.ts`       | AceTime integration, photo sync              |
+| Announce   | `api-worker/src/routes/announcements.ts` | Site announcements                           |
+| DB Schema  | `api-worker/src/db/schema.ts`            | Drizzle ORM, 32 tables, 20 enums             |
 
 ### CRON Scheduled Jobs
 
-| Schedule      | Purpose                    | Location                         |
-| ------------- | -------------------------- | -------------------------------- |
-| `*/5 * * * *` | FAS attendance sync        | `src/index.ts` scheduled handler |
-| `0 0 1 * *`   | Monthly points calculation | `src/index.ts` scheduled handler |
-| `0 3 * * 0`   | Sunday cleanup             | `src/index.ts` scheduled handler |
+| Schedule      | Purpose                    | Location                 |
+| ------------- | -------------------------- | ------------------------ |
+| `*/5 * * * *` | FAS attendance sync        | `src/scheduled/index.ts` |
+| `0 0 1 * *`   | Monthly points calculation | `src/scheduled/index.ts` |
+| `0 3 * * 0`   | Sunday cleanup             | `src/scheduled/index.ts` |
 
 ## CONVENTIONS
 
@@ -162,12 +172,15 @@ docker compose -f docker/docker-compose.yml up -d
 
 ## CLOUDFLARE BINDINGS
 
-| Binding      | Type | Name               | Purpose                            |
-| ------------ | ---- | ------------------ | ---------------------------------- |
-| DB           | D1   | safework2-db       | SQLite database (Drizzle)          |
-| IMAGES       | R2   | safework2-images   | Image storage                      |
-| SESSIONS     | KV   | safework2-sessions | Session cache (not yet used)       |
-| RATE_LIMITER | DO   | RateLimiter        | Rate limiting (declared, not used) |
+| Binding        | Type | Name               | Purpose                            |
+| -------------- | ---- | ------------------ | ---------------------------------- |
+| DB             | D1   | safework2-db       | SQLite database (Drizzle)          |
+| IMAGES         | R2   | safework2-images   | Image storage (posts)              |
+| STATIC         | R2   | safework2-static   | SPA static file hosting            |
+| ACETIME_BUCKET | R2   | safework2-acetime  | AceTime photo sync storage         |
+| SESSIONS       | KV   | safework2-sessions | Session cache (not yet used)       |
+| RATE_LIMITER   | DO   | RateLimiter        | Rate limiting (declared, not used) |
+| FAS_HYPERDRIVE | HD   | (env var)          | MariaDB proxy for FAS attendance   |
 
 ## NOTES
 
@@ -176,5 +189,9 @@ docker compose -f docker/docker-compose.yml up -d
 - **No test infrastructure**: Zero test files, frameworks, or coverage
 - **Static export**: Both Next.js apps use `output: 'export'` — no SSR
 - **@cloudflare/next-on-pages**: Adapter for CF Pages deployment
-- **Enum sync**: 12 enums in `packages/types` MUST match Drizzle schema enums (4 additional enums are schema-only)
+- **Enum sync**: 15 enums in `packages/types` MUST match Drizzle schema enums (5 additional enums are schema-only)
+- **FAS integration**: Foreign Attendance System via Hyperdrive (MariaDB proxy), 5-min CRON sync
+- **Static hosting**: R2 STATIC bucket serves SPA with MIME-type detection and `index.html` fallback
+- **Korean localization**: Worker-app UI fully Korean, 5 AM KST day boundary
+- **CORS origins**: safework2.jclee.me, admin.safework2.jclee.me, localhost:3000/3001
 - **Vestigial file**: `pnpm-workspace.yaml` exists but npm is used (not pnpm)

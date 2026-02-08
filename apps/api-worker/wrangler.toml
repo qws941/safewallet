@@ -31,6 +31,11 @@ bucket_name = "safework2-images"
 binding = "STATIC"
 bucket_name = "safework2-static"
 
+# R2 Bucket for AceTime data (photos + DB from NAS)
+[[r2_buckets]]
+binding = "ACETIME_BUCKET"
+bucket_name = "safework2-acetime"
+
 # KV Namespace for cache/sessions
 [[kv_namespaces]]
 binding = "KV"

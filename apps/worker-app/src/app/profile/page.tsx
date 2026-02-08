@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { useProfile } from "@/hooks/use-api";
+import { useProfile, useSiteInfo } from "@/hooks/use-api";
 import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import {
@@ -19,8 +19,10 @@ export default function ProfilePage() {
   const router = useRouter();
   const { logout, currentSiteId } = useAuth();
   const { data, isLoading } = useProfile();
+  const { data: siteData } = useSiteInfo(currentSiteId);
 
   const user = data?.data;
+  const site = siteData?.data?.site;
 
   const handleLogout = () => {
     logout();
@@ -73,9 +75,14 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="py-4">
               <h3 className="font-medium mb-2">현재 현장</h3>
-              <p className="text-sm text-muted-foreground">
-                ID: {currentSiteId}
+              <p className="text-sm font-medium">
+                {site?.name || "로딩 중..."}
               </p>
+              {site?.address && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {site.address}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -103,8 +110,7 @@ export default function ProfilePage() {
         {/* App Info */}
         <Card>
           <CardContent className="py-4 text-center text-sm text-muted-foreground">
-            <p>안전지갑 v0.1.0</p>
-            <p>&copy; 2025 SafetyWallet</p>
+            <p>&copy; 2026 SafetyWallet</p>
           </CardContent>
         </Card>
       </main>

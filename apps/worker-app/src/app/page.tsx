@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function RootPage() {
   const router = useRouter();
@@ -10,17 +10,17 @@ export default function RootPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.replace('/login');
+      router.replace("/login");
     } else if (!currentSiteId) {
-      router.replace('/join');
+      router.replace("/join");
     } else {
-      router.replace('/home');
+      router.replace("/home");
     }
   }, [isAuthenticated, currentSiteId, router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-pulse text-muted-foreground">로딩 중...</div>
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>
   );
 }

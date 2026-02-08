@@ -21,7 +21,7 @@ src/
 │   ├── switch.tsx
 │   ├── toaster.tsx
 │   ├── toast.tsx
-│   └── use-toast.ts     # Toast hook (not a component)
+│   └── use-toast.tsx    # Toast hook (not a component)
 ├── index.ts              # Barrel export
 └── lib/
     └── utils.ts          # cn() (clsx + tailwind-merge)

@@ -130,8 +130,8 @@ function ContentsTab({ siteId }: { siteId: string }) {
       {contents.map((content) => {
         const Icon = contentTypeIcons[content.contentType] || FileText;
         return (
-          <AttendanceGuard>
-            <Link key={content.id} href={`/education/view?id=${content.id}`}>
+          <AttendanceGuard key={content.id}>
+            <Link href={`/education/view?id=${content.id}`}>
               <Card className="active:scale-[0.98] transition-transform">
                 <CardContent className="p-4 flex items-start gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg shrink-0">

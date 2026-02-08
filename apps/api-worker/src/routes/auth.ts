@@ -13,7 +13,10 @@ import { hmac, decrypt, encrypt } from "../lib/crypto";
 import { signJwt } from "../lib/jwt";
 import { logAuditWithContext } from "../lib/audit";
 import { success, error } from "../lib/response";
-import { fasSearchEmployeeByPhone } from "../lib/fas-mariadb";
+import {
+  fasSearchEmployeeByPhone,
+  fasGetEmployeeInfo,
+} from "../lib/fas-mariadb";
 import { authMiddleware } from "../middleware/auth";
 import {
   checkDeviceRegistrationLimit,
@@ -778,6 +781,59 @@ auth.post("/acetime-login", async (c) => {
   // AceTime login skips attendance check - FAS-imported users
   // may not have attendance data yet
 
+  // If user is missing phone info, fetch from FAS and update
+  if (!user.phoneHash && c.env.FAS_HYPERDRIVE) {
+    try {
+      const companyId = c.env.FAS_COMPANY_ID
+        ? parseInt(c.env.FAS_COMPANY_ID, 10)
+        : 1;
+      const fasEmployee = await fasGetEmployeeInfo(
+        c.env.FAS_HYPERDRIVE,
+        companyId,
+        parseInt(normalizedCode, 10),
+      );
+      if (fasEmployee?.phone) {
+        const normalizedPhone = fasEmployee.phone.replace(/[^0-9]/g, "");
+        if (normalizedPhone) {
+          const phoneHash = await hmac(c.env.HMAC_SECRET, normalizedPhone);
+          const phoneEncrypted = await encrypt(
+            c.env.ENCRYPTION_KEY,
+            normalizedPhone,
+          );
+          const dob = fasEmployee.birthDate
+            ? fasEmployee.birthDate.replace(/-/g, "")
+            : null;
+          const dobHash = dob ? await hmac(c.env.HMAC_SECRET, dob) : null;
+          const dobEncrypted = dob
+            ? await encrypt(c.env.ENCRYPTION_KEY, dob)
+            : null;
+          const nameMasked =
+            fasEmployee.name.length > 1
+              ? fasEmployee.name[0] + "*".repeat(fasEmployee.name.length - 1)
+              : fasEmployee.name;
+
+          await db
+            .update(users)
+            .set({
+              phone: phoneHash,
+              phoneHash,
+              phoneEncrypted,
+              ...(dobHash ? { dobHash, dobEncrypted } : {}),
+              nameMasked,
+              updatedAt: new Date(),
+            })
+            .where(eq(users.id, user.id));
+        }
+      }
+    } catch (fasErr) {
+      console.error(
+        "Failed to fetch FAS employee info for phone update:",
+        fasErr,
+      );
+      // Non-blocking: login still succeeds even if FAS lookup fails
+    }
+  }
+
   const accessToken = await signJwt(
     { sub: user.id, phone: "", role: user.role },
     c.env.JWT_SECRET,
@@ -821,6 +877,26 @@ auth.post("/refresh", async (c) => {
 
   if (!body.refreshToken) {
     return error(c, "MISSING_REFRESH_TOKEN", "refreshToken is required", 400);
+  }
+
+  // Rate limit refresh attempts by IP
+  const clientIp =
+    c.req.header("CF-Connecting-IP") ||
+    c.req.header("x-forwarded-for") ||
+    "unknown";
+  const refreshRateLimit = await checkRateLimit(
+    c.env,
+    `refresh:${clientIp}`,
+    10,
+    60 * 1000,
+  );
+  if (!refreshRateLimit.allowed) {
+    return error(
+      c,
+      "RATE_LIMITED",
+      "Too many refresh attempts. Please try again later.",
+      429,
+    );
   }
 
   const db = drizzle(c.env.DB);
@@ -920,10 +996,20 @@ auth.post("/admin/login", async (c) => {
     );
   }
 
-  // Check hardcoded admin credentials
-  // In production, this should be stored in KV or environment variables
-  const ADMIN_USERNAME = c.env.ADMIN_USERNAME || "admin";
-  const ADMIN_PASSWORD = c.env.ADMIN_PASSWORD || "bingogo1";
+  // Admin credentials from environment variables (required)
+  const ADMIN_USERNAME = c.env.ADMIN_USERNAME;
+  const ADMIN_PASSWORD = c.env.ADMIN_PASSWORD;
+
+  if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+    return respondWithDelay(
+      error(
+        c,
+        "SERVER_ERROR",
+        "서버 설정 오류입니다. 관리자에게 문의하세요.",
+        500,
+      ),
+    );
+  }
 
   if (body.username !== ADMIN_USERNAME || body.password !== ADMIN_PASSWORD) {
     return respondWithDelay(

@@ -34,3 +34,12 @@ export interface VoteResultsResponse {
   month: string;
   results: VoteResult[];
 }
+
+export interface VotePeriod {
+  id: string;
+  siteId: string;
+  month: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+}

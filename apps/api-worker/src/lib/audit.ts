@@ -44,7 +44,12 @@ export type AuditAction =
   | "QUIZ_CREATED"
   | "QUIZ_POINTS_AWARDED"
   | "STATUTORY_TRAINING_CREATED"
-  | "TBM_CREATED";
+  | "TBM_CREATED"
+  | "DISPUTE_STATUS_CHANGED"
+  | "FAS_SYNC_COMPLETED"
+  | "FAS_SYNC_FAILED"
+  | "SYNC_ERROR_RESOLVED"
+  | "ACCESS_POLICY_UPDATED";
 
 /**
  * Target types for audit logging
@@ -70,7 +75,8 @@ export type AuditTargetType =
   | "QUIZ"
   | "STATUTORY_TRAINING"
   | "TBM_RECORD"
-  | "SYSTEM";
+  | "SYSTEM"
+  | "FAS_SYNC";
 
 /**
  * Audit log details interface for structured data

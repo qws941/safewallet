@@ -2,7 +2,12 @@ import { Context, Next } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, gte, lt } from "drizzle-orm";
-import { attendance, manualApprovals, siteMemberships } from "../db/schema";
+import {
+  attendance,
+  manualApprovals,
+  siteMemberships,
+  accessPolicies,
+} from "../db/schema";
 import { error } from "../lib/response";
 import type { Env, AuthContext } from "../types";
 
@@ -35,13 +40,13 @@ export async function attendanceMiddleware(
 ) {
   const auth = c.get("auth");
   const resolvedSiteId = siteId?.trim() || undefined;
+  const db = drizzle(c.env.DB);
 
   if (resolvedSiteId) {
     if (!auth) {
       throw new HTTPException(401, { message: "인증이 필요합니다." });
     }
 
-    const db = drizzle(c.env.DB);
     const membership = await db
       .select({ id: siteMemberships.id })
       .from(siteMemberships)
@@ -60,14 +65,25 @@ export async function attendanceMiddleware(
   }
 
   if (c.env.REQUIRE_ATTENDANCE_FOR_POST === "false") {
-    return next();
+    if (resolvedSiteId) {
+      const policy = await db
+        .select({ requireCheckin: accessPolicies.requireCheckin })
+        .from(accessPolicies)
+        .where(eq(accessPolicies.siteId, resolvedSiteId))
+        .get();
+
+      if (!policy?.requireCheckin) {
+        return next();
+      }
+    } else {
+      return next();
+    }
   }
 
   if (!auth) {
     throw new HTTPException(401, { message: "인증이 필요합니다." });
   }
 
-  const db = drizzle(c.env.DB);
   const { start, end } = getTodayRange();
 
   const attendanceConditions = [

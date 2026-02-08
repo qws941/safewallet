@@ -21,6 +21,11 @@ import {
   riskLevelEnum,
   voteCandidates,
   votes,
+  votePeriods,
+  syncErrors,
+  syncErrorStatusEnum,
+  syncTypeEnum,
+  accessPolicies,
 } from "../db/schema";
 import { hmac, encrypt, decrypt } from "../lib/crypto";
 import { success, error } from "../lib/response";
@@ -1813,6 +1818,318 @@ app.delete("/votes/candidates/:id", requireAdmin, async (c) => {
   });
 
   return success(c, { success: true });
+});
+
+app.get("/votes/period/:siteId/:month", requireAdmin, async (c) => {
+  const db = drizzle(c.env.DB);
+  const siteId = c.req.param("siteId");
+  const month = c.req.param("month");
+
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return error(c, "INVALID_MONTH", "month must be YYYY-MM", 400);
+  }
+
+  const period = await db
+    .select()
+    .from(votePeriods)
+    .where(and(eq(votePeriods.siteId, siteId), eq(votePeriods.month, month)))
+    .get();
+
+  return success(c, { period: period || null });
+});
+
+app.put("/votes/period/:siteId/:month", requireAdmin, async (c) => {
+  const db = drizzle(c.env.DB);
+  const { user: currentUser } = c.get("auth");
+  const siteId = c.req.param("siteId");
+  const month = c.req.param("month");
+
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return error(c, "INVALID_MONTH", "month must be YYYY-MM", 400);
+  }
+
+  let body: { startDate: string; endDate: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return error(c, "INVALID_JSON", "Invalid JSON", 400);
+  }
+
+  if (!body.startDate || !body.endDate) {
+    return error(
+      c,
+      "MISSING_FIELDS",
+      "startDate and endDate are required",
+      400,
+    );
+  }
+
+  const start = new Date(body.startDate);
+  const end = new Date(body.endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return error(c, "INVALID_DATE", "Invalid date format", 400);
+  }
+  if (start >= end) {
+    return error(c, "INVALID_RANGE", "startDate must be before endDate", 400);
+  }
+
+  const existing = await db
+    .select()
+    .from(votePeriods)
+    .where(and(eq(votePeriods.siteId, siteId), eq(votePeriods.month, month)))
+    .get();
+
+  let period;
+  if (existing) {
+    period = await db
+      .update(votePeriods)
+      .set({
+        startDate: body.startDate,
+        endDate: body.endDate,
+      })
+      .where(eq(votePeriods.id, existing.id))
+      .returning()
+      .get();
+  } else {
+    period = await db
+      .insert(votePeriods)
+      .values({
+        siteId,
+        month,
+        startDate: body.startDate,
+        endDate: body.endDate,
+      })
+      .returning()
+      .get();
+  }
+
+  await db.insert(auditLogs).values({
+    action: "VOTE_PERIOD_UPDATED",
+    actorId: currentUser.id,
+    targetType: "VOTE_PERIOD",
+    targetId: period.id,
+    reason: `Set vote period for ${month}: ${body.startDate} ~ ${body.endDate}`,
+  });
+
+  return success(c, { period });
+});
+
+app.get("/access-policies/:siteId", async (c: AppContext) => {
+  const db = drizzle(c.env.DB);
+  const siteId = c.req.param("siteId");
+
+  const policy = await db
+    .select()
+    .from(accessPolicies)
+    .where(eq(accessPolicies.siteId, siteId))
+    .get();
+
+  return success(c, {
+    policy: policy ?? {
+      siteId,
+      requireCheckin: true,
+      dayCutoffHour: 5,
+    },
+  });
+});
+
+app.put("/access-policies/:siteId", async (c: AppContext) => {
+  const db = drizzle(c.env.DB);
+  const { user: currentUser } = c.get("auth");
+  const siteId = c.req.param("siteId");
+
+  const body = await c.req.json<{
+    requireCheckin: boolean;
+    dayCutoffHour?: number;
+  }>();
+
+  if (typeof body.requireCheckin !== "boolean") {
+    return error(c, "INVALID_INPUT", "requireCheckin must be a boolean", 400);
+  }
+
+  const cutoffHour = body.dayCutoffHour ?? 5;
+  if (cutoffHour < 0 || cutoffHour > 23) {
+    return error(
+      c,
+      "INVALID_INPUT",
+      "dayCutoffHour must be between 0 and 23",
+      400,
+    );
+  }
+
+  const existing = await db
+    .select()
+    .from(accessPolicies)
+    .where(eq(accessPolicies.siteId, siteId))
+    .get();
+
+  let policy;
+  if (existing) {
+    [policy] = await db
+      .update(accessPolicies)
+      .set({
+        requireCheckin: body.requireCheckin,
+        dayCutoffHour: cutoffHour,
+      })
+      .where(eq(accessPolicies.siteId, siteId))
+      .returning();
+  } else {
+    [policy] = await db
+      .insert(accessPolicies)
+      .values({
+        siteId,
+        requireCheckin: body.requireCheckin,
+        dayCutoffHour: cutoffHour,
+      })
+      .returning();
+  }
+
+  await logAuditWithContext(
+    c,
+    db,
+    "ACCESS_POLICY_UPDATED",
+    currentUser.id,
+    "SYSTEM",
+    siteId,
+    {
+      requireCheckin: body.requireCheckin,
+      dayCutoffHour: cutoffHour,
+      action: existing ? "updated" : "created",
+    },
+  );
+
+  return success(c, { policy });
+});
+
+app.get("/sync-errors", async (c: AppContext) => {
+  const user = c.get("auth").user;
+  if (user.role !== "SUPER_ADMIN" && user.role !== "SITE_ADMIN") {
+    return error(c, "ADMIN_ACCESS_REQUIRED", "Admin access required", 403);
+  }
+
+  const db = drizzle(c.env.DB);
+  const status = c.req.query("status");
+  const syncType = c.req.query("syncType");
+  const siteId = c.req.query("siteId");
+  const limit = Math.min(parseInt(c.req.query("limit") || "50", 10), 100);
+  const offset = parseInt(c.req.query("offset") || "0", 10);
+
+  if (
+    status &&
+    !syncErrorStatusEnum.includes(
+      status as (typeof syncErrorStatusEnum)[number],
+    )
+  ) {
+    return error(
+      c,
+      "INVALID_STATUS",
+      `Invalid status. Must be one of: ${syncErrorStatusEnum.join(", ")}`,
+      400,
+    );
+  }
+
+  if (
+    syncType &&
+    !syncTypeEnum.includes(syncType as (typeof syncTypeEnum)[number])
+  ) {
+    return error(
+      c,
+      "INVALID_SYNC_TYPE",
+      `Invalid syncType. Must be one of: ${syncTypeEnum.join(", ")}`,
+      400,
+    );
+  }
+
+  const conditions = [];
+  if (status) {
+    conditions.push(
+      eq(syncErrors.status, status as (typeof syncErrorStatusEnum)[number]),
+    );
+  }
+  if (syncType) {
+    conditions.push(
+      eq(syncErrors.syncType, syncType as (typeof syncTypeEnum)[number]),
+    );
+  }
+  if (siteId) {
+    conditions.push(eq(syncErrors.siteId, siteId));
+  }
+
+  const errors = await db
+    .select()
+    .from(syncErrors)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(syncErrors.createdAt))
+    .limit(limit)
+    .offset(offset)
+    .all();
+
+  const totalResult = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(syncErrors)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .get();
+
+  return success(c, {
+    errors,
+    total: totalResult?.count || 0,
+  });
+});
+
+app.patch("/sync-errors/:id/status", async (c: AppContext) => {
+  const user = c.get("auth").user;
+  if (user.role !== "SUPER_ADMIN" && user.role !== "SITE_ADMIN") {
+    return error(c, "ADMIN_ACCESS_REQUIRED", "Admin access required", 403);
+  }
+
+  const id = c.req.param("id");
+  let body: { status?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return error(c, "INVALID_JSON", "Invalid JSON", 400);
+  }
+
+  if (
+    !body.status ||
+    (body.status !== "RESOLVED" && body.status !== "IGNORED")
+  ) {
+    return error(
+      c,
+      "INVALID_STATUS",
+      "status must be RESOLVED or IGNORED",
+      400,
+    );
+  }
+
+  const db = drizzle(c.env.DB);
+  const newStatus = body.status as "RESOLVED" | "IGNORED";
+
+  const updated = await db
+    .update(syncErrors)
+    .set({
+      status: newStatus,
+      resolvedAt: new Date().toISOString(),
+    })
+    .where(eq(syncErrors.id, id))
+    .returning()
+    .get();
+
+  if (!updated) {
+    return error(c, "SYNC_ERROR_NOT_FOUND", "Sync error not found", 404);
+  }
+
+  await logAuditWithContext(
+    c,
+    db,
+    "SYNC_ERROR_RESOLVED",
+    user.id,
+    "SYSTEM",
+    id,
+    { newStatus },
+  );
+
+  return success(c, { error: updated });
 });
 
 export default app;

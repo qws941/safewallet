@@ -2,26 +2,27 @@
 
 ## OVERVIEW
 
-Shared TypeScript types, 19 enums, and DTO interfaces consumed by all apps.
+Shared TypeScript types, 15 enums, and 10 DTO interfaces consumed by all apps.
 
 ## STRUCTURE
 
 ```
 src/
 ├── index.ts              # Barrel export (ALL types/enums/DTOs)
-├── enums.ts              # 19 enum definitions
+├── enums.ts              # 15 enum definitions
+├── api.ts                # ApiResponse<T> generic interface
 └── dto/
     ├── index.ts          # DTO barrel export
-    ├── auth.dto.ts       # Auth request/response types
-    ├── post.dto.ts       # Post CRUD types
-    ├── user.dto.ts       # User types
-    ├── site.dto.ts       # Site types
-    ├── attendance.dto.ts # Attendance types
-    ├── education.dto.ts  # Course, material, quiz types
-    ├── vote.dto.ts       # Vote types
-    ├── point.dto.ts      # Point types
+    ├── action.dto.ts     # Corrective action types
     ├── announcement.dto.ts
-    └── admin.dto.ts      # Admin dashboard types
+    ├── auth.dto.ts       # Auth request/response types
+    ├── education.dto.ts  # Course, material, quiz types
+    ├── points.dto.ts     # Point ledger types
+    ├── post.dto.ts       # Post CRUD types
+    ├── review.dto.ts     # Review workflow types
+    ├── site.dto.ts       # Site types
+    ├── user.dto.ts       # User types
+    └── vote.dto.ts       # Vote types
 ```
 
 ## CONVENTIONS
@@ -31,9 +32,9 @@ src/
 - **DTOs are interfaces** — no runtime validation (Zod is on API side)
 - **Enums MUST match** Drizzle schema enums in `api-worker/src/db/schema.ts`
 
-## ENUMS (19)
+## ENUMS (15)
 
-UserRole, ReviewStatus, ActionStatus, PostCategory, PostType, VoteStatus, PointType, AttendanceStatus, SiteStatus, MembershipStatus, AnnouncementType, NotificationType, ApprovalStatus, DisputeStatus, EducationContentType, QuizQuestionType, PolicyStatus, DeviceType, AuditAction
+UserRole, MembershipStatus, Category, RiskLevel, Visibility, ReviewStatus, ActionStatus, ReviewAction, TaskStatus, RejectReason, ApprovalStatus, EducationContentType, QuizStatus, StatutoryTrainingType, TrainingCompletionStatus
 
 ## ANTI-PATTERNS
 

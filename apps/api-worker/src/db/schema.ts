@@ -604,6 +604,27 @@ export const voteCandidates = sqliteTable(
   }),
 );
 
+export const votePeriods = sqliteTable(
+  "vote_periods",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    month: text("month").notNull(),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteMonthUnique: unique().on(table.siteId, table.month),
+  }),
+);
+
 export const disputes = sqliteTable(
   "disputes",
   {
@@ -836,6 +857,10 @@ export const votesRelations = relations(votes, ({ one }) => ({
 export const voteCandidatesRelations = relations(voteCandidates, ({ one }) => ({
   site: one(sites, { fields: [voteCandidates.siteId], references: [sites.id] }),
   user: one(users, { fields: [voteCandidates.userId], references: [users.id] }),
+}));
+
+export const votePeriodsRelations = relations(votePeriods, ({ one }) => ({
+  site: one(sites, { fields: [votePeriods.siteId], references: [sites.id] }),
 }));
 
 export const disputesRelations = relations(disputes, ({ one }) => ({

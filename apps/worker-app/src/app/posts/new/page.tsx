@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { useAuthStore } from "@/stores/auth";
+import { apiFetch } from "@/lib/api";
 import { useCreatePost } from "@/hooks/use-api";
 import { Header } from "@/components/header";
 import {
@@ -54,7 +54,6 @@ export default function NewPostPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { currentSiteId } = useAuth();
-  const accessToken = useAuthStore((state) => state.accessToken);
   const createPost = useCreatePost();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,7 +126,7 @@ export default function NewPostPage() {
     setShowWarningModal(false);
 
     try {
-      let metadata: Record<string, any> = {};
+      let metadata: Record<string, string | boolean> = {};
 
       switch (category) {
         case Category.HAZARD:
@@ -164,7 +163,7 @@ export default function NewPostPage() {
       };
 
       const response = await createPost.mutateAsync(postData);
-      const postId = (response.data as any).post.id;
+      const postId = response.data.post.id;
 
       if (files.length > 0) {
         let successCount = 0;
@@ -175,25 +174,13 @@ export default function NewPostPage() {
           formData.append("file", file);
 
           try {
-            const uploadRes = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/images`,
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                },
-                body: formData,
-              },
-            );
-
-            if (uploadRes.ok) {
-              successCount++;
-            } else {
-              failCount++;
-            }
-          } catch (err) {
+            await apiFetch(`/posts/${postId}/images`, {
+              method: "POST",
+              body: formData,
+            });
+            successCount++;
+          } catch {
             failCount++;
-            console.error("Image upload failed", err);
           }
         }
 
@@ -211,7 +198,6 @@ export default function NewPostPage() {
       });
       router.replace("/posts");
     } catch (error) {
-      console.error("Failed to create post:", error);
       toast({
         title: "제보 등록 실패",
         description: "잠시 후 다시 시도해주세요.",
