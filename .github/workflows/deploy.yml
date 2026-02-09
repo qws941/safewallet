@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-turbo-
 
@@ -107,7 +107,7 @@ jobs:
           path: out
 
       - name: Install wrangler
-        run: npm install -g wrangler
+        run: npm install -g wrangler@4
 
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy out --project-name=safework2-worker --branch=main
@@ -128,7 +128,7 @@ jobs:
           path: out
 
       - name: Install wrangler
-        run: npm install -g wrangler
+        run: npm install -g wrangler@4
 
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy out --project-name=safework2-admin --branch=main
