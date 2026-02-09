@@ -10,28 +10,7 @@ import {
 } from "../db/schema";
 import { error } from "../lib/response";
 import type { Env, AuthContext } from "../types";
-
-const DAY_CUTOFF_HOUR = 5;
-
-function getTodayRange(): { start: Date; end: Date } {
-  const now = new Date();
-  const koreaTime = new Date(
-    now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }),
-  );
-
-  if (koreaTime.getHours() < DAY_CUTOFF_HOUR) {
-    koreaTime.setDate(koreaTime.getDate() - 1);
-  }
-
-  const start = new Date(koreaTime);
-  start.setHours(DAY_CUTOFF_HOUR, 0, 0, 0);
-
-  const end = new Date(koreaTime);
-  end.setDate(end.getDate() + 1);
-  end.setHours(DAY_CUTOFF_HOUR, 0, 0, 0);
-
-  return { start, end };
-}
+import { getTodayRange } from "../utils/common";
 
 export async function attendanceMiddleware(
   c: Context<{ Bindings: Env; Variables: { auth: AuthContext } }>,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { usePoints } from "@/hooks/use-api";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
@@ -7,10 +8,13 @@ import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import { PointsCard } from "@/components/points-card";
 import { Card, CardContent, Skeleton, Badge } from "@safetywallet/ui";
-import { Trophy, Medal, Crown } from "lucide-react";
+import { Trophy, Medal, Crown, Calendar, TrendingUp } from "lucide-react";
+
+type RankingTab = "monthly" | "cumulative";
 
 export default function PointsPage() {
   const { currentSiteId } = useAuth();
+  const [rankingTab, setRankingTab] = useState<RankingTab>("monthly");
   const { data, isLoading: pointsLoading } = usePoints(currentSiteId || "");
   const { data: leaderboardData, isLoading: leaderboardLoading } =
     useLeaderboard(currentSiteId || null);
@@ -46,9 +50,37 @@ export default function PointsPage() {
         )}
 
         <Card className="overflow-hidden border-amber-200">
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 border-b border-amber-100 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-600" />
-            <h3 className="font-bold text-amber-900">이번 달 랭킹</h3>
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 border-b border-amber-100">
+            <div className="flex items-center gap-2 mb-3">
+              <Trophy className="w-5 h-5 text-amber-600" />
+              <h3 className="font-bold text-amber-900">랭킹</h3>
+            </div>
+            <div className="flex gap-1 bg-amber-100/50 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => setRankingTab("monthly")}
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-sm rounded-md transition-colors ${
+                  rankingTab === "monthly"
+                    ? "bg-white text-amber-900 font-medium shadow-sm"
+                    : "text-amber-700"
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                이번 달
+              </button>
+              <button
+                type="button"
+                onClick={() => setRankingTab("cumulative")}
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-sm rounded-md transition-colors ${
+                  rankingTab === "cumulative"
+                    ? "bg-white text-amber-900 font-medium shadow-sm"
+                    : "text-amber-700"
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                누적
+              </button>
+            </div>
           </div>
           <CardContent className="p-0">
             {leaderboardLoading ? (

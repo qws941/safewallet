@@ -1,11 +1,18 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
-import { pointsLedger, siteMemberships, users, auditLogs } from "../db/schema";
+import {
+  pointsLedger,
+  pointPolicies,
+  siteMemberships,
+  users,
+} from "../db/schema";
 import { success, error } from "../lib/response";
 import { logAuditWithContext } from "../lib/audit";
+import { AwardPointsSchema } from "../validators/schemas";
 
 const app = new Hono<{
   Bindings: Env;
@@ -28,18 +35,13 @@ interface QueryPointsParams {
 
 app.use("*", authMiddleware);
 
-app.post("/award", async (c) => {
+app.post("/award", zValidator("json", AwardPointsSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
 
-  let data: AwardPointsBody;
-  try {
-    data = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid JSON", 400);
-  }
+  const data = c.req.valid("json") as AwardPointsBody;
 
-  if (!data.userId || !data.siteId || typeof data.amount !== "number") {
+  if (!data.userId || !data.siteId) {
     return error(
       c,
       "MISSING_REQUIRED_FIELDS",
@@ -86,6 +88,29 @@ app.post("/award", async (c) => {
     );
   }
 
+  const manualAwardPolicy = await db
+    .select({ defaultAmount: pointPolicies.defaultAmount })
+    .from(pointPolicies)
+    .where(
+      and(
+        eq(pointPolicies.siteId, data.siteId),
+        eq(pointPolicies.reasonCode, "MANUAL_AWARD"),
+        eq(pointPolicies.isActive, true),
+      ),
+    )
+    .get();
+
+  const resolvedAmount = manualAwardPolicy?.defaultAmount ?? data.amount;
+
+  if (typeof resolvedAmount !== "number") {
+    return error(
+      c,
+      "MISSING_REQUIRED_FIELDS",
+      "userId, siteId, and amount are required",
+      400,
+    );
+  }
+
   const now = new Date();
   const settleMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -94,7 +119,7 @@ app.post("/award", async (c) => {
     .values({
       userId: data.userId,
       siteId: data.siteId,
-      amount: data.amount,
+      amount: resolvedAmount,
       reasonCode: "MANUAL_AWARD",
       reasonText: data.reason ?? null,
       settleMonth,
@@ -105,7 +130,7 @@ app.post("/award", async (c) => {
 
   await logAuditWithContext(c, db, "POINT_AWARD", user.id, "POINT", entry.id, {
     userId: data.userId,
-    amount: data.amount,
+    amount: resolvedAmount,
     reason: data.reason,
     reasonCode: "MANUAL_AWARD",
   });

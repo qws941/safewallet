@@ -4,6 +4,7 @@ import {
   integer,
   index,
   unique,
+  type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
@@ -84,7 +85,7 @@ export const users = sqliteTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    phone: text("phone").unique().notNull(),
+    phone: text("phone"),
     phoneEncrypted: text("phone_encrypted"),
     phoneHash: text("phone_hash"),
     name: text("name"),
@@ -106,12 +107,22 @@ export const users = sqliteTable(
     canManageUsers: integer("can_manage_users", { mode: "boolean" })
       .default(false)
       .notNull(),
+    canReview: integer("can_review", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    canExportData: integer("can_export_data", { mode: "boolean" })
+      .default(false)
+      .notNull(),
     falseReportCount: integer("false_report_count").default(0).notNull(),
     restrictedUntil: integer("restricted_until", { mode: "timestamp" }),
     otpCode: text("otp_code"),
     otpExpiresAt: integer("otp_expires_at", { mode: "timestamp" }),
     otpAttemptCount: integer("otp_attempt_count").default(0).notNull(),
     refreshToken: text("refresh_token"),
+    deletionRequestedAt: integer("deletion_requested_at", {
+      mode: "timestamp",
+    }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
       () => new Date(),
     ),
@@ -212,7 +223,9 @@ export const posts = sqliteTable(
     isPotentialDuplicate: integer("is_potential_duplicate", { mode: "boolean" })
       .default(false)
       .notNull(),
-    duplicateOfPostId: text("duplicate_of_post_id"),
+    duplicateOfPostId: text("duplicate_of_post_id").references(
+      (): AnySQLiteColumn => posts.id,
+    ),
     reviewStatus: text("review_status", { enum: reviewStatusEnum })
       .default("RECEIVED")
       .notNull(),
@@ -245,19 +258,25 @@ export const posts = sqliteTable(
   }),
 );
 
-export const postImages = sqliteTable("post_images", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  postId: text("post_id")
-    .notNull()
-    .references(() => posts.id, { onDelete: "cascade" }),
-  fileUrl: text("file_url").notNull(),
-  thumbnailUrl: text("thumbnail_url"),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-    () => new Date(),
-  ),
-});
+export const postImages = sqliteTable(
+  "post_images",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    fileUrl: text("file_url").notNull(),
+    thumbnailUrl: text("thumbnail_url"),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    postIdIdx: index("post_images_post_id_idx").on(table.postId),
+  }),
+);
 
 export const reviews = sqliteTable(
   "reviews",
@@ -301,7 +320,9 @@ export const pointsLedger = sqliteTable(
     postId: text("post_id").references(() => posts.id, {
       onDelete: "set null",
     }),
-    refLedgerId: text("ref_ledger_id"),
+    refLedgerId: text("ref_ledger_id").references(
+      (): AnySQLiteColumn => pointsLedger.id,
+    ),
     amount: integer("amount").notNull(),
     reasonCode: text("reason_code").notNull(),
     reasonText: text("reason_text"),
@@ -357,19 +378,25 @@ export const actions = sqliteTable(
   }),
 );
 
-export const actionImages = sqliteTable("action_images", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  actionId: text("action_id")
-    .notNull()
-    .references(() => actions.id, { onDelete: "cascade" }),
-  fileUrl: text("file_url").notNull(),
-  thumbnailUrl: text("thumbnail_url"),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-    () => new Date(),
-  ),
-});
+export const actionImages = sqliteTable(
+  "action_images",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    actionId: text("action_id")
+      .notNull()
+      .references(() => actions.id, { onDelete: "cascade" }),
+    fileUrl: text("file_url").notNull(),
+    thumbnailUrl: text("thumbnail_url"),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    actionIdIdx: index("action_images_action_id_idx").on(table.actionId),
+  }),
+);
 
 export const auditLogs = sqliteTable(
   "audit_logs",
@@ -430,26 +457,6 @@ export const announcements = sqliteTable(
     sitePinnedCreatedAtIdx: index(
       "announcements_site_pinned_created_at_idx",
     ).on(table.siteId, table.isPinned, table.createdAt),
-  }),
-);
-
-export const sessions = sqliteTable(
-  "sessions",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    refreshToken: text("refresh_token").unique().notNull(),
-    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-      () => new Date(),
-    ),
-  },
-  (table) => ({
-    userIdx: index("sessions_user_idx").on(table.userId),
   }),
 );
 
@@ -526,7 +533,7 @@ export const manualApprovals = sqliteTable(
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
     approvedById: text("approved_by_id").references(() => users.id, {
-      onDelete: "cascade",
+      onDelete: "set null",
     }),
     reason: text("reason").notNull(),
     validDate: integer("valid_date", { mode: "timestamp" }).notNull(),
@@ -614,14 +621,47 @@ export const votePeriods = sqliteTable(
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
     month: text("month").notNull(),
-    startDate: text("start_date").notNull(),
-    endDate: text("end_date").notNull(),
+    startDate: integer("start_date").notNull(),
+    endDate: integer("end_date").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
       () => new Date(),
     ),
   },
   (table) => ({
     siteMonthUnique: unique().on(table.siteId, table.month),
+  }),
+);
+
+export const recommendations = sqliteTable(
+  "recommendations",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    recommenderId: text("recommender_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recommendedName: text("recommended_name").notNull(),
+    tradeType: text("trade_type").notNull(),
+    reason: text("reason").notNull(),
+    recommendationDate: text("recommendation_date").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    siteRecommenderDateUnique: unique().on(
+      table.siteId,
+      table.recommenderId,
+      table.recommendationDate,
+    ),
+    siteIdx: index("recommendations_site_idx").on(table.siteId),
+    recommenderIdx: index("recommendations_recommender_idx").on(
+      table.recommenderId,
+    ),
   }),
 );
 
@@ -684,7 +724,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   pointsReceived: many(pointsLedger, { relationName: "pointsUser" }),
   auditLogs: many(auditLogs),
   announcements: many(announcements),
-  sessions: many(sessions),
   actions: many(actions),
   attendances: many(attendance),
   votesGiven: many(votes, { relationName: "voteVoter" }),
@@ -805,10 +844,6 @@ export const announcementsRelations = relations(announcements, ({ one }) => ({
     fields: [announcements.authorId],
     references: [users.id],
   }),
-}));
-
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
 export const attendanceRelations = relations(attendance, ({ one }) => ({
@@ -1229,8 +1264,8 @@ export const statutoryTrainings = sqliteTable(
       enum: statutoryTrainingTypeEnum,
     }).notNull(),
     trainingName: text("training_name").notNull(),
-    trainingDate: text("training_date").notNull(),
-    expirationDate: text("expiration_date"),
+    trainingDate: integer("training_date").notNull(),
+    expirationDate: integer("expiration_date"),
     provider: text("provider"),
     certificateUrl: text("certificate_url"),
     hoursCompleted: integer("hours_completed").default(0).notNull(),
@@ -1275,7 +1310,7 @@ export const tbmRecords = sqliteTable(
     siteId: text("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
-    date: text("date").notNull(),
+    date: integer("date").notNull(),
     topic: text("topic").notNull(),
     content: text("content"),
     leaderId: text("leader_id")
@@ -1439,7 +1474,7 @@ export const syncErrors = sqliteTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    siteId: text("site_id").references(() => sites.id),
+    siteId: text("site_id").references(() => sites.id, { onDelete: "cascade" }),
     syncType: text("sync_type", { enum: syncTypeEnum }).notNull(),
     status: text("status", { enum: syncErrorStatusEnum })
       .notNull()
@@ -1448,11 +1483,11 @@ export const syncErrors = sqliteTable(
     errorMessage: text("error_message").notNull(),
     payload: text("payload"), // JSON string of failed data
     retryCount: integer("retry_count").notNull().default(0),
-    lastRetryAt: text("last_retry_at"),
-    resolvedAt: text("resolved_at"),
-    createdAt: text("created_at")
+    lastRetryAt: integer("last_retry_at"),
+    resolvedAt: integer("resolved_at"),
+    createdAt: integer("created_at")
       .notNull()
-      .$defaultFn(() => new Date().toISOString()),
+      .$defaultFn(() => Math.floor(Date.now() / 1000)),
   },
   (table) => ({
     siteTypeIdx: index("sync_errors_site_type_idx").on(

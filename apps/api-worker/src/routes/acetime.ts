@@ -6,6 +6,7 @@ import { encrypt, hmac } from "../lib/crypto";
 import { error, success } from "../lib/response";
 import { authMiddleware } from "../middleware/auth";
 import type { AuthContext, Env } from "../types";
+import { maskName } from "../utils/common";
 
 const app = new Hono<{
   Bindings: Env;
@@ -24,12 +25,6 @@ type AppContext = {
   Bindings: Env;
   Variables: { auth: AuthContext };
 };
-
-function maskName(name: string): string {
-  if (name.length <= 1) return "*";
-  if (name.length === 2) return `${name[0]}*`;
-  return `${name[0]}${"*".repeat(name.length - 2)}${name[name.length - 1]}`;
-}
 
 function isAdminRole(role: string): boolean {
   return role === "ADMIN" || role === "SUPER_ADMIN";

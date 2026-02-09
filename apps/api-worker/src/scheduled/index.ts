@@ -7,6 +7,8 @@ import {
   auditLogs,
   users,
   syncErrors,
+  actions,
+  posts,
 } from "../db/schema";
 import {
   fasGetUpdatedEmployees,
@@ -339,6 +341,92 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
   }
 }
 
+async function runOverdueActionCheck(env: Env): Promise<void> {
+  const db = drizzle(env.DB);
+  const now = new Date();
+
+  const overdueActions = await db
+    .select({ id: actions.id, postId: actions.postId })
+    .from(actions)
+    .where(
+      and(
+        sql`${actions.actionStatus} IN ('OPEN', 'IN_PROGRESS')`,
+        lt(actions.dueDate, now),
+      ),
+    );
+
+  if (overdueActions.length === 0) return;
+
+  for (const action of overdueActions) {
+    await db
+      .update(actions)
+      .set({ actionStatus: "DONE" })
+      .where(eq(actions.id, action.id));
+
+    if (action.postId) {
+      await db
+        .update(posts)
+        .set({
+          actionStatus: "REOPENED",
+          updatedAt: now,
+        })
+        .where(eq(posts.id, action.postId));
+    }
+  }
+
+  console.log(`Overdue action check: ${overdueActions.length} actions marked`);
+}
+
+async function runPiiLifecycleCleanup(env: Env): Promise<void> {
+  const db = drizzle(env.DB);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const usersToHardDelete = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(
+      and(
+        sql`${users.deletionRequestedAt} IS NOT NULL`,
+        lt(users.deletionRequestedAt, thirtyDaysAgo),
+        sql`${users.deletedAt} IS NULL`,
+      ),
+    );
+
+  for (const user of usersToHardDelete) {
+    await db
+      .update(users)
+      .set({
+        phone: "",
+        phoneEncrypted: "",
+        phoneHash: "",
+        name: "[삭제됨]",
+        nameMasked: "[삭제됨]",
+        dob: null,
+        dobEncrypted: "",
+        dobHash: "",
+        companyName: null,
+        deletedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(users.id, user.id));
+  }
+
+  if (usersToHardDelete.length > 0) {
+    console.log(
+      `PII lifecycle: ${usersToHardDelete.length} users hard-deleted`,
+    );
+  }
+
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  const deletedLogs = await db
+    .delete(auditLogs)
+    .where(lt(auditLogs.createdAt, oneYearAgo));
+  console.log(
+    `PII lifecycle: old audit logs cleaned (${deletedLogs.meta?.changes ?? 0} rows)`,
+  );
+}
+
 export async function scheduled(
   controller: ScheduledController,
   env: Env,
@@ -357,6 +445,12 @@ export async function scheduled(
 
     if (trigger === "0 3 * * 0") {
       await runDataRetention(env);
+    }
+
+    // Daily 6AM KST: overdue action check + PII cleanup
+    if (trigger === "0 21 * * *") {
+      await runOverdueActionCheck(env);
+      await runPiiLifecycleCleanup(env);
     }
   } catch (error) {
     console.error("Scheduled task error:", error);

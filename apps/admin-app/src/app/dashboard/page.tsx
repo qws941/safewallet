@@ -79,7 +79,7 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">대시보드</h1>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(8)].map((_, i) => (
-            <Skeleton key={i} className="h-32" />
+            <Skeleton key={`dash-skel-${i}`} className="h-32" />
           ))}
         </div>
         <Skeleton className="h-64" />
@@ -90,6 +90,22 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">대시보드</h1>
+
+      {(stats?.pendingCount ?? 0) > 0 &&
+        (stats?.avgProcessingHours ?? 0) >= 48 && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+            <div>
+              <p className="font-medium text-red-800">
+                48시간 이상 미처리 백로그가 있습니다
+              </p>
+              <p className="text-sm text-red-600">
+                미처리 {stats?.pendingCount}건 · 평균 처리시간{" "}
+                {stats?.avgProcessingHours}시간
+              </p>
+            </div>
+          </div>
+        )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard

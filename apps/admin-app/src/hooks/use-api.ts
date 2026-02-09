@@ -17,8 +17,22 @@ export interface Post {
   content: string;
   riskLevel?: string;
   status: ReviewStatus;
+  actionStatus?: string;
   isUrgent: boolean;
   createdAt: string;
+  locationFloor?: string;
+  locationZone?: string;
+  locationDetail?: string;
+  metadata?: Record<string, unknown>;
+  images?: Array<{ id: string; fileUrl: string; thumbnailUrl?: string }>;
+  reviews?: Array<{
+    id: string;
+    action: string;
+    comment?: string;
+    reasonCode?: string;
+    createdAt: string;
+    admin?: { nameMasked: string };
+  }>;
   author: {
     id: string;
     nameMasked: string;
@@ -147,6 +161,7 @@ export function useDashboardStats() {
     queryKey: ["dashboard", "stats", siteId],
     queryFn: () => apiFetch<DashboardStats>(`/sites/${siteId}/stats`),
     enabled: !!siteId,
+    refetchInterval: 30_000,
   });
 }
 

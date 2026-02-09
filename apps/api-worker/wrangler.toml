@@ -36,6 +36,12 @@ bucket_name = "safework2-static"
 binding = "ACETIME_BUCKET"
 bucket_name = "safework2-acetime"
 
+# Hyperdrive — FAS MariaDB via Cloudflare Tunnel
+# Uncomment after Hyperdrive config is created (blocked on tunnel→MariaDB connectivity)
+# [[hyperdrive]]
+# binding = "FAS_HYPERDRIVE"
+# id = "<HYPERDRIVE_ID>"
+
 # KV Namespace for cache/sessions
 [[kv_namespaces]]
 binding = "KV"
@@ -51,8 +57,18 @@ bindings = [
 tag = "v1"
 new_classes = ["RateLimiter"]
 
+# Queue for async notification processing
+[[queues.producers]]
+queue = "safework2-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+[[queues.consumers]]
+queue = "safework2-notifications"
+max_batch_size = 10
+max_retries = 3
+
 [triggers]
-crons = ["*/5 * * * *", "0 0 1 * *", "0 3 * * SUN"]
+crons = ["*/5 * * * *", "0 0 1 * *", "0 3 * * SUN", "0 21 * * *"]
 
 [env.dev]
 name = "safework2-api-dev"

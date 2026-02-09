@@ -18,7 +18,14 @@ import {
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { CheckCircle, XCircle, Award } from "lucide-react";
+import { CheckCircle, XCircle, Award, Bell, ChevronRight } from "lucide-react";
+
+interface AnnouncementItem {
+  id: string;
+  title: string;
+  isPinned: boolean;
+  createdAt: string;
+}
 
 interface AttendanceStatus {
   attended: boolean;
@@ -50,8 +57,24 @@ export default function HomePage() {
 
   const recentPosts = postsData?.data?.slice(0, 3) || [];
   const pointsBalance = pointsData?.data?.balance || 0;
+  const lastMonthBalance = (pointsData?.data as Record<string, unknown>)
+    ?.lastMonthBalance as number | undefined;
+  const pointsDelta =
+    lastMonthBalance != null ? pointsBalance - lastMonthBalance : null;
   const myRank = leaderboardData?.myRank || null;
   const totalParticipants = leaderboardData?.leaderboard?.length || 0;
+
+  const { data: announcementsData } = useQuery<AnnouncementItem[]>({
+    queryKey: ["announcements", "recent", currentSiteId],
+    queryFn: async () => {
+      const res = await apiFetch<{ data: AnnouncementItem[] }>(
+        `/announcements?siteId=${currentSiteId}&limit=3`,
+      );
+      return res.data || [];
+    },
+    enabled: !!currentSiteId,
+  });
+  const recentAnnouncements = announcementsData || [];
 
   const formatCheckinTime = (dateStr: string | null) => {
     if (!dateStr) return "";
@@ -99,7 +122,7 @@ export default function HomePage() {
           {pointsLoading ? (
             <Skeleton className="h-full w-full" />
           ) : (
-            <PointsCard balance={pointsBalance} />
+            <PointsCard balance={pointsBalance} delta={pointsDelta} />
           )}
 
           <RankingCard

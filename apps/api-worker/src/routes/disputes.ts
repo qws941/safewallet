@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env, AuthContext } from "../types";
@@ -13,6 +15,11 @@ import {
   disputeStatusEnum,
   disputeTypeEnum,
 } from "../db/schema";
+import {
+  CreateDisputeSchema,
+  ResolveDisputeSchema,
+  UpdateDisputeStatusSchema,
+} from "../validators/schemas";
 
 const disputesRoute = new Hono<{
   Bindings: Env;
@@ -21,81 +28,79 @@ const disputesRoute = new Hono<{
 
 disputesRoute.use("*", authMiddleware);
 
-disputesRoute.post("/", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
+disputesRoute.post(
+  "/",
+  zValidator("json", CreateDisputeSchema as never),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
 
-  const body = await c.req.json<{
-    siteId: string;
-    type: (typeof disputeTypeEnum)[number];
-    title: string;
-    description: string;
-    refReviewId?: string;
-    refPointsLedgerId?: string;
-    refAttendanceId?: string;
-  }>();
+    const body: z.infer<typeof CreateDisputeSchema> = c.req.valid("json");
 
-  if (!body.siteId || !body.type || !body.title || !body.description) {
-    return error(c, "VALIDATION_ERROR", "Missing required fields", 400);
-  }
+    if (!body.siteId || !body.type || !body.title || !body.description) {
+      return error(c, "VALIDATION_ERROR", "Missing required fields", 400);
+    }
 
-  if (!disputeTypeEnum.includes(body.type)) {
-    return error(c, "VALIDATION_ERROR", "Invalid dispute type", 400);
-  }
+    if (!disputeTypeEnum.includes(body.type)) {
+      return error(c, "VALIDATION_ERROR", "Invalid dispute type", 400);
+    }
 
-  const membership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.siteId, body.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-      ),
-    )
-    .get();
+    const membership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, body.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+        ),
+      )
+      .get();
 
-  if (!membership) {
-    return error(c, "FORBIDDEN", "Not a member of this site", 403);
-  }
+    if (!membership) {
+      return error(c, "FORBIDDEN", "Not a member of this site", 403);
+    }
 
-  const [dispute] = await db
-    .insert(disputes)
-    .values({
-      siteId: body.siteId,
-      userId: user.id,
-      type: body.type,
-      title: body.title,
-      description: body.description,
-      refReviewId: body.refReviewId,
-      refPointsLedgerId: body.refPointsLedgerId,
-      refAttendanceId: body.refAttendanceId,
-    })
-    .returning();
-
-  try {
-    await logAuditWithContext(
-      c,
-      db,
-      "DISPUTE_CREATED",
-      user.id,
-      "DISPUTE",
-      dispute.id,
-      {
+    const [dispute] = await db
+      .insert(disputes)
+      .values({
         siteId: body.siteId,
+        userId: user.id,
         type: body.type,
-      },
-    );
-  } catch {
-    // Do not block successful dispute creation on audit failure.
-  }
+        title: body.title,
+        description: body.description,
+        refReviewId: body.refReviewId,
+        refPointsLedgerId: body.refPointsLedgerId,
+        refAttendanceId: body.refAttendanceId,
+      })
+      .returning();
 
-  return success(c, dispute, 201);
-});
+    try {
+      await logAuditWithContext(
+        c,
+        db,
+        "DISPUTE_CREATED",
+        user.id,
+        "DISPUTE",
+        dispute.id,
+        {
+          siteId: body.siteId,
+          type: body.type,
+        },
+      );
+    } catch {
+      // Do not block successful dispute creation on audit failure.
+    }
+
+    return success(c, dispute, 201);
+  },
+);
 
 disputesRoute.get("/my", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
   const status = c.req.query("status") as
     | (typeof disputeStatusEnum)[number]
     | undefined;
@@ -122,9 +127,14 @@ disputesRoute.get("/my", async (c) => {
     .leftJoin(sites, eq(disputes.siteId, sites.id))
     .where(whereCondition)
     .orderBy(desc(disputes.createdAt))
+    .limit(limit)
+    .offset(offset)
     .all();
 
-  return success(c, results);
+  return success(c, {
+    data: results,
+    pagination: { limit, offset, count: results.length },
+  });
 });
 
 disputesRoute.get("/:id", async (c) => {
@@ -189,6 +199,8 @@ disputesRoute.get("/site/:siteId", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const siteId = c.req.param("siteId");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
   const status = c.req.query("status") as
     | (typeof disputeStatusEnum)[number]
     | undefined;
@@ -229,164 +241,172 @@ disputesRoute.get("/site/:siteId", async (c) => {
     .leftJoin(users, eq(disputes.userId, users.id))
     .where(whereCondition)
     .orderBy(desc(disputes.createdAt))
+    .limit(limit)
+    .offset(offset)
     .all();
 
-  return success(c, results);
+  return success(c, {
+    data: results,
+    pagination: { limit, offset, count: results.length },
+  });
 });
 
-disputesRoute.patch("/:id/resolve", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-  const disputeId = c.req.param("id");
+disputesRoute.patch(
+  "/:id/resolve",
+  zValidator("json", ResolveDisputeSchema as never),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const disputeId = c.req.param("id");
 
-  const body = await c.req.json<{
-    status: "RESOLVED" | "REJECTED";
-    resolutionNote: string;
-  }>();
+    const body: z.infer<typeof ResolveDisputeSchema> = c.req.valid("json");
 
-  if (!body.status || !body.resolutionNote) {
-    return error(
-      c,
-      "VALIDATION_ERROR",
-      "Status and resolution note required",
-      400,
-    );
-  }
+    if (!body.status || !body.resolutionNote) {
+      return error(
+        c,
+        "VALIDATION_ERROR",
+        "Status and resolution note required",
+        400,
+      );
+    }
 
-  if (body.status !== "RESOLVED" && body.status !== "REJECTED") {
-    return error(
-      c,
-      "VALIDATION_ERROR",
-      "Status must be RESOLVED or REJECTED",
-      400,
-    );
-  }
+    if (body.status !== "RESOLVED" && body.status !== "REJECTED") {
+      return error(
+        c,
+        "VALIDATION_ERROR",
+        "Status must be RESOLVED or REJECTED",
+        400,
+      );
+    }
 
-  const dispute = await db
-    .select()
-    .from(disputes)
-    .where(eq(disputes.id, disputeId))
-    .get();
-
-  if (!dispute) {
-    return error(c, "NOT_FOUND", "Dispute not found", 404);
-  }
-
-  if (dispute.status !== "OPEN" && dispute.status !== "IN_REVIEW") {
-    return error(c, "INVALID_STATE", "Dispute is already resolved", 400);
-  }
-
-  if (user.role !== "SUPER_ADMIN") {
-    const membership = await db
+    const dispute = await db
       .select()
-      .from(siteMemberships)
-      .where(
-        and(
-          eq(siteMemberships.userId, user.id),
-          eq(siteMemberships.siteId, dispute.siteId),
-          eq(siteMemberships.role, "SITE_ADMIN"),
-        ),
-      )
+      .from(disputes)
+      .where(eq(disputes.id, disputeId))
       .get();
 
-    if (!membership) {
-      return error(c, "FORBIDDEN", "Admin access required", 403);
+    if (!dispute) {
+      return error(c, "NOT_FOUND", "Dispute not found", 404);
     }
-  }
 
-  const [updated] = await db
-    .update(disputes)
-    .set({
-      status: body.status,
-      resolutionNote: body.resolutionNote,
-      resolvedById: user.id,
-      resolvedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(disputes.id, disputeId))
-    .returning();
+    if (dispute.status !== "OPEN" && dispute.status !== "IN_REVIEW") {
+      return error(c, "INVALID_STATE", "Dispute is already resolved", 400);
+    }
 
-  try {
+    if (user.role !== "SUPER_ADMIN") {
+      const membership = await db
+        .select()
+        .from(siteMemberships)
+        .where(
+          and(
+            eq(siteMemberships.userId, user.id),
+            eq(siteMemberships.siteId, dispute.siteId),
+            eq(siteMemberships.role, "SITE_ADMIN"),
+          ),
+        )
+        .get();
+
+      if (!membership) {
+        return error(c, "FORBIDDEN", "Admin access required", 403);
+      }
+    }
+
+    const [updated] = await db
+      .update(disputes)
+      .set({
+        status: body.status,
+        resolutionNote: body.resolutionNote,
+        resolvedById: user.id,
+        resolvedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(disputes.id, disputeId))
+      .returning();
+
+    try {
+      await logAuditWithContext(
+        c,
+        db,
+        "DISPUTE_RESOLVED",
+        user.id,
+        "DISPUTE",
+        disputeId,
+        {
+          status: body.status,
+          resolutionNote: body.resolutionNote,
+        },
+      );
+    } catch {
+      // Do not block successful dispute resolution on audit failure.
+    }
+
+    return success(c, updated);
+  },
+);
+
+disputesRoute.patch(
+  "/:id/status",
+  zValidator("json", UpdateDisputeStatusSchema as never),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const disputeId = c.req.param("id");
+
+    const body: z.infer<typeof UpdateDisputeStatusSchema> = c.req.valid("json");
+
+    if (!body.status || !disputeStatusEnum.includes(body.status)) {
+      return error(c, "VALIDATION_ERROR", "Invalid status", 400);
+    }
+
+    const dispute = await db
+      .select()
+      .from(disputes)
+      .where(eq(disputes.id, disputeId))
+      .get();
+
+    if (!dispute) {
+      return error(c, "NOT_FOUND", "Dispute not found", 404);
+    }
+
+    if (user.role !== "SUPER_ADMIN") {
+      const membership = await db
+        .select()
+        .from(siteMemberships)
+        .where(
+          and(
+            eq(siteMemberships.userId, user.id),
+            eq(siteMemberships.siteId, dispute.siteId),
+            eq(siteMemberships.role, "SITE_ADMIN"),
+          ),
+        )
+        .get();
+
+      if (!membership) {
+        return error(c, "FORBIDDEN", "Admin access required", 403);
+      }
+    }
+
+    const [updated] = await db
+      .update(disputes)
+      .set({
+        status: body.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(disputes.id, disputeId))
+      .returning();
+
     await logAuditWithContext(
       c,
       db,
-      "DISPUTE_RESOLVED",
+      "DISPUTE_STATUS_CHANGED",
       user.id,
       "DISPUTE",
       disputeId,
-      {
-        status: body.status,
-        resolutionNote: body.resolutionNote,
-      },
+      { previousStatus: dispute.status, newStatus: body.status },
     );
-  } catch {
-    // Do not block successful dispute resolution on audit failure.
-  }
 
-  return success(c, updated);
-});
-
-disputesRoute.patch("/:id/status", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-  const disputeId = c.req.param("id");
-
-  const body = await c.req.json<{
-    status: (typeof disputeStatusEnum)[number];
-  }>();
-
-  if (!body.status || !disputeStatusEnum.includes(body.status)) {
-    return error(c, "VALIDATION_ERROR", "Invalid status", 400);
-  }
-
-  const dispute = await db
-    .select()
-    .from(disputes)
-    .where(eq(disputes.id, disputeId))
-    .get();
-
-  if (!dispute) {
-    return error(c, "NOT_FOUND", "Dispute not found", 404);
-  }
-
-  if (user.role !== "SUPER_ADMIN") {
-    const membership = await db
-      .select()
-      .from(siteMemberships)
-      .where(
-        and(
-          eq(siteMemberships.userId, user.id),
-          eq(siteMemberships.siteId, dispute.siteId),
-          eq(siteMemberships.role, "SITE_ADMIN"),
-        ),
-      )
-      .get();
-
-    if (!membership) {
-      return error(c, "FORBIDDEN", "Admin access required", 403);
-    }
-  }
-
-  const [updated] = await db
-    .update(disputes)
-    .set({
-      status: body.status,
-      updatedAt: new Date(),
-    })
-    .where(eq(disputes.id, disputeId))
-    .returning();
-
-  await logAuditWithContext(
-    c,
-    db,
-    "DISPUTE_STATUS_CHANGED",
-    user.id,
-    "DISPUTE",
-    disputeId,
-    { previousStatus: dispute.status, newStatus: body.status },
-  );
-
-  return success(c, updated);
-});
+    return success(c, updated);
+  },
+);
 
 export default disputesRoute;

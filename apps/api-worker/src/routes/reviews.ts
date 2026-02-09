@@ -1,10 +1,13 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, desc } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { success, error } from "../lib/response";
 import { logAuditWithContext } from "../lib/audit";
+import { ReviewActionSchema } from "../validators/schemas";
 import {
   reviews,
   posts,
@@ -49,13 +52,12 @@ const validActions: ReviewAction[] = [
   "CLOSE",
 ];
 
-const DEFAULT_APPROVAL_POINTS = 100;
+const validateJson = zValidator as (
+  target: "json",
+  schema: unknown,
+) => ReturnType<typeof zValidator>;
 
-interface CreateReviewBody {
-  postId: string;
-  action: ReviewAction;
-  comment?: string;
-}
+const DEFAULT_APPROVAL_POINTS = 100;
 
 function determineNewStatuses(
   action: ReviewAction,
@@ -93,16 +95,13 @@ function determineNewStatuses(
 
 app.use("*", authMiddleware);
 
-app.post("/", async (c) => {
+app.post("/", validateJson("json", ReviewActionSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
 
-  let data: CreateReviewBody;
-  try {
-    data = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid JSON", 400);
-  }
+  const data = c.req.valid("json" as never) as z.infer<
+    typeof ReviewActionSchema
+  >;
 
   if (!data.postId || !data.action) {
     return error(
@@ -189,7 +188,27 @@ app.post("/", async (c) => {
     postUpdateData.isUrgent = true;
   }
 
-  await db.update(posts).set(postUpdateData).where(eq(posts.id, data.postId));
+  const updatedPost = await db
+    .update(posts)
+    .set(postUpdateData)
+    .where(
+      and(
+        eq(posts.id, data.postId),
+        eq(posts.reviewStatus, post.reviewStatus),
+        eq(posts.actionStatus, post.actionStatus),
+      ),
+    )
+    .returning()
+    .get();
+
+  if (!updatedPost) {
+    return error(
+      c,
+      "POST_STATUS_CONFLICT",
+      "Post already reviewed or status changed",
+      409,
+    );
+  }
 
   const oldReviewStatus = post.reviewStatus;
   const oldActionStatus = post.actionStatus;

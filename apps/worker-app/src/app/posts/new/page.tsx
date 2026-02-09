@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { apiFetch } from "@/lib/api";
@@ -13,11 +13,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   useToast,
 } from "@safetywallet/ui";
 import { UnsafeWarningModal } from "@/components/unsafe-warning-modal";
@@ -29,7 +24,6 @@ const categoryOptions = [
   { value: Category.UNSAFE_BEHAVIOR, label: "불안전행동", icon: "🚨" },
   { value: Category.INCONVENIENCE, label: "불편사항", icon: "🛠️" },
   { value: Category.SUGGESTION, label: "개선제안", icon: "💡" },
-  { value: Category.BEST_PRACTICE, label: "우수사례", icon: "⭐" },
 ];
 
 const riskOptions = [
@@ -67,20 +61,67 @@ export default function NewPostPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
 
-  const [hazardType, setHazardType] = useState<string>("");
-  const [immediateActionPossible, setImmediateActionPossible] = useState(false);
-  const [actionSuggestion, setActionSuggestion] = useState("");
+  const DRAFT_KEY = `safework2_post_draft_${currentSiteId || "default"}`;
 
-  const [behaviorType, setBehaviorType] = useState<string>("");
+  const saveDraft = useCallback(() => {
+    if (!category && !content) return;
+    const draft = {
+      category,
+      riskLevel,
+      content,
+      locationFloor,
+      locationZone,
+      isAnonymous,
+      savedAt: Date.now(),
+    };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // storage full or unavailable
+    }
+  }, [
+    DRAFT_KEY,
+    category,
+    riskLevel,
+    content,
+    locationFloor,
+    locationZone,
+    isAnonymous,
+  ]);
 
-  const [inconvenienceType, setInconvenienceType] = useState<string>("");
-  const [frequency, setFrequency] = useState<string>("");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      if (Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      if (draft.category) setCategory(draft.category);
+      if (draft.riskLevel) setRiskLevel(draft.riskLevel);
+      if (draft.content) setContent(draft.content);
+      if (draft.locationFloor) setLocationFloor(draft.locationFloor);
+      if (draft.locationZone) setLocationZone(draft.locationZone);
+      if (draft.isAnonymous) setIsAnonymous(draft.isAnonymous);
+    } catch {
+      // corrupted draft
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [DRAFT_KEY]);
 
-  const [suggestionType, setSuggestionType] = useState<string>("");
-  const [expectedBenefit, setExpectedBenefit] = useState("");
-  const [contactConsent, setContactConsent] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(saveDraft, 2000);
+    return () => clearTimeout(timer);
+  }, [saveDraft]);
 
-  const [improvementDescription, setImprovementDescription] = useState("");
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -126,30 +167,6 @@ export default function NewPostPage() {
     setShowWarningModal(false);
 
     try {
-      let metadata: Record<string, string | boolean> = {};
-
-      switch (category) {
-        case Category.HAZARD:
-          metadata = {
-            hazardType,
-            immediateActionPossible,
-            actionSuggestion,
-          };
-          break;
-        case Category.UNSAFE_BEHAVIOR:
-          metadata = { behaviorType };
-          break;
-        case Category.INCONVENIENCE:
-          metadata = { inconvenienceType, frequency };
-          break;
-        case Category.SUGGESTION:
-          metadata = { suggestionType, expectedBenefit, contactConsent };
-          break;
-        case Category.BEST_PRACTICE:
-          metadata = { improvementDescription };
-          break;
-      }
-
       const postData: CreatePostDto = {
         siteId: currentSiteId,
         category,
@@ -159,7 +176,6 @@ export default function NewPostPage() {
         locationZone: locationZone || undefined,
         visibility: Visibility.WORKER_PUBLIC,
         isAnonymous,
-        metadata,
       };
 
       const response = await createPost.mutateAsync(postData);
@@ -196,6 +212,7 @@ export default function NewPostPage() {
       toast({
         title: "제보가 등록되었습니다.",
       });
+      clearDraft();
       router.replace("/posts");
     } catch (error) {
       toast({
@@ -238,16 +255,6 @@ export default function NewPostPage() {
                     type="button"
                     onClick={() => {
                       setCategory(opt.value);
-                      setHazardType("");
-                      setImmediateActionPossible(false);
-                      setActionSuggestion("");
-                      setBehaviorType("");
-                      setInconvenienceType("");
-                      setFrequency("");
-                      setSuggestionType("");
-                      setExpectedBenefit("");
-                      setContactConsent(false);
-                      setImprovementDescription("");
                     }}
                     className={`p-3 rounded-lg border text-center transition-colors ${
                       category === opt.value
@@ -263,188 +270,14 @@ export default function NewPostPage() {
             </CardContent>
           </Card>
 
-          {category === Category.HAZARD && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">위험 요소 상세</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Select value={hazardType} onValueChange={setHazardType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="위험 유형 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="FALL">추락</SelectItem>
-                    <SelectItem value="DROP">낙하</SelectItem>
-                    <SelectItem value="PINCH">협착</SelectItem>
-                    <SelectItem value="ELECTRIC">감전</SelectItem>
-                    <SelectItem value="FIRE">화재</SelectItem>
-                    <SelectItem value="COLLAPSE">붕괴</SelectItem>
-                    <SelectItem value="OTHER">기타</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="immediateActionPossible"
-                    checked={immediateActionPossible}
-                    onChange={(e) =>
-                      setImmediateActionPossible(e.target.checked)
-                    }
-                    className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <label
-                    htmlFor="immediateActionPossible"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    즉시 조치 가능 여부
-                  </label>
-                </div>
-
-                <textarea
-                  placeholder="조치 제안 (선택 사항)"
-                  value={actionSuggestion}
-                  onChange={(e) => setActionSuggestion(e.target.value)}
-                  className="w-full min-h-[80px] p-3 rounded-lg border border-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                />
-              </CardContent>
-            </Card>
-          )}
-
           {category === Category.UNSAFE_BEHAVIOR && (
-            <>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 mb-4">
-                <p className="font-medium">⚠️ 불안전행동 제보 안내</p>
-                <p>
-                  개인 처벌이 아닌 개선 목적입니다. 얼굴/개인정보 노출에
-                  주의하세요.
-                </p>
-              </div>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">불안전 행동 상세</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Select value={behaviorType} onValueChange={setBehaviorType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="행동 유형 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NO_HELMET">안전모 미착용</SelectItem>
-                      <SelectItem value="NO_HARNESS">안전대 미착용</SelectItem>
-                      <SelectItem value="NO_SAFETY_SHOES">
-                        안전화 미착용
-                      </SelectItem>
-                      <SelectItem value="UNSAFE_POSTURE">
-                        불안전한 자세
-                      </SelectItem>
-                      <SelectItem value="RULE_VIOLATION">수칙 위반</SelectItem>
-                      <SelectItem value="OTHER">기타</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {category === Category.INCONVENIENCE && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">불편 사항 상세</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Select
-                  value={inconvenienceType}
-                  onValueChange={setInconvenienceType}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="불편 유형 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PATHWAY">통로/보행</SelectItem>
-                    <SelectItem value="LIGHTING">조명/밝기</SelectItem>
-                    <SelectItem value="VENTILATION">환기/먼지</SelectItem>
-                    <SelectItem value="NOISE">소음</SelectItem>
-                    <SelectItem value="OTHER">기타</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={frequency} onValueChange={setFrequency}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="발생 빈도" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DAILY">매일 발생</SelectItem>
-                    <SelectItem value="SOMETIMES">가끔 발생</SelectItem>
-                    <SelectItem value="FIRST_TIME">처음 발생</SelectItem>
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-          )}
-
-          {category === Category.SUGGESTION && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">개선 제안 상세</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Select
-                  value={suggestionType}
-                  onValueChange={setSuggestionType}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="제안 유형 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PROCESS">작업 공정</SelectItem>
-                    <SelectItem value="EQUIPMENT">장비/도구</SelectItem>
-                    <SelectItem value="ENVIRONMENT">작업 환경</SelectItem>
-                    <SelectItem value="OTHER">기타</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <textarea
-                  placeholder="예상되는 효과를 작성해주세요"
-                  value={expectedBenefit}
-                  onChange={(e) => setExpectedBenefit(e.target.value)}
-                  className="w-full min-h-[80px] p-3 rounded-lg border border-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                />
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="contactConsent"
-                    checked={contactConsent}
-                    onChange={(e) => setContactConsent(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <label
-                    htmlFor="contactConsent"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    추가 논의를 위한 연락에 동의합니다
-                  </label>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {category === Category.BEST_PRACTICE && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">우수 사례 상세</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <textarea
-                  placeholder="어떤 점이 우수한지 구체적으로 설명해주세요"
-                  value={improvementDescription}
-                  onChange={(e) => setImprovementDescription(e.target.value)}
-                  className="w-full min-h-[100px] p-3 rounded-lg border border-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                />
-              </CardContent>
-            </Card>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              <p className="font-medium">⚠️ 불안전행동 제보 안내</p>
+              <p>
+                개인 처벌이 아닌 개선 목적입니다. 얼굴/개인정보 노출에
+                주의하세요.
+              </p>
+            </div>
           )}
 
           {(category === Category.HAZARD ||

@@ -1,0 +1,432 @@
+import { z } from "zod";
+
+// ─── Shared Enum Values (must match Drizzle schema enums) ────────────────────
+
+const UserRole = ["WORKER", "SITE_ADMIN", "SUPER_ADMIN", "SYSTEM"] as const;
+const Category = [
+  "HAZARD",
+  "UNSAFE_BEHAVIOR",
+  "INCONVENIENCE",
+  "SUGGESTION",
+  "BEST_PRACTICE",
+] as const;
+const RiskLevel = ["HIGH", "MEDIUM", "LOW"] as const;
+const Visibility = ["WORKER_PUBLIC", "ADMIN_ONLY"] as const;
+const ReviewAction = [
+  "APPROVE",
+  "REJECT",
+  "REQUEST_MORE",
+  "MARK_URGENT",
+  "ASSIGN",
+  "CLOSE",
+] as const;
+const RejectReason = [
+  "DUPLICATE",
+  "UNCLEAR_PHOTO",
+  "INSUFFICIENT",
+  "FALSE",
+  "IRRELEVANT",
+  "OTHER",
+] as const;
+const TaskStatus = ["OPEN", "IN_PROGRESS", "DONE"] as const;
+const ApprovalStatus = ["PENDING", "APPROVED", "REJECTED"] as const;
+const MembershipStatus = ["PENDING", "ACTIVE", "LEFT", "REMOVED"] as const;
+const EducationContentType = ["VIDEO", "IMAGE", "TEXT", "DOCUMENT"] as const;
+const QuizStatus = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+const StatutoryTrainingType = [
+  "NEW_WORKER",
+  "SPECIAL",
+  "REGULAR",
+  "CHANGE_OF_WORK",
+] as const;
+const TrainingCompletionStatus = ["SCHEDULED", "COMPLETED", "EXPIRED"] as const;
+
+// Schema-only enums (not in packages/types)
+const DisputeType = [
+  "REVIEW_APPEAL",
+  "POINT_DISPUTE",
+  "ATTENDANCE_DISPUTE",
+  "OTHER",
+] as const;
+const DisputeStatus = ["OPEN", "IN_REVIEW", "RESOLVED", "REJECTED"] as const;
+const VoteCandidateSource = ["ADMIN", "AUTO"] as const;
+
+// ─── Reusable Primitives ─────────────────────────────────────────────────────
+
+const uuid = z.string().min(1).max(100);
+const monthPattern = z
+  .string()
+  .regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM format");
+const isoDateStr = z.string().min(1);
+const nonEmptyStr = z.string().min(1).max(5000);
+
+// ─── Auth Schemas ────────────────────────────────────────────────────────────
+
+export const RegisterSchema = z.object({
+  name: nonEmptyStr,
+  phone: z.string().min(1),
+  dob: z.string().min(1),
+  deviceId: z.string().optional(),
+});
+
+export const LoginSchema = z.object({
+  name: nonEmptyStr,
+  phone: z.string().min(1),
+  dob: z.string().min(1),
+});
+
+export const AcetimeLoginSchema = z.object({
+  employeeCode: z.string().min(1),
+  name: nonEmptyStr,
+});
+
+export const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
+export const AdminLoginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+});
+
+// admin-create-otp reuses OtpRequestDto shape
+export const OtpRequestSchema = z.object({
+  phone: z.string().min(1),
+});
+
+// ─── Posts Schemas ───────────────────────────────────────────────────────────
+
+export const CreatePostSchema = z.object({
+  siteId: uuid,
+  category: z.enum(Category),
+  content: nonEmptyStr,
+  hazardType: z.string().optional(),
+  riskLevel: z.enum(RiskLevel).optional(),
+  locationFloor: z.string().optional(),
+  locationZone: z.string().optional(),
+  locationDetail: z.string().optional(),
+  visibility: z.enum(Visibility).optional(),
+  isAnonymous: z.boolean().optional(),
+  imageUrls: z.array(z.string()).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+// ─── Reviews Schemas ─────────────────────────────────────────────────────────
+
+export const ReviewActionSchema = z.object({
+  postId: uuid,
+  action: z.enum(ReviewAction),
+  comment: z.string().optional(),
+  reasonCode: z.enum(RejectReason).optional(),
+});
+
+// ─── Actions Schemas ─────────────────────────────────────────────────────────
+
+export const CreateActionSchema = z.object({
+  postId: uuid,
+  assigneeType: z.string().min(1),
+  assigneeId: uuid.optional(),
+  dueDate: isoDateStr.optional(),
+});
+
+export const UpdateActionStatusSchema = z.object({
+  actionStatus: z.enum(TaskStatus),
+  completionNote: z.string().optional(),
+  imageUrls: z.array(z.string()).optional(),
+});
+
+// ─── Sites Schemas ───────────────────────────────────────────────────────────
+
+export const CreateSiteSchema = z.object({
+  name: nonEmptyStr,
+  requiresApproval: z.boolean().optional(),
+});
+
+export const JoinSiteSchema = z.object({
+  joinCode: z.string().min(1),
+});
+
+export const UpdateMemberStatusSchema = z.object({
+  status: z.enum(MembershipStatus),
+  reason: z.string().optional(),
+});
+
+// ─── Points Schemas ──────────────────────────────────────────────────────────
+
+export const AwardPointsSchema = z.object({
+  userId: uuid,
+  siteId: uuid,
+  postId: uuid.optional(),
+  amount: z.number().int(),
+  reasonCode: z.string().min(1),
+  reasonText: z.string().optional(),
+});
+
+// ─── Policies Schemas ────────────────────────────────────────────────────────
+
+export const CreatePolicySchema = z.object({
+  siteId: uuid,
+  reasonCode: z.string().min(1),
+  name: nonEmptyStr,
+  description: z.string().optional(),
+  defaultAmount: z.number(),
+  minAmount: z.number().optional(),
+  maxAmount: z.number().optional(),
+  dailyLimit: z.number().optional(),
+  monthlyLimit: z.number().optional(),
+});
+
+export const UpdatePolicySchema = z.object({
+  name: nonEmptyStr.optional(),
+  description: z.string().optional(),
+  defaultAmount: z.number().optional(),
+  minAmount: z.number().optional(),
+  maxAmount: z.number().optional(),
+  dailyLimit: z.number().optional(),
+  monthlyLimit: z.number().optional(),
+  isActive: z.boolean().optional(),
+});
+
+// ─── Disputes Schemas ────────────────────────────────────────────────────────
+
+export const CreateDisputeSchema = z.object({
+  siteId: uuid,
+  type: z.enum(DisputeType),
+  title: nonEmptyStr,
+  description: nonEmptyStr,
+  refReviewId: uuid.optional(),
+  refPointsLedgerId: uuid.optional(),
+  refAttendanceId: uuid.optional(),
+});
+
+export const ResolveDisputeSchema = z.object({
+  status: z.enum(["RESOLVED", "REJECTED"] as const),
+  resolutionNote: nonEmptyStr,
+});
+
+export const UpdateDisputeStatusSchema = z.object({
+  status: z.enum(DisputeStatus),
+});
+
+// ─── Notifications Schemas ───────────────────────────────────────────────────
+
+export const SmsSendSchema = z.object({
+  siteId: uuid,
+  userIds: z.array(uuid).min(1).max(100),
+  message: z.string().min(1).max(500),
+});
+
+export const PushNotificationSendSchema = z.object({
+  siteId: uuid,
+  userIds: z.array(uuid).min(1).max(100),
+  type: z.string().min(1),
+  params: z.record(z.union([z.string(), z.number()])),
+});
+
+export const PushSubscribeSchema = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+
+export const PushUnsubscribeSchema = z.object({
+  endpoint: z.string().url(),
+});
+
+// ─── Announcements Schemas ───────────────────────────────────────────────────
+
+export const CreateAnnouncementSchema = z.object({
+  siteId: uuid,
+  title: nonEmptyStr,
+  content: nonEmptyStr,
+  isPinned: z.boolean().optional(),
+});
+
+export const UpdateAnnouncementSchema = z.object({
+  title: nonEmptyStr.optional(),
+  content: nonEmptyStr.optional(),
+  isPinned: z.boolean().optional(),
+});
+
+// ─── Votes Schemas ───────────────────────────────────────────────────────────
+
+export const CastVoteSchema = z.object({
+  siteId: uuid,
+  candidateId: uuid,
+  month: monthPattern,
+});
+
+// ─── Admin Schemas ───────────────────────────────────────────────────────────
+
+export const AdminChangeRoleSchema = z.object({
+  role: z.enum(UserRole),
+});
+
+export const AdminSyncWorkersSchema = z.object({
+  siteId: uuid,
+  workers: z
+    .array(
+      z.object({
+        externalWorkerId: z.string().min(1),
+        name: nonEmptyStr,
+        nationality: z.string().optional(),
+        trade: z.string().optional(),
+        company: z.string().optional(),
+      }),
+    )
+    .min(1),
+});
+
+export const AdminReviewPostSchema = z.object({
+  action: z.enum(["APPROVE", "REJECT", "REQUEST_MORE"] as const),
+  comment: z.string().optional(),
+  reasonCode: z.string().optional(),
+  pointsToAward: z.number().optional(),
+});
+
+export const AdminManualApprovalSchema = z.object({
+  userId: uuid,
+  siteId: uuid,
+  reason: nonEmptyStr,
+});
+
+export const AdminCreateVoteCandidateSchema = z.object({
+  userId: uuid,
+  siteId: uuid,
+  month: monthPattern,
+  source: z.enum(VoteCandidateSource).optional(),
+});
+
+export const AdminCreateVotePeriodSchema = z.object({
+  startDate: isoDateStr,
+  endDate: isoDateStr,
+});
+
+export const AdminResolveSyncErrorSchema = z.object({
+  status: z.enum(["RESOLVED", "IGNORED"] as const),
+});
+
+// ─── Education Schemas ───────────────────────────────────────────────────────
+
+export const CreateCourseSchema = z.object({
+  siteId: uuid,
+  title: nonEmptyStr,
+  description: z.string().optional(),
+  contentType: z.enum(EducationContentType),
+  contentUrl: z.string().optional(),
+  contentBody: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export const UpdateCourseSchema = z.object({
+  title: nonEmptyStr.optional(),
+  description: z.string().optional(),
+  contentType: z.enum(EducationContentType).optional(),
+  contentUrl: z.string().optional(),
+  contentBody: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export const CreateQuizSchema = z.object({
+  siteId: uuid,
+  contentId: uuid.optional(),
+  title: nonEmptyStr,
+  description: z.string().optional(),
+  passScore: z.number().int().optional(),
+  pointsReward: z.number().int().optional(),
+  timeLimitSec: z.number().int().optional(),
+  questions: z
+    .array(
+      z.object({
+        questionText: nonEmptyStr,
+        options: z.array(z.string().min(1)).min(2),
+        correctIndex: z.number().int().min(0),
+        explanation: z.string().optional(),
+        sortOrder: z.number().int().optional(),
+      }),
+    )
+    .min(1),
+});
+
+export const SubmitQuizSchema = z.object({
+  quizId: uuid,
+  siteId: uuid,
+  answers: z.array(z.number().int()),
+  startedAt: isoDateStr,
+});
+
+export const CreateStatutoryTrainingSchema = z.object({
+  siteId: uuid,
+  userId: uuid,
+  trainingType: z.enum(StatutoryTrainingType),
+  trainingName: nonEmptyStr,
+  trainingHours: z.number().positive(),
+  scheduledDate: isoDateStr,
+  expiryDate: isoDateStr.optional(),
+  provider: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const UpdateStatutoryTrainingSchema = z.object({
+  status: z.enum(TrainingCompletionStatus).optional(),
+  completedDate: isoDateStr.optional(),
+  certificateUrl: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const CreateTbmRecordSchema = z.object({
+  siteId: uuid,
+  tbmDate: isoDateStr,
+  location: z.string().optional(),
+  topic: nonEmptyStr,
+  content: z.string().optional(),
+  weatherInfo: z.string().optional(),
+  safetyIssues: z.string().optional(),
+  attendeeIds: z.array(uuid).min(1),
+});
+
+export const UpdateTbmRecordSchema = z.object({
+  location: z.string().optional(),
+  topic: nonEmptyStr.optional(),
+  content: z.string().optional(),
+  weatherInfo: z.string().optional(),
+  safetyIssues: z.string().optional(),
+});
+
+export const AttendTbmSchema = z.object({
+  tbmRecordId: uuid,
+});
+
+// ─── Attendance Schemas ──────────────────────────────────────────────────────
+
+export const ManualCheckinSchema = z.object({
+  siteId: uuid,
+  userId: uuid.optional(),
+  note: z.string().optional(),
+});
+
+// ─── Users Schemas ───────────────────────────────────────────────────────────
+
+export const UpdateProfileSchema = z.object({
+  name: z.string().min(1).optional(),
+});
+
+// ─── FAS Schemas ─────────────────────────────────────────────────────────────
+
+export const FasSyncRequestSchema = z.object({
+  siteId: uuid,
+  workers: z
+    .array(
+      z.object({
+        externalWorkerId: z.string().optional(),
+        name: z.string().optional(),
+        phone: z.string().optional(),
+        dob: z.string().optional(),
+        companyName: z.string().optional(),
+        tradeType: z.string().optional(),
+      }),
+    )
+    .optional(),
+});

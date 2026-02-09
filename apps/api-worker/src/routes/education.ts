@@ -1,13 +1,26 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import {
+  CreateCourseSchema,
+  UpdateCourseSchema,
+  CreateQuizSchema,
+  SubmitQuizSchema,
+  CreateStatutoryTrainingSchema,
+  UpdateStatutoryTrainingSchema,
+  CreateTbmRecordSchema,
+  UpdateTbmRecordSchema,
+  AttendTbmSchema,
+} from "../validators/schemas";
+import {
   educationContents,
   quizzes,
   quizQuestions,
   quizAttempts,
+  pointPolicies,
   statutoryTrainings,
   tbmRecords,
   tbmAttendees,
@@ -41,9 +54,9 @@ interface CreateQuizBody {
 }
 
 interface CreateQuizQuestionBody {
-  question: string;
-  options: string[];
-  correctAnswer: number;
+  question?: string;
+  options?: string[];
+  correctAnswer?: number;
   explanation?: string;
   orderIndex?: number;
 }
@@ -57,7 +70,7 @@ interface UpdateQuizQuestionBody {
 }
 
 interface SubmitQuizAttemptBody {
-  answers: number[];
+  answers?: number[];
 }
 
 interface CreateStatutoryTrainingBody {
@@ -99,16 +112,11 @@ interface CreateTbmBody {
 const app = new Hono<{ Bindings: Env; Variables: { auth: AuthContext } }>();
 app.use("*", authMiddleware);
 
-app.post("/contents", async (c) => {
+app.post("/contents", zValidator("json", CreateCourseSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
 
-  let body: CreateContentBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
+  const body = c.req.valid("json") as CreateContentBody;
 
   if (!body.siteId || !body.title || !body.contentType) {
     return error(
@@ -319,16 +327,11 @@ app.delete("/contents/:id", async (c) => {
   return success(c, { deleted: true });
 });
 
-app.post("/quizzes", async (c) => {
+app.post("/quizzes", zValidator("json", UpdateCourseSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
 
-  let body: CreateQuizBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
+  const body = c.req.valid("json") as CreateQuizBody;
 
   if (!body.siteId || !body.title) {
     return error(c, "MISSING_FIELDS", "siteId and title are required", 400);
@@ -498,179 +501,179 @@ app.get("/quizzes/:id", async (c) => {
   return success(c, { ...quiz, questions });
 });
 
-app.post("/quizzes/:quizId/questions", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-  const quizId = c.req.param("quizId");
+app.post(
+  "/quizzes/:quizId/questions",
+  zValidator("json", CreateQuizSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const quizId = c.req.param("quizId");
 
-  const quiz = await db
-    .select()
-    .from(quizzes)
-    .where(eq(quizzes.id, quizId))
-    .get();
+    const quiz = await db
+      .select()
+      .from(quizzes)
+      .where(eq(quizzes.id, quizId))
+      .get();
 
-  if (!quiz) {
-    return error(c, "QUIZ_NOT_FOUND", "Quiz not found", 404);
-  }
+    if (!quiz) {
+      return error(c, "QUIZ_NOT_FOUND", "Quiz not found", 404);
+    }
 
-  const adminMembership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.siteId, quiz.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-        eq(siteMemberships.role, "SITE_ADMIN"),
-      ),
-    )
-    .get();
-  if (!adminMembership && user.role !== "SUPER_ADMIN")
-    return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
+    const adminMembership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, quiz.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+          eq(siteMemberships.role, "SITE_ADMIN"),
+        ),
+      )
+      .get();
+    if (!adminMembership && user.role !== "SUPER_ADMIN")
+      return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
 
-  let body: CreateQuizQuestionBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
+    const body = c.req.valid("json") as CreateQuizQuestionBody;
 
-  if (
-    !body.question ||
-    !Array.isArray(body.options) ||
-    body.correctAnswer === undefined
-  ) {
-    return error(
-      c,
-      "MISSING_FIELDS",
-      "question, options, correctAnswer are required",
-      400,
-    );
-  }
+    if (
+      !body.question ||
+      !Array.isArray(body.options) ||
+      body.correctAnswer === undefined
+    ) {
+      return error(
+        c,
+        "MISSING_FIELDS",
+        "question, options, correctAnswer are required",
+        400,
+      );
+    }
 
-  if (body.options.length === 0) {
-    return error(c, "INVALID_OPTIONS", "options must not be empty", 400);
-  }
+    if (body.options.length === 0) {
+      return error(c, "INVALID_OPTIONS", "options must not be empty", 400);
+    }
 
-  if (
-    !Number.isInteger(body.correctAnswer) ||
-    body.correctAnswer < 0 ||
-    body.correctAnswer >= body.options.length
-  ) {
-    return error(
-      c,
-      "INVALID_CORRECT_ANSWER",
-      "correctAnswer must be a valid option index",
-      400,
-    );
-  }
+    if (
+      !Number.isInteger(body.correctAnswer) ||
+      body.correctAnswer < 0 ||
+      body.correctAnswer >= body.options.length
+    ) {
+      return error(
+        c,
+        "INVALID_CORRECT_ANSWER",
+        "correctAnswer must be a valid option index",
+        400,
+      );
+    }
 
-  const question = await db
-    .insert(quizQuestions)
-    .values({
-      quizId,
-      question: body.question,
-      options: body.options,
-      correctAnswer: body.correctAnswer,
-      explanation: body.explanation ?? null,
-      orderIndex: body.orderIndex ?? 0,
-    })
-    .returning()
-    .get();
-
-  return success(c, question, 201);
-});
-
-app.put("/quizzes/:quizId/questions/:questionId", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-  const quizId = c.req.param("quizId");
-  const questionId = c.req.param("questionId");
-
-  const quiz = await db
-    .select()
-    .from(quizzes)
-    .where(eq(quizzes.id, quizId))
-    .get();
-
-  if (!quiz) {
-    return error(c, "QUIZ_NOT_FOUND", "Quiz not found", 404);
-  }
-
-  const adminMembership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.siteId, quiz.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-        eq(siteMemberships.role, "SITE_ADMIN"),
-      ),
-    )
-    .get();
-  if (!adminMembership && user.role !== "SUPER_ADMIN")
-    return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
-
-  const existingQuestion = await db
-    .select()
-    .from(quizQuestions)
-    .where(
-      and(eq(quizQuestions.id, questionId), eq(quizQuestions.quizId, quizId)),
-    )
-    .get();
-
-  if (!existingQuestion) {
-    return error(c, "QUESTION_NOT_FOUND", "Quiz question not found", 404);
-  }
-
-  let body: UpdateQuizQuestionBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
-
-  const nextOptions = body.options ?? existingQuestion.options;
-  const nextCorrectAnswer =
-    body.correctAnswer ?? existingQuestion.correctAnswer;
-
-  if (!Array.isArray(nextOptions) || nextOptions.length === 0) {
-    return error(c, "INVALID_OPTIONS", "options must not be empty", 400);
-  }
-
-  if (
-    !Number.isInteger(nextCorrectAnswer) ||
-    nextCorrectAnswer < 0 ||
-    nextCorrectAnswer >= nextOptions.length
-  ) {
-    return error(
-      c,
-      "INVALID_CORRECT_ANSWER",
-      "correctAnswer must be a valid option index",
-      400,
-    );
-  }
-
-  const updated = await db
-    .update(quizQuestions)
-    .set({
-      ...(body.question !== undefined && { question: body.question }),
-      ...(body.options !== undefined && { options: body.options }),
-      ...(body.correctAnswer !== undefined && {
+    const question = await db
+      .insert(quizQuestions)
+      .values({
+        quizId,
+        question: body.question,
+        options: body.options,
         correctAnswer: body.correctAnswer,
-      }),
-      ...(body.explanation !== undefined && { explanation: body.explanation }),
-      ...(body.orderIndex !== undefined && { orderIndex: body.orderIndex }),
-    })
-    .where(
-      and(eq(quizQuestions.id, questionId), eq(quizQuestions.quizId, quizId)),
-    )
-    .returning()
-    .get();
+        explanation: body.explanation ?? null,
+        orderIndex: body.orderIndex ?? 0,
+      })
+      .returning()
+      .get();
 
-  return success(c, updated);
-});
+    return success(c, question, 201);
+  },
+);
+
+app.put(
+  "/quizzes/:quizId/questions/:questionId",
+  zValidator("json", SubmitQuizSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const quizId = c.req.param("quizId");
+    const questionId = c.req.param("questionId");
+
+    const quiz = await db
+      .select()
+      .from(quizzes)
+      .where(eq(quizzes.id, quizId))
+      .get();
+
+    if (!quiz) {
+      return error(c, "QUIZ_NOT_FOUND", "Quiz not found", 404);
+    }
+
+    const adminMembership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, quiz.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+          eq(siteMemberships.role, "SITE_ADMIN"),
+        ),
+      )
+      .get();
+    if (!adminMembership && user.role !== "SUPER_ADMIN")
+      return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
+
+    const existingQuestion = await db
+      .select()
+      .from(quizQuestions)
+      .where(
+        and(eq(quizQuestions.id, questionId), eq(quizQuestions.quizId, quizId)),
+      )
+      .get();
+
+    if (!existingQuestion) {
+      return error(c, "QUESTION_NOT_FOUND", "Quiz question not found", 404);
+    }
+
+    const body = c.req.valid("json") as UpdateQuizQuestionBody;
+
+    const nextOptions = body.options ?? existingQuestion.options;
+    const nextCorrectAnswer =
+      body.correctAnswer ?? existingQuestion.correctAnswer;
+
+    if (!Array.isArray(nextOptions) || nextOptions.length === 0) {
+      return error(c, "INVALID_OPTIONS", "options must not be empty", 400);
+    }
+
+    if (
+      !Number.isInteger(nextCorrectAnswer) ||
+      nextCorrectAnswer < 0 ||
+      nextCorrectAnswer >= nextOptions.length
+    ) {
+      return error(
+        c,
+        "INVALID_CORRECT_ANSWER",
+        "correctAnswer must be a valid option index",
+        400,
+      );
+    }
+
+    const updated = await db
+      .update(quizQuestions)
+      .set({
+        ...(body.question !== undefined && { question: body.question }),
+        ...(body.options !== undefined && { options: body.options }),
+        ...(body.correctAnswer !== undefined && {
+          correctAnswer: body.correctAnswer,
+        }),
+        ...(body.explanation !== undefined && {
+          explanation: body.explanation,
+        }),
+        ...(body.orderIndex !== undefined && { orderIndex: body.orderIndex }),
+      })
+      .where(
+        and(eq(quizQuestions.id, questionId), eq(quizQuestions.quizId, quizId)),
+      )
+      .returning()
+      .get();
+
+    return success(c, updated);
+  },
+);
 
 app.delete("/quizzes/:quizId/questions/:questionId", async (c) => {
   const db = drizzle(c.env.DB);
@@ -724,141 +727,162 @@ app.delete("/quizzes/:quizId/questions/:questionId", async (c) => {
   return success(c, { deleted: true });
 });
 
-app.post("/quizzes/:quizId/attempt", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-  const quizId = c.req.param("quizId");
+app.post(
+  "/quizzes/:quizId/attempt",
+  zValidator("json", CreateStatutoryTrainingSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const quizId = c.req.param("quizId");
 
-  const quiz = await db
-    .select()
-    .from(quizzes)
-    .where(eq(quizzes.id, quizId))
-    .get();
+    const quiz = await db
+      .select()
+      .from(quizzes)
+      .where(eq(quizzes.id, quizId))
+      .get();
 
-  if (!quiz) {
-    return error(c, "QUIZ_NOT_FOUND", "Quiz not found", 404);
-  }
-
-  if (quiz.status !== "PUBLISHED") {
-    return error(c, "QUIZ_NOT_PUBLISHED", "Quiz is not published", 400);
-  }
-
-  const membership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.siteId, quiz.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-      ),
-    )
-    .get();
-
-  if (!membership && user.role !== "SUPER_ADMIN") {
-    return error(c, "NOT_SITE_MEMBER", "Site membership required", 403);
-  }
-
-  let body: SubmitQuizAttemptBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
-
-  if (!Array.isArray(body.answers)) {
-    return error(
-      c,
-      "INVALID_ANSWERS",
-      "answers must be an array of numbers",
-      400,
-    );
-  }
-
-  const questions = await db
-    .select()
-    .from(quizQuestions)
-    .where(eq(quizQuestions.quizId, quizId))
-    .orderBy(quizQuestions.orderIndex)
-    .all();
-
-  if (questions.length === 0) {
-    return error(c, "NO_QUESTIONS", "Quiz has no questions", 400);
-  }
-
-  let correctCount = 0;
-  for (let i = 0; i < questions.length; i += 1) {
-    if (body.answers[i] === questions[i].correctAnswer) {
-      correctCount += 1;
+    if (!quiz) {
+      return error(c, "QUIZ_NOT_FOUND", "Quiz not found", 404);
     }
-  }
 
-  const score = Math.round((correctCount / questions.length) * 100);
-  const passed = score >= quiz.passingScore;
+    if (quiz.status !== "PUBLISHED") {
+      return error(c, "QUIZ_NOT_PUBLISHED", "Quiz is not published", 400);
+    }
 
-  const existingAttempt = await db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(quizAttempts)
-    .where(
-      and(eq(quizAttempts.quizId, quizId), eq(quizAttempts.userId, user.id)),
-    )
-    .get();
+    const membership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, quiz.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+        ),
+      )
+      .get();
 
-  let pointsAwarded = 0;
-  if (passed && quiz.pointsReward > 0 && (existingAttempt?.count ?? 0) === 0) {
-    pointsAwarded = quiz.pointsReward;
+    if (!membership && user.role !== "SUPER_ADMIN") {
+      return error(c, "NOT_SITE_MEMBER", "Site membership required", 403);
+    }
 
-    await db.insert(pointsLedger).values({
-      userId: user.id,
-      siteId: quiz.siteId,
-      amount: quiz.pointsReward,
-      reasonCode: "QUIZ_PASS",
-      reasonText: `Quiz passed: ${quiz.title}`,
-      settleMonth: new Date().toISOString().slice(0, 7),
-      occurredAt: new Date(),
-      adminId: quiz.createdById,
-    });
+    const body = c.req.valid("json") as SubmitQuizAttemptBody;
 
-    await logAuditWithContext(
-      c,
-      db,
-      "QUIZ_POINTS_AWARDED",
-      user.id,
-      "QUIZ",
-      quiz.id,
-      {
+    if (!Array.isArray(body.answers)) {
+      return error(
+        c,
+        "INVALID_ANSWERS",
+        "answers must be an array of numbers",
+        400,
+      );
+    }
+
+    const questions = await db
+      .select()
+      .from(quizQuestions)
+      .where(eq(quizQuestions.quizId, quizId))
+      .orderBy(quizQuestions.orderIndex)
+      .all();
+
+    if (questions.length === 0) {
+      return error(c, "NO_QUESTIONS", "Quiz has no questions", 400);
+    }
+
+    let correctCount = 0;
+    for (let i = 0; i < questions.length; i += 1) {
+      if (body.answers[i] === questions[i].correctAnswer) {
+        correctCount += 1;
+      }
+    }
+
+    const score = Math.round((correctCount / questions.length) * 100);
+    const passed = score >= quiz.passingScore;
+
+    const existingAttempt = await db
+      .select({ id: quizAttempts.id, passed: quizAttempts.passed })
+      .from(quizAttempts)
+      .where(
+        and(eq(quizAttempts.quizId, quizId), eq(quizAttempts.userId, user.id)),
+      )
+      .get();
+
+    if (existingAttempt) {
+      if (existingAttempt.passed) {
+        return error(c, "ALREADY_COMPLETED", "Course already completed", 409);
+      }
+
+      return error(c, "ALREADY_SUBMITTED", "Quiz already submitted", 409);
+    }
+
+    const quizPassPolicy = await db
+      .select({ defaultAmount: pointPolicies.defaultAmount })
+      .from(pointPolicies)
+      .where(
+        and(
+          eq(pointPolicies.siteId, quiz.siteId),
+          eq(pointPolicies.reasonCode, "QUIZ_PASS"),
+          eq(pointPolicies.isActive, true),
+        ),
+      )
+      .get();
+
+    const rewardAmount = quizPassPolicy?.defaultAmount ?? quiz.pointsReward;
+
+    let pointsAwarded = 0;
+    if (passed && rewardAmount > 0) {
+      pointsAwarded = rewardAmount;
+
+      await db.insert(pointsLedger).values({
+        userId: user.id,
+        siteId: quiz.siteId,
+        amount: rewardAmount,
+        reasonCode: "QUIZ_PASS",
+        reasonText: `Quiz passed: ${quiz.title}`,
+        settleMonth: new Date().toISOString().slice(0, 7),
+        occurredAt: new Date(),
+        adminId: quiz.createdById,
+      });
+
+      await logAuditWithContext(
+        c,
+        db,
+        "QUIZ_POINTS_AWARDED",
+        user.id,
+        "QUIZ",
+        quiz.id,
+        {
+          score,
+          passingScore: quiz.passingScore,
+          pointsAwarded,
+        },
+      );
+    }
+
+    const attempt = await db
+      .insert(quizAttempts)
+      .values({
+        quizId,
+        userId: user.id,
+        siteId: quiz.siteId,
+        answers: body.answers,
         score,
-        passingScore: quiz.passingScore,
+        passed,
         pointsAwarded,
+        completedAt: new Date(),
+      })
+      .returning()
+      .get();
+
+    return success(
+      c,
+      {
+        ...attempt,
+        totalQuestions: questions.length,
+        correctCount,
       },
+      201,
     );
-  }
-
-  const attempt = await db
-    .insert(quizAttempts)
-    .values({
-      quizId,
-      userId: user.id,
-      siteId: quiz.siteId,
-      answers: body.answers,
-      score,
-      passed,
-      pointsAwarded,
-      completedAt: new Date(),
-    })
-    .returning()
-    .get();
-
-  return success(
-    c,
-    {
-      ...attempt,
-      totalQuestions: questions.length,
-      correctCount,
-    },
-    201,
-  );
-});
+  },
+);
 
 app.get("/quizzes/:quizId/my-attempts", async (c) => {
   const db = drizzle(c.env.DB);
@@ -903,118 +927,119 @@ app.get("/quizzes/:quizId/my-attempts", async (c) => {
   return success(c, { attempts });
 });
 
-app.post("/statutory", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
+app.post(
+  "/statutory",
+  zValidator("json", UpdateStatutoryTrainingSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
 
-  let body: CreateStatutoryTrainingBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
+    const body = c.req.valid("json") as CreateStatutoryTrainingBody;
 
-  if (
-    !body.siteId ||
-    !body.userId ||
-    !body.trainingType ||
-    !body.trainingName ||
-    !body.trainingDate
-  ) {
-    return error(
+    if (
+      !body.siteId ||
+      !body.userId ||
+      !body.trainingType ||
+      !body.trainingName ||
+      !body.trainingDate
+    ) {
+      return error(
+        c,
+        "MISSING_FIELDS",
+        "siteId, userId, trainingType, trainingName, trainingDate are required",
+        400,
+      );
+    }
+
+    if (
+      !["NEW_WORKER", "SPECIAL", "REGULAR", "CHANGE_OF_WORK"].includes(
+        body.trainingType,
+      )
+    ) {
+      return error(c, "INVALID_TRAINING_TYPE", "Invalid trainingType", 400);
+    }
+
+    if (
+      body.status &&
+      !["SCHEDULED", "COMPLETED", "EXPIRED"].includes(body.status)
+    ) {
+      return error(c, "INVALID_STATUS", "Invalid status", 400);
+    }
+
+    const adminMembership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, body.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+          eq(siteMemberships.role, "SITE_ADMIN"),
+        ),
+      )
+      .get();
+    if (!adminMembership && user.role !== "SUPER_ADMIN")
+      return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
+
+    const targetMembership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, body.userId),
+          eq(siteMemberships.siteId, body.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+        ),
+      )
+      .get();
+
+    if (!targetMembership) {
+      return error(
+        c,
+        "TARGET_NOT_SITE_MEMBER",
+        "Target user is not an active member of this site",
+        400,
+      );
+    }
+
+    const training = await db
+      .insert(statutoryTrainings)
+      .values({
+        siteId: body.siteId,
+        userId: body.userId,
+        trainingType: body.trainingType,
+        trainingName: body.trainingName,
+        trainingDate: Math.floor(new Date(body.trainingDate).getTime() / 1000),
+        expirationDate: body.expirationDate
+          ? Math.floor(new Date(body.expirationDate).getTime() / 1000)
+          : null,
+        provider: body.provider ?? null,
+        certificateUrl: body.certificateUrl ?? null,
+        hoursCompleted: body.hoursCompleted ?? 0,
+        status: body.status ?? "SCHEDULED",
+        createdById: user.id,
+        notes: body.notes ?? null,
+      })
+      .returning()
+      .get();
+
+    await logAuditWithContext(
       c,
-      "MISSING_FIELDS",
-      "siteId, userId, trainingType, trainingName, trainingDate are required",
-      400,
+      db,
+      "STATUTORY_TRAINING_CREATED",
+      user.id,
+      "STATUTORY_TRAINING",
+      training.id,
+      {
+        siteId: training.siteId,
+        targetUserId: training.userId,
+        trainingType: training.trainingType,
+      },
     );
-  }
 
-  if (
-    !["NEW_WORKER", "SPECIAL", "REGULAR", "CHANGE_OF_WORK"].includes(
-      body.trainingType,
-    )
-  ) {
-    return error(c, "INVALID_TRAINING_TYPE", "Invalid trainingType", 400);
-  }
-
-  if (
-    body.status &&
-    !["SCHEDULED", "COMPLETED", "EXPIRED"].includes(body.status)
-  ) {
-    return error(c, "INVALID_STATUS", "Invalid status", 400);
-  }
-
-  const adminMembership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.siteId, body.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-        eq(siteMemberships.role, "SITE_ADMIN"),
-      ),
-    )
-    .get();
-  if (!adminMembership && user.role !== "SUPER_ADMIN")
-    return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
-
-  const targetMembership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, body.userId),
-        eq(siteMemberships.siteId, body.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-      ),
-    )
-    .get();
-
-  if (!targetMembership) {
-    return error(
-      c,
-      "TARGET_NOT_SITE_MEMBER",
-      "Target user is not an active member of this site",
-      400,
-    );
-  }
-
-  const training = await db
-    .insert(statutoryTrainings)
-    .values({
-      siteId: body.siteId,
-      userId: body.userId,
-      trainingType: body.trainingType,
-      trainingName: body.trainingName,
-      trainingDate: body.trainingDate,
-      expirationDate: body.expirationDate ?? null,
-      provider: body.provider ?? null,
-      certificateUrl: body.certificateUrl ?? null,
-      hoursCompleted: body.hoursCompleted ?? 0,
-      status: body.status ?? "SCHEDULED",
-      createdById: user.id,
-      notes: body.notes ?? null,
-    })
-    .returning()
-    .get();
-
-  await logAuditWithContext(
-    c,
-    db,
-    "STATUTORY_TRAINING_CREATED",
-    user.id,
-    "STATUTORY_TRAINING",
-    training.id,
-    {
-      siteId: training.siteId,
-      targetUserId: training.userId,
-      trainingType: training.trainingType,
-    },
-  );
-
-  return success(c, training, 201);
-});
+    return success(c, training, 201);
+  },
+);
 
 app.get("/statutory", async (c) => {
   const db = drizzle(c.env.DB);
@@ -1106,107 +1131,105 @@ app.get("/statutory", async (c) => {
   });
 });
 
-app.put("/statutory/:id", async (c) => {
+app.put(
+  "/statutory/:id",
+  zValidator("json", CreateTbmRecordSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const id = c.req.param("id");
+
+    const existing = await db
+      .select()
+      .from(statutoryTrainings)
+      .where(eq(statutoryTrainings.id, id))
+      .get();
+
+    if (!existing) {
+      return error(
+        c,
+        "STATUTORY_TRAINING_NOT_FOUND",
+        "Statutory training not found",
+        404,
+      );
+    }
+
+    const adminMembership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, existing.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+          eq(siteMemberships.role, "SITE_ADMIN"),
+        ),
+      )
+      .get();
+    if (!adminMembership && user.role !== "SUPER_ADMIN")
+      return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
+
+    const body = c.req.valid("json") as UpdateStatutoryTrainingBody;
+
+    if (
+      body.trainingType &&
+      !["NEW_WORKER", "SPECIAL", "REGULAR", "CHANGE_OF_WORK"].includes(
+        body.trainingType,
+      )
+    ) {
+      return error(c, "INVALID_TRAINING_TYPE", "Invalid trainingType", 400);
+    }
+
+    if (
+      body.status &&
+      !["SCHEDULED", "COMPLETED", "EXPIRED"].includes(body.status)
+    ) {
+      return error(c, "INVALID_STATUS", "Invalid status", 400);
+    }
+
+    const updated = await db
+      .update(statutoryTrainings)
+      .set({
+        ...(body.trainingType !== undefined && {
+          trainingType: body.trainingType,
+        }),
+        ...(body.trainingName !== undefined && {
+          trainingName: body.trainingName,
+        }),
+        ...(body.trainingDate !== undefined && {
+          trainingDate: Math.floor(
+            new Date(body.trainingDate).getTime() / 1000,
+          ),
+        }),
+        ...(body.expirationDate !== undefined && {
+          expirationDate: body.expirationDate
+            ? Math.floor(new Date(body.expirationDate).getTime() / 1000)
+            : null,
+        }),
+        ...(body.provider !== undefined && { provider: body.provider }),
+        ...(body.certificateUrl !== undefined && {
+          certificateUrl: body.certificateUrl,
+        }),
+        ...(body.hoursCompleted !== undefined && {
+          hoursCompleted: body.hoursCompleted,
+        }),
+        ...(body.status !== undefined && { status: body.status }),
+        ...(body.notes !== undefined && { notes: body.notes }),
+        updatedAt: new Date(),
+      })
+      .where(eq(statutoryTrainings.id, id))
+      .returning()
+      .get();
+
+    return success(c, updated);
+  },
+);
+
+app.post("/tbm", zValidator("json", UpdateTbmRecordSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
-  const id = c.req.param("id");
 
-  const existing = await db
-    .select()
-    .from(statutoryTrainings)
-    .where(eq(statutoryTrainings.id, id))
-    .get();
-
-  if (!existing) {
-    return error(
-      c,
-      "STATUTORY_TRAINING_NOT_FOUND",
-      "Statutory training not found",
-      404,
-    );
-  }
-
-  const adminMembership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.siteId, existing.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-        eq(siteMemberships.role, "SITE_ADMIN"),
-      ),
-    )
-    .get();
-  if (!adminMembership && user.role !== "SUPER_ADMIN")
-    return error(c, "SITE_ADMIN_REQUIRED", "관리자 권한이 필요합니다", 403);
-
-  let body: UpdateStatutoryTrainingBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
-
-  if (
-    body.trainingType &&
-    !["NEW_WORKER", "SPECIAL", "REGULAR", "CHANGE_OF_WORK"].includes(
-      body.trainingType,
-    )
-  ) {
-    return error(c, "INVALID_TRAINING_TYPE", "Invalid trainingType", 400);
-  }
-
-  if (
-    body.status &&
-    !["SCHEDULED", "COMPLETED", "EXPIRED"].includes(body.status)
-  ) {
-    return error(c, "INVALID_STATUS", "Invalid status", 400);
-  }
-
-  const updated = await db
-    .update(statutoryTrainings)
-    .set({
-      ...(body.trainingType !== undefined && {
-        trainingType: body.trainingType,
-      }),
-      ...(body.trainingName !== undefined && {
-        trainingName: body.trainingName,
-      }),
-      ...(body.trainingDate !== undefined && {
-        trainingDate: body.trainingDate,
-      }),
-      ...(body.expirationDate !== undefined && {
-        expirationDate: body.expirationDate,
-      }),
-      ...(body.provider !== undefined && { provider: body.provider }),
-      ...(body.certificateUrl !== undefined && {
-        certificateUrl: body.certificateUrl,
-      }),
-      ...(body.hoursCompleted !== undefined && {
-        hoursCompleted: body.hoursCompleted,
-      }),
-      ...(body.status !== undefined && { status: body.status }),
-      ...(body.notes !== undefined && { notes: body.notes }),
-      updatedAt: new Date(),
-    })
-    .where(eq(statutoryTrainings.id, id))
-    .returning()
-    .get();
-
-  return success(c, updated);
-});
-
-app.post("/tbm", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-
-  let body: CreateTbmBody;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
+  const body = c.req.valid("json") as CreateTbmBody;
 
   if (!body.siteId || !body.date || !body.topic) {
     return error(c, "MISSING_FIELDS", "siteId, date, topic are required", 400);
@@ -1253,7 +1276,7 @@ app.post("/tbm", async (c) => {
     .insert(tbmRecords)
     .values({
       siteId: body.siteId,
-      date: body.date,
+      date: Math.floor(new Date(body.date).getTime() / 1000),
       topic: body.topic,
       content: body.content ?? null,
       leaderId: body.leaderId ?? user.id,
@@ -1312,7 +1335,10 @@ app.get("/tbm", async (c) => {
   const offset = Number.parseInt(c.req.query("offset") || "0", 10);
 
   const whereClause = date
-    ? and(eq(tbmRecords.siteId, siteId), eq(tbmRecords.date, date))
+    ? and(
+        eq(tbmRecords.siteId, siteId),
+        eq(tbmRecords.date, Math.floor(new Date(date).getTime() / 1000)),
+      )
     : eq(tbmRecords.siteId, siteId);
 
   const records = await db
@@ -1395,70 +1421,69 @@ app.get("/tbm/:id", async (c) => {
   });
 });
 
-app.post("/tbm/:tbmId/attend", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-  const tbmId = c.req.param("tbmId");
+app.post(
+  "/tbm/:tbmId/attend",
+  zValidator("json", AttendTbmSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const tbmId = c.req.param("tbmId");
 
-  const tbm = await db
-    .select()
-    .from(tbmRecords)
-    .where(eq(tbmRecords.id, tbmId))
-    .get();
+    const tbm = await db
+      .select()
+      .from(tbmRecords)
+      .where(eq(tbmRecords.id, tbmId))
+      .get();
 
-  if (!tbm) {
-    return error(c, "TBM_NOT_FOUND", "TBM record not found", 404);
-  }
+    if (!tbm) {
+      return error(c, "TBM_NOT_FOUND", "TBM record not found", 404);
+    }
 
-  const membership = await db
-    .select()
-    .from(siteMemberships)
-    .where(
-      and(
-        eq(siteMemberships.userId, user.id),
-        eq(siteMemberships.siteId, tbm.siteId),
-        eq(siteMemberships.status, "ACTIVE"),
-      ),
-    )
-    .get();
+    const membership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, tbm.siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+        ),
+      )
+      .get();
 
-  if (!membership && user.role !== "SUPER_ADMIN") {
-    return error(c, "NOT_SITE_MEMBER", "Site membership required", 403);
-  }
+    if (!membership && user.role !== "SUPER_ADMIN") {
+      return error(c, "NOT_SITE_MEMBER", "Site membership required", 403);
+    }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid request body", 400);
-  }
+    c.req.valid("json");
 
-  const existing = await db
-    .select()
-    .from(tbmAttendees)
-    .where(
-      and(
-        eq(tbmAttendees.tbmRecordId, tbmId),
-        eq(tbmAttendees.userId, user.id),
-      ),
-    )
-    .get();
+    const existing = await db
+      .select()
+      .from(tbmAttendees)
+      .where(
+        and(
+          eq(tbmAttendees.tbmRecordId, tbmId),
+          eq(tbmAttendees.userId, user.id),
+        ),
+      )
+      .get();
 
-  if (existing) {
-    return error(c, "ALREADY_ATTENDED", "Already attended", 400);
-  }
+    if (existing) {
+      return error(c, "ALREADY_ATTENDED", "Already attended", 400);
+    }
 
-  const attendee = await db
-    .insert(tbmAttendees)
-    .values({
-      tbmRecordId: tbmId,
-      userId: user.id,
-    })
-    .returning()
-    .get();
+    const attendee = await db
+      .insert(tbmAttendees)
+      .values({
+        tbmRecordId: tbmId,
+        userId: user.id,
+      })
+      .returning()
+      .get();
 
-  return success(c, attendee, 201);
-});
+    return success(c, attendee, 201);
+  },
+);
 
 app.get("/tbm/:tbmId/attendees", async (c) => {
   const db = drizzle(c.env.DB);

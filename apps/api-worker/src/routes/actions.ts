@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, desc } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
@@ -6,37 +8,31 @@ import { authMiddleware } from "../middleware/auth";
 import { attendanceMiddleware } from "../middleware/attendance";
 import { success, error } from "../lib/response";
 import {
-  actions,
-  actionImages,
-  posts,
-  siteMemberships,
-  users,
-} from "../db/schema";
+  CreateActionSchema,
+  UpdateActionStatusSchema,
+} from "../validators/schemas";
+import { actions, actionImages, posts, siteMemberships } from "../db/schema";
 
 const app = new Hono<{
   Bindings: Env;
   Variables: { auth: AuthContext };
 }>();
 
+const validateJson = zValidator as (
+  target: "json",
+  schema: unknown,
+) => ReturnType<typeof zValidator>;
+
 app.use("*", authMiddleware);
 app.use("*", attendanceMiddleware);
 
-app.post("/", async (c) => {
+app.post("/", validateJson("json", CreateActionSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
 
-  let data: {
-    postId: string;
-    assigneeType?: string;
-    assigneeId?: string;
-    dueDate?: string;
-  };
-
-  try {
-    data = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid JSON body", 400);
-  }
+  const data = c.req.valid("json" as never) as z.infer<
+    typeof CreateActionSchema
+  >;
 
   if (!data.postId) {
     return error(c, "MISSING_POST_ID", "postId is required", 400);
@@ -91,6 +87,8 @@ app.get("/", async (c) => {
     | "IN_PROGRESS"
     | "DONE"
     | undefined;
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
 
   const conditions = [];
   if (postId) {
@@ -100,26 +98,33 @@ app.get("/", async (c) => {
     conditions.push(eq(actions.actionStatus, status));
   }
 
-  const query = db
+  const baseQuery = db
     .select({
       action: actions,
     })
     .from(actions)
     .orderBy(desc(actions.createdAt));
 
-  const result =
-    conditions.length > 0
-      ? await query.where(and(...conditions)).all()
-      : await query.all();
+  const query =
+    conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+  const result = await query.limit(limit).offset(offset).all();
+  const results = result.map((row) => row.action);
 
   return success(c, {
-    actions: result.map((row) => row.action),
+    data: results,
+    pagination: {
+      limit,
+      offset,
+      count: results.length,
+    },
   });
 });
 
 app.get("/:id", async (c) => {
   const db = drizzle(c.env.DB);
   const actionId = c.req.param("id");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
 
   const action = await db
     .select()
@@ -136,28 +141,28 @@ app.get("/:id", async (c) => {
     .from(actionImages)
     .where(eq(actionImages.actionId, actionId))
     .orderBy(desc(actionImages.createdAt))
+    .limit(limit)
+    .offset(offset)
     .all();
 
-  return success(c, { action: { ...action, images } });
+  return success(c, {
+    data: { ...action, images },
+    pagination: {
+      limit,
+      offset,
+      count: images.length,
+    },
+  });
 });
 
-app.patch("/:id", async (c) => {
+app.patch("/:id", validateJson("json", UpdateActionStatusSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const actionId = c.req.param("id");
 
-  let data: {
-    actionStatus?: string;
-    assigneeId?: string;
-    dueDate?: string;
-    completionNote?: string;
-  };
-
-  try {
-    data = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid JSON body", 400);
-  }
+  const data = c.req.valid("json" as never) as z.infer<
+    typeof UpdateActionStatusSchema
+  >;
 
   const action = await db
     .select()
@@ -204,30 +209,44 @@ app.patch("/:id", async (c) => {
   }
 
   const updateData: Record<string, unknown> = {};
+  let requestedActionStatus: "OPEN" | "IN_PROGRESS" | "DONE" | undefined;
 
   if (
     data.actionStatus &&
     ["OPEN", "IN_PROGRESS", "DONE"].includes(data.actionStatus)
   ) {
-    updateData.actionStatus = data.actionStatus;
-    if (data.actionStatus === "DONE") {
+    requestedActionStatus = data.actionStatus as
+      | "OPEN"
+      | "IN_PROGRESS"
+      | "DONE";
+    updateData.actionStatus = requestedActionStatus;
+    if (requestedActionStatus === "DONE") {
       updateData.completedAt = new Date();
     }
   }
   if (data.completionNote !== undefined)
     updateData.completionNote = data.completionNote;
-  if (data.assigneeId !== undefined)
-    updateData.assigneeId = data.assigneeId || null;
-  if (data.dueDate !== undefined) {
-    updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+
+  const updateConditions = [eq(actions.id, actionId)];
+  if (requestedActionStatus && requestedActionStatus !== action.actionStatus) {
+    updateConditions.push(eq(actions.actionStatus, action.actionStatus));
   }
 
   const updated = await db
     .update(actions)
     .set(updateData)
-    .where(eq(actions.id, actionId))
+    .where(and(...updateConditions))
     .returning()
     .get();
+
+  if (!updated && requestedActionStatus) {
+    return error(
+      c,
+      "ACTION_STATUS_CONFLICT",
+      "Action status changed by another request",
+      409,
+    );
+  }
 
   return success(c, { action: updated });
 });

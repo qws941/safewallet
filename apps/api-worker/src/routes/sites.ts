@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, sql } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
@@ -11,15 +13,11 @@ import {
   auditLogs,
 } from "../db/schema";
 import { success, error } from "../lib/response";
-
-interface CreateSiteBody {
-  name: string;
-}
-
-interface UpdateSiteBody {
-  name?: string;
-  active?: boolean;
-}
+import {
+  CreateSiteSchema,
+  JoinSiteSchema,
+  UpdateMemberStatusSchema,
+} from "../validators/schemas";
 
 const app = new Hono<{
   Bindings: Env;
@@ -31,10 +29,20 @@ app.use("*", authMiddleware);
 app.get("/", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
 
   if (user.role === "ADMIN") {
-    const allSites = await db.select().from(sites).all();
-    return success(c, { sites: allSites });
+    const allSites = await db
+      .select()
+      .from(sites)
+      .limit(limit)
+      .offset(offset)
+      .all();
+    return success(c, {
+      data: allSites,
+      pagination: { limit, offset, count: allSites.length },
+    });
   }
 
   const mySites = await db
@@ -52,9 +60,14 @@ app.get("/", async (c) => {
         eq(siteMemberships.status, "ACTIVE"),
       ),
     )
+    .limit(limit)
+    .offset(offset)
     .all();
 
-  return success(c, { sites: mySites });
+  return success(c, {
+    data: mySites,
+    pagination: { limit, offset, count: mySites.length },
+  });
 });
 
 app.get("/:id", async (c) => {
@@ -111,6 +124,8 @@ app.get("/:id/members", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const siteId = c.req.param("id");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
 
   const membership = await db
     .select()
@@ -146,30 +161,25 @@ app.get("/:id/members", async (c) => {
     .from(siteMemberships)
     .innerJoin(users, eq(siteMemberships.userId, users.id))
     .where(eq(siteMemberships.siteId, siteId))
+    .limit(limit)
+    .offset(offset)
     .all();
 
-  return success(c, { members });
+  return success(c, {
+    data: members,
+    pagination: { limit, offset, count: members.length },
+  });
 });
 
-app.post("/join", async (c) => {
+app.post("/join", zValidator("json", JoinSiteSchema as never), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
-
-  let data: { code: string };
-  try {
-    data = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "잘못된 요청입니다", 400);
-  }
-
-  if (!data.code) {
-    return error(c, "MISSING_FIELD", "참여 코드를 입력해주세요", 400);
-  }
+  const data: z.infer<typeof JoinSiteSchema> = c.req.valid("json");
 
   const site = await db
     .select()
     .from(sites)
-    .where(eq(sites.joinCode, data.code.toUpperCase()))
+    .where(eq(sites.joinCode, data.joinCode.toUpperCase()))
     .get();
 
   if (!site) {
@@ -221,20 +231,10 @@ app.post("/join", async (c) => {
   return success(c, { site, membership: newMembership }, 201);
 });
 
-app.post("/", async (c) => {
+app.post("/", zValidator("json", CreateSiteSchema as never), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
-
-  let data: CreateSiteBody;
-  try {
-    data = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid JSON", 400);
-  }
-
-  if (!data.name) {
-    return error(c, "MISSING_FIELD", "name is required", 400);
-  }
+  const data: z.infer<typeof CreateSiteSchema> = c.req.valid("json");
 
   if (user.role !== "ADMIN") {
     return error(c, "ADMIN_ONLY", "Only admins can create sites", 403);
@@ -253,55 +253,53 @@ app.post("/", async (c) => {
   return success(c, { site: newSite }, 201);
 });
 
-app.patch("/:id", async (c) => {
-  const db = drizzle(c.env.DB);
-  const { user } = c.get("auth");
-  const siteId = c.req.param("id");
+app.patch(
+  "/:id",
+  zValidator("json", UpdateMemberStatusSchema as never),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const siteId = c.req.param("id");
+    const data = c.req.valid("json") as Record<string, unknown>;
 
-  let data: UpdateSiteBody;
-  try {
-    data = await c.req.json();
-  } catch {
-    return error(c, "INVALID_JSON", "Invalid JSON", 400);
-  }
+    if (user.role !== "ADMIN") {
+      const membership = await db
+        .select()
+        .from(siteMemberships)
+        .where(
+          and(
+            eq(siteMemberships.userId, user.id),
+            eq(siteMemberships.siteId, siteId),
+            eq(siteMemberships.role, "SITE_ADMIN"),
+            eq(siteMemberships.status, "ACTIVE"),
+          ),
+        )
+        .get();
 
-  if (user.role !== "ADMIN") {
-    const membership = await db
-      .select()
-      .from(siteMemberships)
-      .where(
-        and(
-          eq(siteMemberships.userId, user.id),
-          eq(siteMemberships.siteId, siteId),
-          eq(siteMemberships.role, "SITE_ADMIN"),
-          eq(siteMemberships.status, "ACTIVE"),
-        ),
-      )
+      if (!membership) {
+        return error(c, "NOT_AUTHORIZED", "Not authorized", 403);
+      }
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.active !== undefined) updateData.active = data.active;
+
+    const updated = await db
+      .update(sites)
+      .set(updateData)
+      .where(eq(sites.id, siteId))
+      .returning()
       .get();
 
-    if (!membership) {
-      return error(c, "NOT_AUTHORIZED", "Not authorized", 403);
+    if (!updated) {
+      return error(c, "SITE_NOT_FOUND", "Site not found", 404);
     }
-  }
 
-  const updateData: Record<string, unknown> = {};
-
-  if (data.name !== undefined) updateData.name = data.name;
-  if (data.active !== undefined) updateData.active = data.active;
-
-  const updated = await db
-    .update(sites)
-    .set(updateData)
-    .where(eq(sites.id, siteId))
-    .returning()
-    .get();
-
-  if (!updated) {
-    return error(c, "SITE_NOT_FOUND", "Site not found", 404);
-  }
-
-  return success(c, { site: updated });
-});
+    return success(c, { site: updated });
+  },
+);
 
 app.post("/:id/reissue-join-code", async (c) => {
   const db = drizzle(c.env.DB);
@@ -376,6 +374,8 @@ app.get("/:id/join-code-history", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const siteId = c.req.param("id");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
 
   if (user.role !== "ADMIN") {
     const membership = await db
@@ -405,9 +405,14 @@ app.get("/:id/join-code-history", async (c) => {
     .select()
     .from(joinCodeHistory)
     .where(eq(joinCodeHistory.siteId, siteId))
+    .limit(limit)
+    .offset(offset)
     .all();
 
-  return success(c, { history });
+  return success(c, {
+    data: history,
+    pagination: { limit, offset, count: history.length },
+  });
 });
 
 export default app;

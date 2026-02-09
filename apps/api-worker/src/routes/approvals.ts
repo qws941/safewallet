@@ -7,7 +7,7 @@ import { success, error } from "../lib/response";
 import type { Env, AuthContext } from "../types";
 import { logAuditWithContext } from "../lib/audit";
 
-const { manualApprovals, attendance, users, sites } = schema;
+const { manualApprovals, attendance, siteMemberships } = schema;
 
 const app = new Hono<{
   Bindings: Env;
@@ -16,6 +16,29 @@ const app = new Hono<{
 
 app.use("*", authMiddleware);
 
+const APPROVAL_STATUSES = new Set(schema.approvalStatusEnum);
+
+async function isSiteAdmin(
+  db: ReturnType<typeof drizzle>,
+  userId: string,
+  siteId: string,
+) {
+  const membership = await db
+    .select({ id: siteMemberships.id })
+    .from(siteMemberships)
+    .where(
+      and(
+        eq(siteMemberships.userId, userId),
+        eq(siteMemberships.siteId, siteId),
+        eq(siteMemberships.role, "SITE_ADMIN"),
+        eq(siteMemberships.status, "ACTIVE"),
+      ),
+    )
+    .get();
+
+  return !!membership;
+}
+
 // List approvals (pending by default, or filtered)
 app.get("/", async (c) => {
   const db = drizzle(c.env.DB, { schema });
@@ -23,6 +46,8 @@ app.get("/", async (c) => {
   const siteId = c.req.query("siteId");
   const status = c.req.query("status"); // PENDING, APPROVED, REJECTED
   const date = c.req.query("date");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
 
   // Permission check: Site Admin or Super Admin
   if (user.role === "WORKER") {
@@ -31,7 +56,24 @@ app.get("/", async (c) => {
 
   const conditions = [];
   if (siteId) conditions.push(eq(manualApprovals.siteId, siteId));
-  if (status) conditions.push(eq(manualApprovals.status, status as any));
+  if (status) {
+    const normalizedStatus = status.toUpperCase();
+
+    if (
+      !APPROVAL_STATUSES.has(
+        normalizedStatus as (typeof schema.approvalStatusEnum)[number],
+      )
+    ) {
+      return error(c, "INVALID_STATUS", "Invalid status filter", 400);
+    }
+
+    conditions.push(
+      eq(
+        manualApprovals.status,
+        normalizedStatus as (typeof schema.approvalStatusEnum)[number],
+      ),
+    );
+  }
 
   if (date) {
     const targetDate = new Date(date);
@@ -47,46 +89,9 @@ app.get("/", async (c) => {
     }
   }
 
-  const results = await db
-    .select({
-      id: manualApprovals.id,
-      userId: manualApprovals.userId,
-      siteId: manualApprovals.siteId,
-      reason: manualApprovals.reason,
-      validDate: manualApprovals.validDate,
-      status: manualApprovals.status,
-      rejectionReason: manualApprovals.rejectionReason,
-      createdAt: manualApprovals.createdAt,
-      approvedAt: manualApprovals.approvedAt,
-      user: {
-        id: users.id,
-        name: users.name,
-        companyName: users.companyName,
-        tradeType: users.tradeType,
-      },
-      approvedBy: {
-        id: users.id,
-        name: users.name,
-      },
-      site: {
-        id: sites.id,
-        name: sites.name,
-      },
-    })
-    .from(manualApprovals)
-    .leftJoin(users, eq(manualApprovals.userId, users.id))
-    .leftJoin(users, eq(manualApprovals.approvedById, users.id)) // Self-join for approver? No, need alias if I strictly want typed join, but let's assume simple left join works for now or I need alias.
-    // Actually, joining users twice requires alias in Drizzle?
-    // Let's rely on simple left join and hope Drizzle handles it or use the relation query if possible.
-    // Relational query is easier.
-    .leftJoin(sites, eq(manualApprovals.siteId, sites.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(manualApprovals.createdAt))
-    .all();
-
-  // Better to use query.findMany if I want relations, but Drizzle D1 doesn't support it fully in all versions?
-  // Let's use the relational query which is cleaner.
   const approvalList = await db.query.manualApprovals.findMany({
+    limit,
+    offset,
     where: conditions.length > 0 ? and(...conditions) : undefined,
     orderBy: desc(manualApprovals.createdAt),
     with: {
@@ -96,7 +101,14 @@ app.get("/", async (c) => {
     },
   });
 
-  return success(c, approvalList);
+  return success(c, {
+    data: approvalList,
+    pagination: {
+      limit,
+      offset,
+      count: approvalList.length,
+    },
+  });
 });
 
 // Approve request
@@ -117,30 +129,38 @@ app.post("/:id/approve", async (c) => {
     return error(c, "NOT_FOUND", "Approval request not found", 404);
   }
 
+  if (
+    approval.siteId &&
+    !(await isSiteAdmin(db, approver.id, approval.siteId))
+  ) {
+    return error(c, "FORBIDDEN", "Forbidden", 403);
+  }
+
   if (approval.status !== "PENDING") {
     return error(c, "INVALID_STATUS", "Request is not pending", 400);
   }
 
-  // 1. Update Approval Status
-  await db
+  const updatedApproval = await db
     .update(manualApprovals)
     .set({
       status: "APPROVED",
       approvedById: approver.id,
       approvedAt: new Date(),
     })
-    .where(eq(manualApprovals.id, id))
-    .run();
+    .where(
+      and(eq(manualApprovals.id, id), eq(manualApprovals.status, "PENDING")),
+    )
+    .returning({ id: manualApprovals.id })
+    .get();
 
-  // 2. Create Attendance Record
-  // Check if attendance already exists?
+  if (!updatedApproval) {
+    return error(c, "CONFLICT", "Approval request was already processed", 409);
+  }
+
   const existingAttendance = await db.query.attendance.findFirst({
     where: and(
       eq(attendance.userId, approval.userId),
       eq(attendance.siteId, approval.siteId),
-      // CheckinAt should match validDate?
-      // Need to handle date range correctly. manualApprovals.validDate is likely 00:00:00 or specific time?
-      // Assuming validDate is the day.
       gte(attendance.checkinAt, approval.validDate),
       lt(
         attendance.checkinAt,
@@ -153,7 +173,7 @@ app.post("/:id/approve", async (c) => {
     await db.insert(attendance).values({
       userId: approval.userId,
       siteId: approval.siteId,
-      checkinAt: approval.validDate, // Use the valid date as checkin time
+      checkinAt: approval.validDate,
       result: "SUCCESS",
       source: "MANUAL",
     });
@@ -195,20 +215,34 @@ app.post("/:id/reject", async (c) => {
     return error(c, "NOT_FOUND", "Approval request not found", 404);
   }
 
+  if (
+    approval.siteId &&
+    !(await isSiteAdmin(db, approver.id, approval.siteId))
+  ) {
+    return error(c, "FORBIDDEN", "Forbidden", 403);
+  }
+
   if (approval.status !== "PENDING") {
     return error(c, "INVALID_STATUS", "Request is not pending", 400);
   }
 
-  await db
+  const updatedApproval = await db
     .update(manualApprovals)
     .set({
       status: "REJECTED",
-      approvedById: approver.id, // Rejected by this user
+      approvedById: approver.id,
       approvedAt: new Date(),
       rejectionReason: reason,
     })
-    .where(eq(manualApprovals.id, id))
-    .run();
+    .where(
+      and(eq(manualApprovals.id, id), eq(manualApprovals.status, "PENDING")),
+    )
+    .returning({ id: manualApprovals.id })
+    .get();
+
+  if (!updatedApproval) {
+    return error(c, "CONFLICT", "Approval request was already processed", 409);
+  }
 
   await logAuditWithContext(
     c,

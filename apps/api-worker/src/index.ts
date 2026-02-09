@@ -25,6 +25,7 @@ import policiesRoute from "./routes/policies";
 import approvalsRoute from "./routes/approvals";
 import educationRoute from "./routes/education";
 import acetimeRoute from "./routes/acetime";
+import recommendationsRoute from "./routes/recommendations";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -127,6 +128,7 @@ api.post("/seed/test-user", async (c) => {
 api.route("/auth", auth);
 api.route("/attendance", attendanceRoute);
 api.route("/votes", votesRoute);
+api.route("/recommendations", recommendationsRoute);
 api.route("/posts", postsRoute);
 api.route("/actions", actionsRoute);
 api.route("/users", usersRoute);

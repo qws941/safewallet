@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, sql } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
@@ -7,10 +8,7 @@ import { users, siteMemberships, sites, pointsLedger } from "../db/schema";
 import { logAuditWithContext } from "../lib/audit";
 import { success, error } from "../lib/response";
 import { decrypt } from "../lib/crypto";
-
-interface UpdateProfileBody {
-  name?: string;
-}
+import { UpdateProfileSchema } from "../validators/schemas";
 
 const app = new Hono<{
   Bindings: Env;
@@ -88,14 +86,18 @@ app.get("/me", async (c) => {
   });
 });
 
-app.patch("/me", async (c) => {
+app.patch("/me", zValidator("json", UpdateProfileSchema), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
 
-  let data: UpdateProfileBody;
-  try {
-    data = await c.req.json();
-  } catch {
+  const data = (() => {
+    try {
+      return c.req.valid("json");
+    } catch {
+      return null;
+    }
+  })();
+  if (!data) {
     return error(c, "INVALID_JSON", "Invalid JSON", 400);
   }
 
@@ -144,7 +146,7 @@ app.patch("/me", async (c) => {
         "USER",
         user.id,
         {
-          updatedFields: ["name"],
+          updatedFields: ["nameMasked"],
         },
       );
     } catch {
