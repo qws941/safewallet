@@ -122,7 +122,10 @@ export default function HomePage() {
           {pointsLoading ? (
             <Skeleton className="h-full w-full" />
           ) : (
-            <PointsCard balance={pointsBalance} delta={pointsDelta} />
+            <PointsCard
+              balance={pointsBalance}
+              delta={pointsDelta ?? undefined}
+            />
           )}
 
           <RankingCard
