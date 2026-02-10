@@ -96,6 +96,8 @@ app.post("/", validateJson("json", CreatePostSchema), async (c) => {
 
   const postId = crypto.randomUUID();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  // Location-based duplicate detection (existing)
   const canCheckDuplicate = Boolean(data.locationFloor && data.locationZone);
   const duplicateConditions = [
     sql`${posts.siteId} = ${data.siteId}`,
@@ -109,6 +111,36 @@ app.post("/", validateJson("json", CreatePostSchema), async (c) => {
   }
 
   const duplicateWhereSql = sql.join(duplicateConditions, sql` and `);
+
+  // Content similarity detection: find recent posts with matching keywords
+  let contentSimilar = false;
+  if (data.content && data.content.length >= 10) {
+    const keywords = data.content
+      .replace(/[^\p{L}\p{N}\s]/gu, "")
+      .split(/\s+/)
+      .filter((w: string) => w.length >= 2)
+      .slice(0, 5);
+
+    if (keywords.length >= 2) {
+      const likeConditions = keywords.map(
+        (kw: string) => sql`${posts.content} LIKE ${"%" + kw + "%"}`,
+      );
+      const recentSimilar = await db
+        .select({ id: posts.id })
+        .from(posts)
+        .where(
+          and(
+            eq(posts.siteId, data.siteId),
+            sql`${posts.createdAt} >= ${cutoff}`,
+            sql`(${sql.join(likeConditions, sql` OR `)})`,
+          ),
+        )
+        .limit(1)
+        .all();
+      contentSimilar = recentSimilar.length > 0;
+    }
+  }
+
   const duplicateOfPostId = canCheckDuplicate
     ? sql`(
         select ${posts.id}
@@ -118,9 +150,12 @@ app.post("/", validateJson("json", CreatePostSchema), async (c) => {
         limit 1
       )`
     : null;
-  const isPotentialDuplicate = canCheckDuplicate
-    ? sql`exists(select 1 from ${posts} where ${duplicateWhereSql})`
-    : false;
+  const isPotentialDuplicate =
+    canCheckDuplicate || contentSimilar
+      ? canCheckDuplicate
+        ? sql`exists(select 1 from ${posts} where ${duplicateWhereSql})`
+        : true
+      : false;
 
   const insertPostQuery = db.insert(posts).values({
     id: postId,

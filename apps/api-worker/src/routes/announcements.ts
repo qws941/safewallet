@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, desc, or, isNull } from "drizzle-orm";
+import { eq, and, desc, or, isNull, lte } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { attendanceMiddleware } from "../middleware/attendance";
@@ -71,6 +71,11 @@ app.get("/", async (c) => {
     conditions.push(
       or(eq(announcements.siteId, siteId), isNull(announcements.siteId))!,
     );
+  }
+
+  // Non-admin users only see published announcements
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    conditions.push(eq(announcements.isPublished, true));
   }
 
   const result = await db
@@ -168,6 +173,7 @@ app.post(
       }
     }
 
+    const isScheduled = !!body.scheduledAt;
     const newAnnouncement = await db
       .insert(announcements)
       .values({
@@ -176,6 +182,8 @@ app.post(
         title: body.title,
         content: body.content,
         isPinned: body.isPinned ?? false,
+        scheduledAt: isScheduled ? new Date(body.scheduledAt!) : null,
+        isPublished: !isScheduled,
       })
       .returning()
       .get();
@@ -230,6 +238,16 @@ app.patch(
     if (body.title !== undefined) updateData.title = body.title;
     if (body.content !== undefined) updateData.content = body.content;
     if (body.isPinned !== undefined) updateData.isPinned = body.isPinned;
+    if (body.scheduledAt !== undefined) {
+      if (body.scheduledAt === null) {
+        // Clear schedule, publish immediately
+        updateData.scheduledAt = null;
+        updateData.isPublished = true;
+      } else {
+        updateData.scheduledAt = new Date(body.scheduledAt);
+        updateData.isPublished = false;
+      }
+    }
 
     const updated = await db
       .update(announcements)

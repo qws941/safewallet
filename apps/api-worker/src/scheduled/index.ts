@@ -9,6 +9,7 @@ import {
   syncErrors,
   actions,
   posts,
+  announcements,
 } from "../db/schema";
 import {
   fasGetUpdatedEmployees,
@@ -193,6 +194,9 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
   const isConnected = await testFasConnection(env.FAS_HYPERDRIVE);
   if (!isConnected) {
     console.error("FAS MariaDB connection failed");
+    if (env.KV) {
+      await env.KV.put("fas-status", "down", { expirationTtl: 600 });
+    }
     return;
   }
 
@@ -309,6 +313,11 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
         since: fiveMinutesAgo.toISOString(),
       }),
     });
+
+    // Clear FAS down status on successful sync
+    if (env.KV) {
+      await env.KV.delete("fas-status");
+    }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const errorCode =
@@ -320,6 +329,13 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
         : "UNKNOWN";
 
     console.error("FAS incremental sync failed:", err);
+
+    // Signal FAS downtime to attendance middleware (10min TTL)
+    try {
+      await env.KV.put("fas-status", "down", { expirationTtl: 600 });
+    } catch {
+      /* KV write failure is non-critical */
+    }
 
     await db.insert(syncErrors).values({
       syncType: "FAS_WORKER",
@@ -427,6 +443,26 @@ async function runPiiLifecycleCleanup(env: Env): Promise<void> {
   );
 }
 
+async function publishScheduledAnnouncements(env: Env): Promise<void> {
+  const db = drizzle(env.DB);
+  const now = new Date();
+
+  const result = await db
+    .update(announcements)
+    .set({ isPublished: true })
+    .where(
+      and(
+        eq(announcements.isPublished, false),
+        lt(announcements.scheduledAt, now),
+      ),
+    );
+
+  const count = result.meta?.changes ?? 0;
+  if (count > 0) {
+    console.log(`Announcements: published ${count} scheduled announcement(s)`);
+  }
+}
+
 export async function scheduled(
   controller: ScheduledController,
   env: Env,
@@ -437,6 +473,7 @@ export async function scheduled(
   try {
     if (trigger.startsWith("*/5 ") || trigger === "*/5 * * * *") {
       await runFasSyncIncremental(env);
+      await publishScheduledAnnouncements(env);
     }
 
     if (trigger === "0 0 1 * *") {

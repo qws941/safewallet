@@ -242,12 +242,14 @@ export const CreateAnnouncementSchema = z.object({
   title: nonEmptyStr,
   content: nonEmptyStr,
   isPinned: z.boolean().optional(),
+  scheduledAt: z.string().datetime().optional(),
 });
 
 export const UpdateAnnouncementSchema = z.object({
   title: nonEmptyStr.optional(),
   content: nonEmptyStr.optional(),
   isPinned: z.boolean().optional(),
+  scheduledAt: z.string().datetime().nullable().optional(),
 });
 
 // ─── Votes Schemas ───────────────────────────────────────────────────────────

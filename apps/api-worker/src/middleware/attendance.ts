@@ -63,6 +63,17 @@ export async function attendanceMiddleware(
     throw new HTTPException(401, { message: "인증이 필요합니다." });
   }
 
+  // FAS downtime graceful degradation: bypass attendance check
+  // when FAS sync is failing (KV flag set by CRON with 10min TTL)
+  try {
+    const fasStatus = await c.env.KV.get("fas-status");
+    if (fasStatus === "down") {
+      return next();
+    }
+  } catch {
+    // KV read failure is non-critical — continue with normal check
+  }
+
   const { start, end } = getTodayRange();
 
   const attendanceConditions = [

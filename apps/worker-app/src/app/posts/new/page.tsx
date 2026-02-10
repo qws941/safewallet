@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { compressImages } from "@/lib/image-compress";
 import { useAuth } from "@/hooks/use-auth";
 import { apiFetch } from "@/lib/api";
 import { useCreatePost } from "@/hooks/use-api";
@@ -185,7 +186,9 @@ export default function NewPostPage() {
         let successCount = 0;
         let failCount = 0;
 
-        for (const file of files) {
+        const compressedFiles = await compressImages(files);
+
+        for (const file of compressedFiles) {
           const formData = new FormData();
           formData.append("file", file);
 

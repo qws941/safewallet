@@ -11,6 +11,7 @@ import statsApp from "./stats";
 import votesApp from "./votes";
 import accessPoliciesApp from "./access-policies";
 import syncErrorsApp from "./sync-errors";
+import recommendationsApp from "./recommendations";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -28,5 +29,6 @@ app.route("/", statsApp);
 app.route("/", votesApp);
 app.route("/", accessPoliciesApp);
 app.route("/", syncErrorsApp);
+app.route("/", recommendationsApp);
 
 export default app;

@@ -446,6 +446,10 @@ export const announcements = sqliteTable(
     isPinned: integer("is_pinned", { mode: "boolean" })
       .default(false)
       .notNull(),
+    scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
+    isPublished: integer("is_published", { mode: "boolean" })
+      .default(true)
+      .notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
       () => new Date(),
     ),
