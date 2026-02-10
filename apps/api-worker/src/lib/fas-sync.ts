@@ -273,23 +273,35 @@ export async function syncFasEmployeesToD1(
 
 /**
  * FAS에서 퇴직(stateFlag≠'W') 처리된 직원을 D1에서 soft delete.
+ * 퇴직자 코드 목록을 받아 해당 유저만 비활성화한다.
  */
 export async function deactivateRetiredEmployees(
-  activeEmplCds: string[],
+  retiredEmplCds: string[],
   db: DrizzleD1Database,
 ): Promise<number> {
-  // D1에서 FAS 연동 유저 중 active인 목록 조회
+  if (retiredEmplCds.length === 0) return 0;
+
+  const retiredSet = new Set(retiredEmplCds);
+
+  // D1에서 FAS 연동 유저 중 퇴직자 코드에 해당하는 유저만 조회
   const fasUsers = await db
-    .select({ id: users.id, externalWorkerId: users.externalWorkerId })
+    .select({
+      id: users.id,
+      externalWorkerId: users.externalWorkerId,
+      deletedAt: users.deletedAt,
+    })
     .from(users)
-    .where(and(eq(users.externalSystem, "FAS")))
+    .where(eq(users.externalSystem, "FAS"))
     .all();
 
-  const activeSet = new Set(activeEmplCds);
   let deactivated = 0;
 
   for (const u of fasUsers) {
-    if (u.externalWorkerId && !activeSet.has(u.externalWorkerId)) {
+    if (
+      u.externalWorkerId &&
+      retiredSet.has(u.externalWorkerId) &&
+      !u.deletedAt
+    ) {
       await db
         .update(users)
         .set({ deletedAt: new Date(), updatedAt: new Date() })

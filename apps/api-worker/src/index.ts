@@ -62,7 +62,7 @@ api.post("/fas-sync", async (c) => {
     offset?: number;
     limit?: number;
   }>();
-  if (body.secret !== "safework2-seed-2026") {
+  if (!c.env.FAS_SYNC_SECRET || body.secret !== c.env.FAS_SYNC_SECRET) {
     return c.json({ error: "Forbidden" }, 403);
   }
 
