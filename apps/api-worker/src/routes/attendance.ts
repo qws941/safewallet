@@ -22,39 +22,9 @@ interface SyncBody {
   events: SyncEvent[];
 }
 
-// In-memory idempotency cache (key -> response)
-// In production, use KV namespace for distributed idempotency
-const idempotencyCache = new Map<
-  string,
-  {
-    response: {
-      processed: number;
-      inserted: number;
-      skipped: number;
-      failed: number;
-      results: Array<{ fasEventId: string; result: string }>;
-    };
-    timestamp: number;
-  }
->();
-
-// TTL: 1 hour - cleanup happens lazily on cache access
-const IDEMPOTENCY_TTL = 3600000;
-let lastCleanup = Date.now();
-
-// Lazy cleanup - runs when accessing cache if enough time has passed
-function cleanupIdempotencyCache() {
-  const now = Date.now();
-  // Only cleanup every 5 minutes
-  if (now - lastCleanup < 300000) return;
-  lastCleanup = now;
-
-  for (const [key, value] of idempotencyCache.entries()) {
-    if (now - value.timestamp > IDEMPOTENCY_TTL) {
-      idempotencyCache.delete(key);
-    }
-  }
-}
+// KV-based idempotency cache (CF Workers isolates don't share memory,
+// so in-memory Map is useless — each request runs in a fresh isolate)
+const IDEMPOTENCY_TTL = 3600; // 1 hour in seconds
 
 const attendanceRoute = new Hono<{
   Bindings: Env;
@@ -66,12 +36,13 @@ attendanceRoute.post(
   fasAuthMiddleware,
   zValidator("json", ManualCheckinSchema as never),
   async (c) => {
-    cleanupIdempotencyCache();
     const idempotencyKey = c.req.header("Idempotency-Key");
     if (idempotencyKey) {
-      const cached = idempotencyCache.get(idempotencyKey);
+      const cached = await c.env.KV.get(
+        `attendance:idempotency:${idempotencyKey}`,
+      );
       if (cached) {
-        return success(c, cached.response);
+        return success(c, JSON.parse(cached));
       }
     }
 
@@ -175,10 +146,11 @@ attendanceRoute.post(
     };
 
     if (idempotencyKey) {
-      idempotencyCache.set(idempotencyKey, {
-        response,
-        timestamp: Date.now(),
-      });
+      await c.env.KV.put(
+        `attendance:idempotency:${idempotencyKey}`,
+        JSON.stringify(response),
+        { expirationTtl: IDEMPOTENCY_TTL },
+      );
     }
 
     try {

@@ -767,6 +767,7 @@ auth.post(
     // may not have attendance data yet
 
     // If user is missing phone info, fetch from FAS and update
+    let fasWarning: string | undefined;
     if (!user.phoneHash && c.env.FAS_HYPERDRIVE) {
       try {
         const fasEmployee = await fasGetEmployeeInfo(
@@ -811,7 +812,9 @@ auth.post(
           "Failed to fetch FAS employee info for phone update:",
           fasErr,
         );
-        // Non-blocking: login still succeeds even if FAS lookup fails
+        // Non-blocking: login still succeeds, but client is warned
+        fasWarning =
+          "직원 정보 동기화에 실패했습니다. 기본 정보로 로그인됩니다.";
       }
     }
 
@@ -842,6 +845,7 @@ auth.post(
             name: user.name,
             nameMasked: user.nameMasked,
           },
+          ...(fasWarning ? { warning: fasWarning } : {}),
         },
         200,
       ),

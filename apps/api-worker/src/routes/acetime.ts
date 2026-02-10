@@ -35,6 +35,10 @@ async function withAuth(
   return response || error(c, "UNAUTHORIZED", "Authentication required", 401);
 }
 
+// SYNC PATHS:
+// 1. POST /acetime/sync-db (this) — R2 JSON → basic user records (name only, no PII hashing)
+// 2. POST /fas/workers/sync          — MariaDB API → full PII with phone/dob encryption
+// 3. CRON runAcetimeSyncFromR2        — Scheduled version of path 1 (every 5 min)
 app.post("/sync-db", async (c) => {
   return withAuth(c, async () => {
     const auth = c.get("auth");
@@ -108,55 +112,51 @@ app.post("/sync-db", async (c) => {
       }),
     );
 
-    // Step 3: Batch upserts using D1 raw batch API (max 100 per batch)
-    const BATCH_SIZE = 100;
     let created = 0;
     let updated = 0;
     let skipped = 0;
-    const now = new Date().toISOString();
 
-    // Batch inserts
-    for (let i = 0; i < newEmployees.length; i += BATCH_SIZE) {
-      const chunk = newEmployees.slice(i, i + BATCH_SIZE);
-      const stmts = chunk.map((e) => {
-        const phoneHash = hashMap.get(e.externalWorkerId) || "";
-        return c.env.DB.prepare(
-          `INSERT INTO users (id, external_system, external_worker_id, name, name_masked, phone, phone_hash, company_name, trade_type, role, created_at, updated_at)
-           VALUES (lower(hex(randomblob(16))), 'FAS', ?, ?, ?, ?, ?, ?, ?, 'WORKER', ?, ?)`,
-        ).bind(
-          e.externalWorkerId,
-          e.name,
-          maskName(e.name),
-          phoneHash,
-          phoneHash,
-          e.companyName,
-          e.trade,
-          now,
-          now,
-        );
-      });
+    for (const e of newEmployees) {
+      const phoneHash = hashMap.get(e.externalWorkerId) || "";
       try {
-        await c.env.DB.batch(stmts);
-        created += chunk.length;
+        await db.insert(users).values({
+          id: crypto.randomUUID(),
+          externalSystem: "FAS",
+          externalWorkerId: e.externalWorkerId,
+          name: e.name,
+          nameMasked: maskName(e.name),
+          phone: phoneHash,
+          phoneHash: phoneHash,
+          companyName: e.companyName,
+          tradeType: e.trade,
+          role: "WORKER",
+        });
+        created++;
       } catch {
-        skipped += chunk.length;
+        skipped++;
       }
     }
 
-    // Batch updates
-    for (let i = 0; i < updateEmployees.length; i += BATCH_SIZE) {
-      const chunk = updateEmployees.slice(i, i + BATCH_SIZE);
-      const stmts = chunk.map((e) => {
-        const userId = existingMap.get(e.externalWorkerId);
-        return c.env.DB.prepare(
-          `UPDATE users SET name = ?, name_masked = ?, company_name = ?, trade_type = ?, updated_at = ? WHERE id = ?`,
-        ).bind(e.name, maskName(e.name), e.companyName, e.trade, now, userId);
-      });
+    for (const e of updateEmployees) {
+      const userId = existingMap.get(e.externalWorkerId);
+      if (!userId) {
+        skipped++;
+        continue;
+      }
       try {
-        await c.env.DB.batch(stmts);
-        updated += chunk.length;
+        await db
+          .update(users)
+          .set({
+            name: e.name,
+            nameMasked: maskName(e.name),
+            companyName: e.companyName,
+            tradeType: e.trade,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, userId));
+        updated++;
       } catch {
-        skipped += chunk.length;
+        skipped++;
       }
     }
 

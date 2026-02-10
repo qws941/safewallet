@@ -16,6 +16,7 @@ import {
   testConnection as testFasConnection,
 } from "../lib/fas-mariadb";
 import { hmac, encrypt } from "../lib/crypto";
+import { maskName } from "../utils/common";
 
 function getKSTDate(): Date {
   const now = new Date();
@@ -456,6 +457,116 @@ async function publishScheduledAnnouncements(env: Env): Promise<void> {
   }
 }
 
+// AceTime R2 sync — reads employee JSON from R2 bucket and upserts basic user records.
+// This is the CRON counterpart to POST /acetime/sync-db (which requires admin auth).
+// Does NOT handle PII (phone/dob encryption) — that's runFasSyncIncremental's job.
+async function runAcetimeSyncFromR2(env: Env): Promise<void> {
+  if (!env.ACETIME_BUCKET) {
+    console.log("ACETIME_BUCKET not configured, skipping R2 sync");
+    return;
+  }
+
+  const object = await env.ACETIME_BUCKET.get("aceviewer-employees.json");
+  if (!object) {
+    console.log("aceviewer-employees.json not found in R2, skipping");
+    return;
+  }
+
+  const data = (await object.json()) as {
+    employees: Array<{
+      externalWorkerId: string;
+      name: string;
+      companyName: string | null;
+      position: string | null;
+      trade: string | null;
+      lastSeen: string | null;
+    }>;
+    total: number;
+  };
+  const aceViewerEmployees = data.employees;
+
+  const db = drizzle(env.DB);
+
+  const existingUsers = await db
+    .select({
+      id: users.id,
+      externalWorkerId: users.externalWorkerId,
+    })
+    .from(users)
+    .where(eq(users.externalSystem, "FAS"));
+
+  const existingMap = new Map(
+    existingUsers.map((u) => [u.externalWorkerId, u.id]),
+  );
+
+  const newEmployees = aceViewerEmployees.filter(
+    (e) => !existingMap.has(e.externalWorkerId),
+  );
+  const updateEmployees = aceViewerEmployees.filter((e) =>
+    existingMap.has(e.externalWorkerId),
+  );
+
+  const hashMap = new Map<string, string>();
+  await Promise.all(
+    newEmployees.map(async (e) => {
+      const h = await hmac(env.HMAC_SECRET, `acetime-${e.externalWorkerId}`);
+      hashMap.set(e.externalWorkerId, h);
+    }),
+  );
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const e of newEmployees) {
+    const phoneHash = hashMap.get(e.externalWorkerId) || "";
+    try {
+      await db.insert(users).values({
+        id: crypto.randomUUID(),
+        externalSystem: "FAS",
+        externalWorkerId: e.externalWorkerId,
+        name: e.name,
+        nameMasked: maskName(e.name),
+        phone: phoneHash,
+        phoneHash: phoneHash,
+        companyName: e.companyName,
+        tradeType: e.trade,
+        role: "WORKER",
+      });
+      created++;
+    } catch {
+      skipped++;
+    }
+  }
+
+  for (const e of updateEmployees) {
+    const userId = existingMap.get(e.externalWorkerId);
+    if (!userId) {
+      skipped++;
+      continue;
+    }
+    try {
+      await db
+        .update(users)
+        .set({
+          name: e.name,
+          nameMasked: maskName(e.name),
+          companyName: e.companyName,
+          tradeType: e.trade,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+      updated++;
+    } catch {
+      skipped++;
+    }
+  }
+
+  console.log(
+    `AceTime R2 sync complete: total=${aceViewerEmployees.length}, created=${created}, updated=${updated}, skipped=${skipped}`,
+  );
+}
+
 export async function scheduled(
   controller: ScheduledController,
   env: Env,
@@ -467,6 +578,7 @@ export async function scheduled(
     if (trigger.startsWith("*/5 ") || trigger === "*/5 * * * *") {
       await runFasSyncIncremental(env);
       await publishScheduledAnnouncements(env);
+      await runAcetimeSyncFromR2(env);
     }
 
     if (trigger === "0 0 1 * *") {
