@@ -10,7 +10,7 @@ export default defineConfig({
       name: "api",
       testDir: "./api",
       use: {
-        baseURL: "https://safework2-api.jclee.workers.dev/api/",
+        baseURL: "https://safework2.jclee.me/api/",
       },
     },
     {
@@ -26,6 +26,13 @@ export default defineConfig({
       testDir: "./admin-app",
       use: {
         baseURL: "https://admin.safework2.jclee.me",
+        headless: true,
+      },
+    },
+    {
+      name: "cross-app",
+      testDir: "./cross-app",
+      use: {
         headless: true,
       },
     },

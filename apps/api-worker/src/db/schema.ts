@@ -152,7 +152,7 @@ export const sites = sqliteTable("sites", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
+  name: text("name").unique().notNull(),
   joinCode: text("join_code").unique().notNull(),
   active: integer("active", { mode: "boolean" }).default(true).notNull(),
   joinEnabled: integer("join_enabled", { mode: "boolean" })
@@ -632,8 +632,8 @@ export const votePeriods = sqliteTable(
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
     month: text("month").notNull(),
-    startDate: integer("start_date").notNull(),
-    endDate: integer("end_date").notNull(),
+    startDate: integer("start_date").notNull(), // epoch seconds (intentional — date-only field)
+    endDate: integer("end_date").notNull(), // epoch seconds (intentional — date-only field)
     createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
       () => new Date(),
     ),
@@ -1010,7 +1010,7 @@ export const pointPolicies = sqliteTable(
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
     reasonCode: text("reason_code").notNull(),
-    name: text("name").notNull(),
+    name: text("name").unique().notNull(),
     description: text("description"),
     defaultAmount: integer("default_amount").notNull(),
     minAmount: integer("min_amount"),
@@ -1275,8 +1275,8 @@ export const statutoryTrainings = sqliteTable(
       enum: statutoryTrainingTypeEnum,
     }).notNull(),
     trainingName: text("training_name").notNull(),
-    trainingDate: integer("training_date").notNull(),
-    expirationDate: integer("expiration_date"),
+    trainingDate: integer("training_date").notNull(), // epoch seconds (intentional — date-only field)
+    expirationDate: integer("expiration_date"), // epoch seconds (intentional — date-only field)
     provider: text("provider"),
     certificateUrl: text("certificate_url"),
     hoursCompleted: integer("hours_completed").default(0).notNull(),
@@ -1321,7 +1321,7 @@ export const tbmRecords = sqliteTable(
     siteId: text("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
-    date: integer("date").notNull(),
+    date: integer("date").notNull(), // epoch seconds (intentional — date-only field)
     topic: text("topic").notNull(),
     content: text("content"),
     leaderId: text("leader_id")
@@ -1494,11 +1494,11 @@ export const syncErrors = sqliteTable(
     errorMessage: text("error_message").notNull(),
     payload: text("payload"), // JSON string of failed data
     retryCount: integer("retry_count").notNull().default(0),
-    lastRetryAt: integer("last_retry_at"),
-    resolvedAt: integer("resolved_at"),
-    createdAt: integer("created_at")
+    lastRetryAt: integer("last_retry_at", { mode: "timestamp" }),
+    resolvedAt: integer("resolved_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
-      .$defaultFn(() => Math.floor(Date.now() / 1000)),
+      .$defaultFn(() => new Date()),
   },
   (table) => ({
     siteTypeIdx: index("sync_errors_site_type_idx").on(

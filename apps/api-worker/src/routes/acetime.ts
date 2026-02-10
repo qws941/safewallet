@@ -1,8 +1,10 @@
 import { Hono } from "hono";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { users } from "../db/schema";
 import { hmac } from "../lib/crypto";
+import { fasGetEmployeeInfo } from "../lib/fas-mariadb";
+import { syncSingleFasEmployee } from "../lib/fas-sync";
 import { error, success } from "../lib/response";
 import { authMiddleware } from "../middleware/auth";
 import type { AuthContext, Env } from "../types";
@@ -186,6 +188,61 @@ app.post("/sync-db", async (c) => {
       }
     }
 
+    // Step 3: FAS cross-matching — update acetime-* placeholder hashes with real PII from FAS MariaDB
+    let fasCrossMatched = 0;
+    let fasCrossSkipped = 0;
+    let fasCrossErrors = 0;
+
+    if (c.env.FAS_HYPERDRIVE) {
+      // Find all users still using acetime-* placeholder hashes
+      const placeholderUsers = await db
+        .select({
+          id: users.id,
+          externalWorkerId: users.externalWorkerId,
+          phoneHash: users.phoneHash,
+        })
+        .from(users)
+        .where(
+          and(
+            eq(users.externalSystem, "FAS"),
+            like(users.phoneHash, "acetime-%"),
+          ),
+        );
+
+      if (placeholderUsers.length > 0) {
+        const hd = c.env.FAS_HYPERDRIVE;
+        const env = {
+          HMAC_SECRET: c.env.HMAC_SECRET,
+          ENCRYPTION_KEY: c.env.ENCRYPTION_KEY,
+        };
+
+        for (const pu of placeholderUsers) {
+          if (!pu.externalWorkerId) {
+            fasCrossSkipped++;
+            continue;
+          }
+          try {
+            const fasEmployee = await fasGetEmployeeInfo(
+              hd,
+              pu.externalWorkerId,
+            );
+            if (fasEmployee && fasEmployee.phone) {
+              await syncSingleFasEmployee(fasEmployee, db, env);
+              fasCrossMatched++;
+            } else {
+              fasCrossSkipped++;
+            }
+          } catch (crossErr) {
+            console.error(
+              `[sync-db] FAS cross-match failed for ${pu.externalWorkerId}:`,
+              crossErr instanceof Error ? crossErr.message : crossErr,
+            );
+            fasCrossErrors++;
+          }
+        }
+      }
+    }
+
     return success(c, {
       source: {
         key: "aceviewer-employees.json",
@@ -199,6 +256,96 @@ app.post("/sync-db", async (c) => {
         updated,
         skipped,
       },
+      fasCrossMatch: {
+        attempted: fasCrossMatched + fasCrossSkipped + fasCrossErrors,
+        matched: fasCrossMatched,
+        skipped: fasCrossSkipped,
+        errors: fasCrossErrors,
+        available: !!c.env.FAS_HYPERDRIVE,
+      },
+    });
+  });
+});
+
+// Standalone FAS cross-match endpoint — updates acetime-* placeholder hashes with real PII from FAS MariaDB
+// Separated from sync-db to avoid Worker CPU timeout (30s limit)
+app.post("/fas-cross-match", async (c) => {
+  return withAuth(c, async () => {
+    const auth = c.get("auth");
+    if (!isAdminRole(auth.user.role)) {
+      return error(c, "ADMIN_ACCESS_REQUIRED", "Admin access required", 403);
+    }
+
+    if (!c.env.FAS_HYPERDRIVE) {
+      return error(
+        c,
+        "FAS_HYPERDRIVE_NOT_CONFIGURED",
+        "FAS Hyperdrive is not configured",
+        500,
+      );
+    }
+
+    const limit = Math.min(Number(c.req.query("limit")) || 50, 200);
+
+    const db = drizzle(c.env.DB);
+
+    const placeholderUsers = await db
+      .select({
+        id: users.id,
+        externalWorkerId: users.externalWorkerId,
+        name: users.name,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.externalSystem, "FAS"),
+          like(users.phoneHash, "acetime-%"),
+        ),
+      )
+      .limit(limit);
+
+    const total = placeholderUsers.length;
+    let matched = 0;
+    let skipped = 0;
+    let errors = 0;
+    const matchedNames: string[] = [];
+
+    if (total > 0) {
+      const hd = c.env.FAS_HYPERDRIVE;
+      const env = {
+        HMAC_SECRET: c.env.HMAC_SECRET,
+        ENCRYPTION_KEY: c.env.ENCRYPTION_KEY,
+      };
+
+      for (const pu of placeholderUsers) {
+        if (!pu.externalWorkerId) {
+          skipped++;
+          continue;
+        }
+        try {
+          const fasEmployee = await fasGetEmployeeInfo(hd, pu.externalWorkerId);
+          if (fasEmployee && fasEmployee.phone) {
+            await syncSingleFasEmployee(fasEmployee, db, env);
+            matched++;
+            matchedNames.push(pu.name || pu.externalWorkerId);
+          } else {
+            skipped++;
+          }
+        } catch (crossErr) {
+          console.error(
+            `[fas-cross-match] Failed for ${pu.externalWorkerId}:`,
+            crossErr instanceof Error ? crossErr.message : crossErr,
+          );
+          errors++;
+        }
+      }
+    }
+
+    return success(c, {
+      batch: { limit, processed: total },
+      results: { matched, skipped, errors },
+      matchedNames,
+      hasMore: total === limit,
     });
   });
 });

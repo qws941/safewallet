@@ -105,3 +105,59 @@ export enum TrainingCompletionStatus {
   COMPLETED = "COMPLETED",
   EXPIRED = "EXPIRED",
 }
+
+// === Site Membership (현장 멤버십) ===
+
+export enum MembershipRole {
+  WORKER = "WORKER",
+  SITE_ADMIN = "SITE_ADMIN",
+}
+
+// === Attendance (출석) ===
+
+export enum AttendanceResult {
+  SUCCESS = "SUCCESS",
+  FAIL = "FAIL",
+}
+
+export enum AttendanceSource {
+  FAS = "FAS",
+  MANUAL = "MANUAL",
+}
+
+// === Votes (투표) ===
+
+export enum VoteCandidateSource {
+  ADMIN = "ADMIN",
+  AUTO = "AUTO",
+}
+
+// === Disputes (이의신청) ===
+
+export enum DisputeStatus {
+  OPEN = "OPEN",
+  IN_REVIEW = "IN_REVIEW",
+  RESOLVED = "RESOLVED",
+  REJECTED = "REJECTED",
+}
+
+export enum DisputeType {
+  REVIEW_APPEAL = "REVIEW_APPEAL",
+  POINT_DISPUTE = "POINT_DISPUTE",
+  ATTENDANCE_DISPUTE = "ATTENDANCE_DISPUTE",
+  OTHER = "OTHER",
+}
+
+// === Sync (동기화) ===
+
+export enum SyncType {
+  FAS_ATTENDANCE = "FAS_ATTENDANCE",
+  FAS_WORKER = "FAS_WORKER",
+  ATTENDANCE_MANUAL = "ATTENDANCE_MANUAL",
+}
+
+export enum SyncErrorStatus {
+  OPEN = "OPEN",
+  RESOLVED = "RESOLVED",
+  IGNORED = "IGNORED",
+}

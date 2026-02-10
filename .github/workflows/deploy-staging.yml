@@ -76,3 +76,23 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      # TODO: Configure staging-specific base URLs in playwright.config.ts
+      # Currently uses production URLs since staging URLs are not yet set up
+      - name: Run smoke tests
+        continue-on-error: true
+        working-directory: e2e
+        run: npx playwright test --grep @smoke
+        env:
+          CI: "true"
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-staging
+          path: e2e/playwright-report/
+          retention-days: 7

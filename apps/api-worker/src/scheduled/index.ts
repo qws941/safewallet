@@ -1,6 +1,6 @@
 import type { Env } from "../types";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, sql, and, gte, lt } from "drizzle-orm";
+import { eq, sql, and, gte, lt, like } from "drizzle-orm";
 import {
   pointsLedger,
   siteMemberships,
@@ -13,10 +13,12 @@ import {
 } from "../db/schema";
 import {
   fasGetUpdatedEmployees,
+  fasGetEmployeeInfo,
   testConnection as testFasConnection,
 } from "../lib/fas-mariadb";
 import {
   syncFasEmployeesToD1,
+  syncSingleFasEmployee,
   deactivateRetiredEmployees,
 } from "../lib/fas-sync";
 import { hmac } from "../lib/crypto";
@@ -496,8 +498,55 @@ async function runAcetimeSyncFromR2(env: Env): Promise<void> {
     }
   }
 
+  // Step 3: Cross-match placeholder users with FAS MariaDB to fill in phone/dob
+  let fasCrossMatched = 0;
+  let fasCrossSkipped = 0;
+
+  if (env.FAS_HYPERDRIVE) {
+    const placeholderUsers = await db
+      .select({
+        id: users.id,
+        externalWorkerId: users.externalWorkerId,
+        phoneHash: users.phoneHash,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.externalSystem, "FAS"),
+          like(users.phoneHash, "acetime-%"),
+        ),
+      );
+
+    // Batch limit to stay within CF Workers CPU time
+    const batch = placeholderUsers.slice(0, 10);
+
+    for (const pu of batch) {
+      if (!pu.externalWorkerId) {
+        fasCrossSkipped++;
+        continue;
+      }
+      try {
+        const fasEmployee = await fasGetEmployeeInfo(
+          env.FAS_HYPERDRIVE,
+          pu.externalWorkerId,
+        );
+        if (fasEmployee && fasEmployee.phone) {
+          await syncSingleFasEmployee(fasEmployee, db, {
+            HMAC_SECRET: env.HMAC_SECRET,
+            ENCRYPTION_KEY: env.ENCRYPTION_KEY,
+          });
+          fasCrossMatched++;
+        } else {
+          fasCrossSkipped++;
+        }
+      } catch {
+        fasCrossSkipped++;
+      }
+    }
+  }
+
   console.log(
-    `AceTime R2 sync complete: total=${aceViewerEmployees.length}, created=${created}, updated=${updated}, skipped=${skipped}`,
+    `AceTime R2 sync complete: total=${aceViewerEmployees.length}, created=${created}, updated=${updated}, skipped=${skipped}, fasCrossMatched=${fasCrossMatched}, fasCrossSkipped=${fasCrossSkipped}`,
   );
 }
 

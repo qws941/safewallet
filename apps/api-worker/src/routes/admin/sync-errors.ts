@@ -122,7 +122,7 @@ app.patch(
       .update(syncErrors)
       .set({
         status: newStatus,
-        resolvedAt: Math.floor(Date.now() / 1000),
+        resolvedAt: new Date(),
       })
       .where(eq(syncErrors.id, id))
       .returning()

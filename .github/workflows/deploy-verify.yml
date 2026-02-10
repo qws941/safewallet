@@ -1,0 +1,60 @@
+name: Deploy Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to verify"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        default: "production"
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  verify:
+    name: Smoke Test (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    # continue-on-error when called from deploy workflows (workflow_call)
+    # fail hard when run standalone (workflow_dispatch) for clear signal
+    continue-on-error: ${{ github.event_name != 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run smoke tests
+        working-directory: e2e
+        run: npx playwright test --grep @smoke
+        env:
+          # TODO: Use different base URLs for staging environment
+          # For now, both environments point to production URLs
+          # (configured in e2e/playwright.config.ts)
+          CI: "true"
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ inputs.environment }}
+          path: e2e/playwright-report/
+          retention-days: 7

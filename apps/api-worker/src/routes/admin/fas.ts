@@ -282,4 +282,40 @@ app.post(
   },
 );
 
+// --- Temporary FAS MariaDB debug endpoint ---
+app.get("/fas/search-mariadb", requireAdmin, async (c) => {
+  const name = c.req.query("name");
+  const phone = c.req.query("phone");
+
+  if (!name && !phone) {
+    return error(c, "VALIDATION_ERROR", "name or phone query param required");
+  }
+
+  const hd = c.env.FAS_HYPERDRIVE;
+  if (!hd) {
+    return error(c, "SERVICE_UNAVAILABLE", "FAS_HYPERDRIVE not configured");
+  }
+
+  try {
+    const { fasSearchEmployeeByPhone, fasSearchEmployeeByName } =
+      await import("../../lib/fas-mariadb");
+
+    let results: unknown[] = [];
+    if (phone) {
+      const emp = await fasSearchEmployeeByPhone(hd, phone);
+      results = emp ? [emp] : [];
+    } else if (name) {
+      results = await fasSearchEmployeeByName(hd, name);
+    }
+
+    return success(c, {
+      query: { name, phone },
+      count: results.length,
+      results,
+    });
+  } catch (err) {
+    return error(c, "INTERNAL_ERROR", String(err));
+  }
+});
+
 export default app;
