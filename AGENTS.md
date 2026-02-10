@@ -1,8 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-08  
-**Commit:** 485242f  
-**Branch:** main
+**Generated:** 2026-02-10  
+**Branch:** master
 
 ## OVERVIEW
 
@@ -19,6 +18,8 @@ safework2/
 ├── packages/
 │   ├── types/            # Shared TypeScript types, 15 enums, 10 DTOs
 │   └── ui/               # shadcn/ui component library (13 components)
+├── e2e/                  # Playwright smoke tests (3 specs)
+├── scripts/              # Build/deploy helper scripts (5 files)
 ├── docker/               # Development Docker Compose
 ├── docs/                 # PRD, implementation plans, status docs
 └── .sisyphus/            # AI agent planning artifacts
@@ -28,15 +29,17 @@ safework2/
 
 | Task                  | Location                           | Notes                           |
 | --------------------- | ---------------------------------- | ------------------------------- |
-| Add API endpoint      | `apps/api-worker/src/routes/`      | Hono routes, 18 modules         |
+| Add API endpoint      | `apps/api-worker/src/routes/`      | Hono routes, 19 modules         |
 | Add/modify DB table   | `apps/api-worker/src/db/schema.ts` | Drizzle ORM, 32 tables          |
 | Add shared type/DTO   | `packages/types/src/`              | Export via barrel in `index.ts` |
 | Add UI component      | `packages/ui/src/components/`      | shadcn conventions              |
 | Add worker page       | `apps/worker-app/src/app/`         | Next.js 14 App Router           |
 | Add admin page        | `apps/admin-app/src/app/`          | Next.js 14 App Router           |
 | Configure CF bindings | `apps/api-worker/wrangler.toml`    | D1, R2×3, KV, DO, CRON          |
-| Add middleware        | `apps/api-worker/src/middleware/`  | Manual invocation pattern       |
+| Add middleware        | `apps/api-worker/src/middleware/`  | 6 files, manual invocation      |
+| Add validation schema | `apps/api-worker/src/validators/`  | Zod schemas                     |
 | Add CRON job          | `apps/api-worker/src/scheduled/`   | Separate module, KST timezone   |
+| Add/run e2e tests     | `e2e/`                             | Playwright, 3 smoke specs       |
 
 ## CODE MAP
 
@@ -50,27 +53,28 @@ safework2/
 
 ### Key Modules
 
-| Module     | Location                                 | Purpose                                      |
-| ---------- | ---------------------------------------- | -------------------------------------------- |
-| Auth       | `api-worker/src/routes/auth.ts`          | JWT login, refresh, logout, lockout          |
-| Admin      | `api-worker/src/routes/admin.ts`         | User/post/site management, stats, CSV export |
-| Education  | `api-worker/src/routes/education.ts`     | Courses, materials, quizzes                  |
-| Posts      | `api-worker/src/routes/posts.ts`         | Safety reports with R2 images                |
-| Attendance | `api-worker/src/routes/attendance.ts`    | FAS sync, daily check-in                     |
-| Sites      | `api-worker/src/routes/sites.ts`         | Site management, memberships                 |
-| Approvals  | `api-worker/src/routes/approvals.ts`     | Review workflow approvals                    |
-| Votes      | `api-worker/src/routes/votes.ts`         | Monthly worker voting                        |
-| Points     | `api-worker/src/routes/points.ts`        | Point ledger, balance, policies              |
-| Disputes   | `api-worker/src/routes/disputes.ts`      | Safety dispute resolution                    |
-| Actions    | `api-worker/src/routes/actions.ts`       | Corrective action tracking                   |
-| Reviews    | `api-worker/src/routes/reviews.ts`       | Post review workflow                         |
-| Notifs     | `api-worker/src/routes/notifications.ts` | Push notifications, device registration      |
-| Policies   | `api-worker/src/routes/policies.ts`      | Point calculation policies                   |
-| FAS        | `api-worker/src/routes/fas.ts`           | Foreign worker attendance system             |
-| Users      | `api-worker/src/routes/users.ts`         | User profile management                      |
-| AceTime    | `api-worker/src/routes/acetime.ts`       | AceTime integration, photo sync              |
-| Announce   | `api-worker/src/routes/announcements.ts` | Site announcements                           |
-| DB Schema  | `api-worker/src/db/schema.ts`            | Drizzle ORM, 32 tables, 20 enums             |
+| Module     | Location                                   | Purpose                                      |
+| ---------- | ------------------------------------------ | -------------------------------------------- |
+| Auth       | `api-worker/src/routes/auth.ts`            | JWT login, refresh, logout, lockout          |
+| Admin      | `api-worker/src/routes/admin.ts`           | User/post/site management, stats, CSV export |
+| Education  | `api-worker/src/routes/education.ts`       | Courses, materials, quizzes                  |
+| Posts      | `api-worker/src/routes/posts.ts`           | Safety reports with R2 images                |
+| Attendance | `api-worker/src/routes/attendance.ts`      | FAS sync, daily check-in                     |
+| Sites      | `api-worker/src/routes/sites.ts`           | Site management, memberships                 |
+| Approvals  | `api-worker/src/routes/approvals.ts`       | Review workflow approvals                    |
+| Votes      | `api-worker/src/routes/votes.ts`           | Monthly worker voting                        |
+| Points     | `api-worker/src/routes/points.ts`          | Point ledger, balance, policies              |
+| Disputes   | `api-worker/src/routes/disputes.ts`        | Safety dispute resolution                    |
+| Actions    | `api-worker/src/routes/actions.ts`         | Corrective action tracking                   |
+| Reviews    | `api-worker/src/routes/reviews.ts`         | Post review workflow                         |
+| Notifs     | `api-worker/src/routes/notifications.ts`   | Push notifications, device registration      |
+| Policies   | `api-worker/src/routes/policies.ts`        | Point calculation policies                   |
+| FAS        | `api-worker/src/routes/fas.ts`             | Foreign worker attendance system             |
+| Users      | `api-worker/src/routes/users.ts`           | User profile management                      |
+| AceTime    | `api-worker/src/routes/acetime.ts`         | AceTime integration, photo sync              |
+| Announce   | `api-worker/src/routes/announcements.ts`   | Site announcements                           |
+| Recommend  | `api-worker/src/routes/recommendations.ts` | Safety recommendations                       |
+| DB Schema  | `api-worker/src/db/schema.ts`              | Drizzle ORM, 32 tables, 20 enums             |
 
 ### CRON Scheduled Jobs
 
@@ -186,7 +190,7 @@ docker compose -f docker/docker-compose.yml up -d
 
 - **5 AM KST cutoff**: All "today" logic uses Korea timezone with 5 AM as day boundary
 - **Package manager**: npm (declared in package.json)
-- **No test infrastructure**: Zero test files, frameworks, or coverage
+- **E2E tests only**: 3 Playwright smoke specs in `e2e/`, no unit/integration tests
 - **Static export**: Both Next.js apps use `output: 'export'` — no SSR
 - **@cloudflare/next-on-pages**: Adapter for CF Pages deployment
 - **Enum sync**: 15 enums in `packages/types` MUST match Drizzle schema enums (5 additional enums are schema-only)

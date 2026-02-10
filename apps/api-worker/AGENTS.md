@@ -11,9 +11,11 @@ Hono.js REST API on Cloudflare Workers. D1 (SQLite) via Drizzle ORM + R2 (images
 ```
 src/
 ├── index.ts           # Hono app entry, route mounting, CRON scheduled handler
-├── routes/            # 18 route modules
-├── middleware/         # 4 middleware (auth, attendance, fas-auth, rate-limit)
-├── lib/               # 8 utility modules
+├── routes/            # 19 route modules (18 files + admin/ subdir)
+├── middleware/         # 6 middleware modules
+├── lib/               # 15 utility modules
+├── validators/        # Zod validation schemas
+├── utils/             # Common utilities
 ├── db/
 │   └── schema.ts      # Drizzle ORM schema (32 tables, 20 enums, 1472 lines)
 ├── scheduled/
@@ -85,48 +87,70 @@ const result = await db.select().from(users).where(eq(users.id, id));
 
 ## ROUTE MODULES (18)
 
-| Route          | File                 | Auth | Purpose                         |
-| -------------- | -------------------- | ---- | ------------------------------- |
-| /auth          | auth.ts (1116L)      | No   | Login, refresh, logout, lockout |
-| /admin         | admin.ts (2135L)     | Yes  | User/post/site mgmt, stats, CSV |
-| /education     | education.ts (1508L) | Yes  | Courses, materials, quizzes     |
-| /posts         | posts.ts             | Yes  | Safety reports, R2 images       |
-| /sites         | sites.ts             | Yes  | Site CRUD, memberships          |
-| /attendance    | attendance.ts        | Yes  | Check-in, today, history        |
-| /votes         | votes.ts             | Yes  | Monthly worker voting           |
-| /points        | points.ts            | Yes  | Ledger, balance                 |
-| /users         | users.ts             | Yes  | Profile, password update        |
-| /actions       | actions.ts           | Yes  | Corrective actions              |
-| /approvals     | approvals.ts         | Yes  | Review workflow                 |
-| /disputes      | disputes.ts          | Yes  | Attendance disputes             |
-| /fas           | fas.ts               | Yes  | FAS sync endpoints              |
-| /notifications | notifications.ts     | Yes  | Push notifications              |
-| /policies      | policies.ts          | Yes  | Safety policies                 |
-| /reviews       | reviews.ts           | Yes  | Post reviews                    |
-| /announcements | announcements.ts     | Yes  | Site announcements              |
-| /acetime       | acetime.ts           | Yes  | AceTime integration, photo sync |
+| Route          | File                 | Auth | Purpose                                                   |
+| -------------- | -------------------- | ---- | --------------------------------------------------------- |
+| /auth          | auth.ts (1116L)      | No   | Login, refresh, logout, lockout                           |
+| /admin         | admin/ (11 modules)  | Yes  | User/post/site mgmt, stats, CSV → **See admin/AGENTS.md** |
+| /education     | education.ts (1508L) | Yes  | Courses, materials, quizzes                               |
+| /posts         | posts.ts             | Yes  | Safety reports, R2 images                                 |
+| /sites         | sites.ts             | Yes  | Site CRUD, memberships                                    |
+| /attendance    | attendance.ts        | Yes  | Check-in, today, history                                  |
+| /votes         | votes.ts             | Yes  | Monthly worker voting                                     |
+| /points        | points.ts            | Yes  | Ledger, balance                                           |
+| /users         | users.ts             | Yes  | Profile, password update                                  |
+| /actions       | actions.ts           | Yes  | Corrective actions                                        |
+| /approvals     | approvals.ts         | Yes  | Review workflow                                           |
+| /disputes      | disputes.ts          | Yes  | Attendance disputes                                       |
+| /fas           | fas.ts               | Yes  | FAS sync endpoints                                        |
+| /notifications | notifications.ts     | Yes  | Push notifications                                        |
+| /policies      | policies.ts          | Yes  | Safety policies                                           |
+| /reviews       | reviews.ts           | Yes  | Post reviews                                              |
+| /announcements | announcements.ts     | Yes  | Site announcements                                        |
+| /recommend     | recommendations.ts   | Yes  | Safety recommendations                                    |
+| /acetime       | acetime.ts           | Yes  | AceTime integration, photo sync                           |
 
-## MIDDLEWARE (4)
+## MIDDLEWARE (6)
 
-| File          | Purpose                                |
-| ------------- | -------------------------------------- |
-| auth.ts       | JWT validation, user context injection |
-| attendance.ts | Attendance state check                 |
-| fas-auth.ts   | FAS (external system) auth             |
-| rate-limit.ts | Rate limiting logic                    |
+| File                | Purpose                                |
+| ------------------- | -------------------------------------- |
+| auth.ts             | JWT validation, user context injection |
+| attendance.ts       | Attendance state check                 |
+| fas-auth.ts         | FAS (external system) auth             |
+| permission.ts       | Role-based access control              |
+| rate-limit.ts       | Rate limiting logic                    |
+| security-headers.ts | HTTP security header injection         |
 
-## LIB UTILITIES (8)
+## LIB UTILITIES (15)
 
-| File                    | Purpose                                 |
-| ----------------------- | --------------------------------------- |
-| response.ts             | `success()`, `error()` response helpers |
-| jwt.ts                  | JWT sign/verify, token management       |
-| crypto.ts (95L)         | HMAC-SHA256, PII hashing (phone, DOB)   |
-| audit.ts (182L)         | Audit trail logging, 47 action types    |
-| notification.ts         | Push notification dispatch              |
-| fas-mariadb.ts          | External FAS MariaDB connector          |
-| device-registrations.ts | Device token management                 |
-| rate-limit.ts           | Rate limiter utilities                  |
+| File                     | Purpose                                 |
+| ------------------------ | --------------------------------------- |
+| response.ts              | `success()`, `error()` response helpers |
+| jwt.ts                   | JWT sign/verify, token management       |
+| crypto.ts (95L)          | HMAC-SHA256, PII hashing (phone, DOB)   |
+| audit.ts (182L)          | Audit trail logging, 47 action types    |
+| notification.ts          | Push notification dispatch              |
+| notification-triggers.ts | Event-driven notification triggers      |
+| push.ts                  | Web Push protocol implementation        |
+| web-push.ts              | Web Push subscription management        |
+| fas-mariadb.ts           | External FAS MariaDB connector          |
+| device-registrations.ts  | Device token management                 |
+| rate-limit.ts            | Rate limiter utilities                  |
+| points-engine.ts         | Point calculation engine                |
+| state-machine.ts         | Workflow state transitions              |
+| aceviewer-parser.ts      | AceViewer data parsing                  |
+| sql-js.d.ts              | sql.js type declarations                |
+
+## VALIDATORS
+
+| File       | Purpose                                  |
+| ---------- | ---------------------------------------- |
+| schemas.ts | Zod validation schemas for API endpoints |
+
+## UTILS
+
+| File      | Purpose                  |
+| --------- | ------------------------ |
+| common.ts | Shared utility functions |
 
 ## BINDINGS (wrangler.toml)
 

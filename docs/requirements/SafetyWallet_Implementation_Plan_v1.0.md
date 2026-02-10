@@ -1,3 +1,13 @@
+# ⚠️ DEPRECATED — 이 문서는 더 이상 유효하지 않습니다
+
+> **사유**: 이 계획은 NestJS + PostgreSQL 아키텍처 기반으로 작성되었으나, 실제 구현은 Cloudflare Workers + D1 + Hono로 완전히 변경되었습니다.
+>
+> **현재 아키텍처 참조**: [`AGENTS.md`](../../AGENTS.md), [`docs/FEATURE_CHECKLIST.md`](../FEATURE_CHECKLIST.md)
+>
+> 기록 보존 목적으로만 유지합니다.
+
+---
+
 # SafetyWallet Implementation Plan
 
 > **Version**: v1.0  
@@ -29,17 +39,18 @@
 ### 1.1 Project Scope
 
 Build a mobile-first PWA for construction site safety reporting with:
+
 - Worker app (PWA) for hazard reporting and point tracking
 - Admin web app for review, action management, and analytics
 - Backend API for business logic and data management
 
 ### 1.2 Key Deliverables
 
-| Phase | Duration | Deliverables |
-|-------|----------|--------------|
+| Phase         | Duration | Deliverables                                                  |
+| ------------- | -------- | ------------------------------------------------------------- |
 | Phase 1 (MVP) | 12 weeks | Core worker/admin features, point system, basic notifications |
-| Phase 2 | 6 weeks | Analytics dashboard, multi-site, KakaoTalk integration |
-| Phase 3 | 6 weeks | AI features, ERP integration, advanced reporting |
+| Phase 2       | 6 weeks  | Analytics dashboard, multi-site, KakaoTalk integration        |
+| Phase 3       | 6 weeks  | AI features, ERP integration, advanced reporting              |
 
 ### 1.3 Success Criteria
 
@@ -55,65 +66,65 @@ Build a mobile-first PWA for construction site safety reporting with:
 
 ### 2.1 Frontend (Worker PWA)
 
-| Layer | Technology | Rationale |
-|-------|------------|-----------|
-| Framework | **Next.js 14** (App Router) | SSR/SSG, PWA support, optimal performance |
-| UI Library | **Tailwind CSS** + **shadcn/ui** | Rapid development, consistent design |
-| State | **Zustand** | Lightweight, simple API |
-| Forms | **React Hook Form** + **Zod** | Validation, performance |
-| PWA | **next-pwa** | Service worker, offline support |
-| i18n | **next-intl** | Multi-language support |
-| Image | **Browser native** + compression lib | Client-side resize before upload |
+| Layer      | Technology                           | Rationale                                 |
+| ---------- | ------------------------------------ | ----------------------------------------- |
+| Framework  | **Next.js 14** (App Router)          | SSR/SSG, PWA support, optimal performance |
+| UI Library | **Tailwind CSS** + **shadcn/ui**     | Rapid development, consistent design      |
+| State      | **Zustand**                          | Lightweight, simple API                   |
+| Forms      | **React Hook Form** + **Zod**        | Validation, performance                   |
+| PWA        | **next-pwa**                         | Service worker, offline support           |
+| i18n       | **next-intl**                        | Multi-language support                    |
+| Image      | **Browser native** + compression lib | Client-side resize before upload          |
 
 ### 2.2 Frontend (Admin Web)
 
-| Layer | Technology | Rationale |
-|-------|------------|-----------|
-| Framework | **Next.js 14** (App Router) | Shared codebase possible |
-| UI Library | **Tailwind CSS** + **shadcn/ui** | Consistency with worker app |
-| Tables | **TanStack Table** | Complex filtering, sorting, pagination |
-| Charts | **Recharts** | Dashboard visualizations |
-| State | **Zustand** + **TanStack Query** | Server state management |
+| Layer      | Technology                       | Rationale                              |
+| ---------- | -------------------------------- | -------------------------------------- |
+| Framework  | **Next.js 14** (App Router)      | Shared codebase possible               |
+| UI Library | **Tailwind CSS** + **shadcn/ui** | Consistency with worker app            |
+| Tables     | **TanStack Table**               | Complex filtering, sorting, pagination |
+| Charts     | **Recharts**                     | Dashboard visualizations               |
+| State      | **Zustand** + **TanStack Query** | Server state management                |
 
 ### 2.3 Backend
 
-| Layer | Technology | Rationale |
-|-------|------------|-----------|
-| Runtime | **Node.js 20 LTS** | Team familiarity, ecosystem |
-| Framework | **NestJS** | Enterprise patterns, TypeScript, modular |
-| ORM | **Prisma** | Type-safe, migrations, excellent DX |
-| Validation | **class-validator** + **class-transformer** | DTO validation |
-| Auth | **Passport.js** + **JWT** | Flexible auth strategies |
-| Queue | **BullMQ** + **Redis** | Background jobs (notifications, image processing) |
-| Storage | **AWS S3** / **MinIO** | Image storage, CDN-ready |
+| Layer      | Technology                                  | Rationale                                         |
+| ---------- | ------------------------------------------- | ------------------------------------------------- |
+| Runtime    | **Node.js 20 LTS**                          | Team familiarity, ecosystem                       |
+| Framework  | **NestJS**                                  | Enterprise patterns, TypeScript, modular          |
+| ORM        | **Prisma**                                  | Type-safe, migrations, excellent DX               |
+| Validation | **class-validator** + **class-transformer** | DTO validation                                    |
+| Auth       | **Passport.js** + **JWT**                   | Flexible auth strategies                          |
+| Queue      | **BullMQ** + **Redis**                      | Background jobs (notifications, image processing) |
+| Storage    | **AWS S3** / **MinIO**                      | Image storage, CDN-ready                          |
 
 ### 2.4 Database
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| Primary DB | **PostgreSQL 15** | ACID, JSON support, mature |
-| Cache | **Redis 7** | Session, rate limiting, queue |
-| Search | **PostgreSQL FTS** (MVP) | Simplicity; Elasticsearch for Phase 2 |
+| Component  | Technology               | Rationale                             |
+| ---------- | ------------------------ | ------------------------------------- |
+| Primary DB | **PostgreSQL 15**        | ACID, JSON support, mature            |
+| Cache      | **Redis 7**              | Session, rate limiting, queue         |
+| Search     | **PostgreSQL FTS** (MVP) | Simplicity; Elasticsearch for Phase 2 |
 
 ### 2.5 Infrastructure
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| Container | **Docker** + **Docker Compose** | Local dev, deployment consistency |
-| Orchestration | **Kubernetes** (EKS/GKE) or **AWS ECS** | Production scaling |
-| CDN | **CloudFront** / **Cloudflare** | Static assets, images |
-| CI/CD | **GitHub Actions** | Integrated, flexible |
-| Monitoring | **Datadog** / **Grafana + Prometheus** | Observability |
-| Logging | **AWS CloudWatch** / **Loki** | Centralized logs |
+| Component     | Technology                              | Rationale                         |
+| ------------- | --------------------------------------- | --------------------------------- |
+| Container     | **Docker** + **Docker Compose**         | Local dev, deployment consistency |
+| Orchestration | **Kubernetes** (EKS/GKE) or **AWS ECS** | Production scaling                |
+| CDN           | **CloudFront** / **Cloudflare**         | Static assets, images             |
+| CI/CD         | **GitHub Actions**                      | Integrated, flexible              |
+| Monitoring    | **Datadog** / **Grafana + Prometheus**  | Observability                     |
+| Logging       | **AWS CloudWatch** / **Loki**           | Centralized logs                  |
 
 ### 2.6 External Services
 
-| Service | Provider | Purpose |
-|---------|----------|---------|
-| SMS OTP | **Twilio** / **NHN Cloud** | Phone verification |
-| Push Notifications | **Firebase Cloud Messaging** | Web push |
-| Email | **AWS SES** / **SendGrid** | Admin notifications |
-| Image Processing | **Sharp** (server-side) | Thumbnail generation |
+| Service            | Provider                     | Purpose              |
+| ------------------ | ---------------------------- | -------------------- |
+| SMS OTP            | **Twilio** / **NHN Cloud**   | Phone verification   |
+| Push Notifications | **Firebase Cloud Messaging** | Web push             |
+| Email              | **AWS SES** / **SendGrid**   | Admin notifications  |
+| Image Processing   | **Sharp** (server-side)      | Thumbnail generation |
 
 ---
 
@@ -233,51 +244,51 @@ packages/
 
 #### Sprint 1-2: Foundation (Weeks 1-4)
 
-| Area | Tasks | Priority |
-|------|-------|----------|
-| **Infra** | Docker setup, CI/CD pipeline, Dev/Staging environments | P0 |
-| **Backend** | NestJS scaffold, Prisma setup, Core modules (auth, users, sites) | P0 |
-| **Frontend** | Next.js monorepo, UI component library, PWA config | P0 |
-| **Database** | Schema design, Initial migrations | P0 |
+| Area         | Tasks                                                            | Priority |
+| ------------ | ---------------------------------------------------------------- | -------- |
+| **Infra**    | Docker setup, CI/CD pipeline, Dev/Staging environments           | P0       |
+| **Backend**  | NestJS scaffold, Prisma setup, Core modules (auth, users, sites) | P0       |
+| **Frontend** | Next.js monorepo, UI component library, PWA config               | P0       |
+| **Database** | Schema design, Initial migrations                                | P0       |
 
 #### Sprint 3-4: Core Features (Weeks 5-8)
 
-| Area | Tasks | Priority |
-|------|-------|----------|
-| **Auth** | QR registration, SMS OTP, JWT auth, Rate limiting | P0 |
-| **Posts** | Create post, Photo upload, State machine, My posts list | P0 |
-| **Admin** | Review queue, Approve/Reject flow, Basic dashboard | P0 |
-| **Points** | Ledger implementation, Award points, History view | P0 |
+| Area       | Tasks                                                   | Priority |
+| ---------- | ------------------------------------------------------- | -------- |
+| **Auth**   | QR registration, SMS OTP, JWT auth, Rate limiting       | P0       |
+| **Posts**  | Create post, Photo upload, State machine, My posts list | P0       |
+| **Admin**  | Review queue, Approve/Reject flow, Basic dashboard      | P0       |
+| **Points** | Ledger implementation, Award points, History view       | P0       |
 
 #### Sprint 5-6: Complete MVP (Weeks 9-12)
 
-| Area | Tasks | Priority |
-|------|-------|----------|
-| **Actions** | Assign handler, Status transitions, Evidence upload | P0 |
-| **Ranking** | Monthly ranking, Snapshot generation | P0 |
-| **Notifications** | Web push, In-app notifications | P0 |
-| **Announcements** | CRUD, Templates | P1 |
-| **Audit** | Logging implementation, PII access control | P0 |
-| **Testing** | E2E tests, Load testing, Security audit | P0 |
+| Area              | Tasks                                               | Priority |
+| ----------------- | --------------------------------------------------- | -------- |
+| **Actions**       | Assign handler, Status transitions, Evidence upload | P0       |
+| **Ranking**       | Monthly ranking, Snapshot generation                | P0       |
+| **Notifications** | Web push, In-app notifications                      | P0       |
+| **Announcements** | CRUD, Templates                                     | P1       |
+| **Audit**         | Logging implementation, PII access control          | P0       |
+| **Testing**       | E2E tests, Load testing, Security audit             | P0       |
 
 ### 4.2 Phase 2: Enhancement (Weeks 13-18)
 
-| Feature | Description |
-|---------|-------------|
-| Analytics Dashboard | Charts, trends, hotspot analysis |
-| Multi-site Membership | Workers can join multiple sites |
-| KakaoTalk Integration | Business message notifications |
-| Reward Module | Automated distribution, tracking |
-| Advanced Filters | Elasticsearch for search |
+| Feature               | Description                      |
+| --------------------- | -------------------------------- |
+| Analytics Dashboard   | Charts, trends, hotspot analysis |
+| Multi-site Membership | Workers can join multiple sites  |
+| KakaoTalk Integration | Business message notifications   |
+| Reward Module         | Automated distribution, tracking |
+| Advanced Filters      | Elasticsearch for search         |
 
 ### 4.3 Phase 3: Scale (Weeks 19-24)
 
-| Feature | Description |
-|---------|-------------|
+| Feature           | Description                         |
+| ----------------- | ----------------------------------- |
 | AI Classification | Auto-categorize hazards from photos |
-| ERP Integration | Sync with existing systems |
-| HQ Dashboard | Cross-site analytics |
-| Mobile App | Native apps if needed |
+| ERP Integration   | Sync with existing systems          |
+| HQ Dashboard      | Cross-site analytics                |
+| Mobile App        | Native apps if needed               |
 
 ---
 
@@ -285,103 +296,103 @@ packages/
 
 ### 5.1 Sprint 1 (Weeks 1-2): Project Setup
 
-| Task | Owner | Days | Status |
-|------|-------|------|--------|
-| Repository setup (monorepo) | DevOps | 1 | |
-| Docker Compose (PostgreSQL, Redis, MinIO) | DevOps | 1 | |
-| NestJS project scaffold | Backend | 2 | |
-| Prisma schema (initial) | Backend | 2 | |
-| Next.js worker app scaffold | Frontend | 2 | |
-| Next.js admin app scaffold | Frontend | 2 | |
-| UI component library setup | Frontend | 2 | |
-| CI/CD pipeline (GitHub Actions) | DevOps | 2 | |
-| Dev environment deployment | DevOps | 1 | |
+| Task                                      | Owner    | Days | Status |
+| ----------------------------------------- | -------- | ---- | ------ |
+| Repository setup (monorepo)               | DevOps   | 1    |        |
+| Docker Compose (PostgreSQL, Redis, MinIO) | DevOps   | 1    |        |
+| NestJS project scaffold                   | Backend  | 2    |        |
+| Prisma schema (initial)                   | Backend  | 2    |        |
+| Next.js worker app scaffold               | Frontend | 2    |        |
+| Next.js admin app scaffold                | Frontend | 2    |        |
+| UI component library setup                | Frontend | 2    |        |
+| CI/CD pipeline (GitHub Actions)           | DevOps   | 2    |        |
+| Dev environment deployment                | DevOps   | 1    |        |
 
 **Deliverables**: Running dev environment, empty apps deployable
 
 ### 5.2 Sprint 2 (Weeks 3-4): Auth & Sites
 
-| Task | Owner | Days | Status |
-|------|-------|------|--------|
-| User module (CRUD, encryption) | Backend | 3 | |
-| Site module (CRUD, join_code) | Backend | 2 | |
-| Membership module | Backend | 2 | |
-| SMS OTP service integration | Backend | 2 | |
-| Rate limiting (Redis) | Backend | 1 | |
-| JWT auth (access + refresh) | Backend | 2 | |
-| QR registration flow (UI) | Frontend | 3 | |
-| Login flow (UI) | Frontend | 2 | |
-| PWA configuration | Frontend | 1 | |
-| Admin login (UI) | Frontend | 1 | |
+| Task                           | Owner    | Days | Status |
+| ------------------------------ | -------- | ---- | ------ |
+| User module (CRUD, encryption) | Backend  | 3    |        |
+| Site module (CRUD, join_code)  | Backend  | 2    |        |
+| Membership module              | Backend  | 2    |        |
+| SMS OTP service integration    | Backend  | 2    |        |
+| Rate limiting (Redis)          | Backend  | 1    |        |
+| JWT auth (access + refresh)    | Backend  | 2    |        |
+| QR registration flow (UI)      | Frontend | 3    |        |
+| Login flow (UI)                | Frontend | 2    |        |
+| PWA configuration              | Frontend | 1    |        |
+| Admin login (UI)               | Frontend | 1    |        |
 
 **Deliverables**: Working registration, login, QR scanning
 
 ### 5.3 Sprint 3 (Weeks 5-6): Posts & Photos
 
-| Task | Owner | Days | Status |
-|------|-------|------|--------|
-| Post module (CRUD) | Backend | 3 | |
-| Post state machine | Backend | 2 | |
-| Image upload service (S3) | Backend | 2 | |
-| Image compression (Sharp) | Backend | 1 | |
-| Thumbnail generation | Backend | 1 | |
-| Post creation form (UI) | Frontend | 3 | |
-| Camera/Gallery integration | Frontend | 2 | |
-| Image compression (client) | Frontend | 1 | |
-| My posts list (UI) | Frontend | 2 | |
-| Post detail view (UI) | Frontend | 2 | |
+| Task                       | Owner    | Days | Status |
+| -------------------------- | -------- | ---- | ------ |
+| Post module (CRUD)         | Backend  | 3    |        |
+| Post state machine         | Backend  | 2    |        |
+| Image upload service (S3)  | Backend  | 2    |        |
+| Image compression (Sharp)  | Backend  | 1    |        |
+| Thumbnail generation       | Backend  | 1    |        |
+| Post creation form (UI)    | Frontend | 3    |        |
+| Camera/Gallery integration | Frontend | 2    |        |
+| Image compression (client) | Frontend | 1    |        |
+| My posts list (UI)         | Frontend | 2    |        |
+| Post detail view (UI)      | Frontend | 2    |        |
 
 **Deliverables**: Workers can submit posts with photos
 
 ### 5.4 Sprint 4 (Weeks 7-8): Review & Points
 
-| Task | Owner | Days | Status |
-|------|-------|------|--------|
-| Review module | Backend | 2 | |
-| Points ledger module | Backend | 3 | |
-| Point policy engine | Backend | 2 | |
-| Ranking calculation | Backend | 2 | |
-| Admin review queue (UI) | Frontend | 3 | |
-| Post detail + actions (UI) | Frontend | 2 | |
-| Points history (UI) | Frontend | 2 | |
-| Ranking display (UI) | Frontend | 2 | |
-| Worker home screen (UI) | Frontend | 2 | |
+| Task                       | Owner    | Days | Status |
+| -------------------------- | -------- | ---- | ------ |
+| Review module              | Backend  | 2    |        |
+| Points ledger module       | Backend  | 3    |        |
+| Point policy engine        | Backend  | 2    |        |
+| Ranking calculation        | Backend  | 2    |        |
+| Admin review queue (UI)    | Frontend | 3    |        |
+| Post detail + actions (UI) | Frontend | 2    |        |
+| Points history (UI)        | Frontend | 2    |        |
+| Ranking display (UI)       | Frontend | 2    |        |
+| Worker home screen (UI)    | Frontend | 2    |        |
 
 **Deliverables**: Full review workflow, points awarded
 
 ### 5.5 Sprint 5 (Weeks 9-10): Actions & Notifications
 
-| Task | Owner | Days | Status |
-|------|-------|------|--------|
-| Action module | Backend | 3 | |
-| Action state machine | Backend | 2 | |
-| Evidence upload | Backend | 1 | |
-| Notification service (BullMQ) | Backend | 2 | |
-| Web push integration (FCM) | Backend | 2 | |
-| In-app notification storage | Backend | 1 | |
-| Action management (UI) | Frontend | 3 | |
-| Evidence upload (UI) | Frontend | 2 | |
-| Push notification handling | Frontend | 2 | |
-| Notification center (UI) | Frontend | 2 | |
+| Task                          | Owner    | Days | Status |
+| ----------------------------- | -------- | ---- | ------ |
+| Action module                 | Backend  | 3    |        |
+| Action state machine          | Backend  | 2    |        |
+| Evidence upload               | Backend  | 1    |        |
+| Notification service (BullMQ) | Backend  | 2    |        |
+| Web push integration (FCM)    | Backend  | 2    |        |
+| In-app notification storage   | Backend  | 1    |        |
+| Action management (UI)        | Frontend | 3    |        |
+| Evidence upload (UI)          | Frontend | 2    |        |
+| Push notification handling    | Frontend | 2    |        |
+| Notification center (UI)      | Frontend | 2    |        |
 
 **Deliverables**: Actions assignable, notifications working
 
 ### 5.6 Sprint 6 (Weeks 11-12): Polish & Launch
 
-| Task | Owner | Days | Status |
-|------|-------|------|--------|
-| Announcement module | Backend | 2 | |
-| Audit logging | Backend | 2 | |
-| PII access control | Backend | 2 | |
-| Monthly snapshot job | Backend | 1 | |
-| Admin dashboard (UI) | Frontend | 3 | |
-| Announcement management (UI) | Frontend | 2 | |
-| i18n (Korean + English) | Frontend | 2 | |
-| E2E test suite | QA | 3 | |
-| Load testing | QA | 2 | |
-| Security audit | Security | 3 | |
-| Production deployment | DevOps | 2 | |
-| Documentation | All | 2 | |
+| Task                         | Owner    | Days | Status |
+| ---------------------------- | -------- | ---- | ------ |
+| Announcement module          | Backend  | 2    |        |
+| Audit logging                | Backend  | 2    |        |
+| PII access control           | Backend  | 2    |        |
+| Monthly snapshot job         | Backend  | 1    |        |
+| Admin dashboard (UI)         | Frontend | 3    |        |
+| Announcement management (UI) | Frontend | 2    |        |
+| i18n (Korean + English)      | Frontend | 2    |        |
+| E2E test suite               | QA       | 3    |        |
+| Load testing                 | QA       | 2    |        |
+| Security audit               | Security | 3    |        |
+| Production deployment        | DevOps   | 2    |        |
+| Documentation                | All      | 2    |        |
 
 **Deliverables**: Production-ready MVP
 
@@ -391,105 +402,105 @@ packages/
 
 ### 6.1 API Conventions
 
-| Aspect | Convention |
-|--------|------------|
-| Base URL | `/api/v1` |
-| Auth | Bearer JWT in `Authorization` header |
-| Pagination | `?page=1&limit=20` |
-| Filtering | `?status=RECEIVED&category=HAZARD` |
-| Sorting | `?sort=createdAt&order=desc` |
-| Errors | RFC 7807 Problem Details |
-| Dates | ISO 8601 (UTC) |
+| Aspect     | Convention                           |
+| ---------- | ------------------------------------ |
+| Base URL   | `/api/v1`                            |
+| Auth       | Bearer JWT in `Authorization` header |
+| Pagination | `?page=1&limit=20`                   |
+| Filtering  | `?status=RECEIVED&category=HAZARD`   |
+| Sorting    | `?sort=createdAt&order=desc`         |
+| Errors     | RFC 7807 Problem Details             |
+| Dates      | ISO 8601 (UTC)                       |
 
 ### 6.2 Core Endpoints
 
 #### Authentication
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/auth/register` | Register with phone + OTP |
-| `POST` | `/auth/otp/send` | Request OTP |
-| `POST` | `/auth/otp/verify` | Verify OTP |
-| `POST` | `/auth/login` | Login (phone + OTP) |
-| `POST` | `/auth/refresh` | Refresh tokens |
-| `POST` | `/auth/logout` | Invalidate tokens |
+| Method | Endpoint           | Description               |
+| ------ | ------------------ | ------------------------- |
+| `POST` | `/auth/register`   | Register with phone + OTP |
+| `POST` | `/auth/otp/send`   | Request OTP               |
+| `POST` | `/auth/otp/verify` | Verify OTP                |
+| `POST` | `/auth/login`      | Login (phone + OTP)       |
+| `POST` | `/auth/refresh`    | Refresh tokens            |
+| `POST` | `/auth/logout`     | Invalidate tokens         |
 
 #### Users
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/users/me` | Get current user profile |
-| `PATCH` | `/users/me` | Update profile |
-| `GET` | `/users/me/memberships` | Get site memberships |
+| Method  | Endpoint                | Description              |
+| ------- | ----------------------- | ------------------------ |
+| `GET`   | `/users/me`             | Get current user profile |
+| `PATCH` | `/users/me`             | Update profile           |
+| `GET`   | `/users/me/memberships` | Get site memberships     |
 
 #### Sites (Admin)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/sites` | List sites |
-| `POST` | `/sites` | Create site |
-| `GET` | `/sites/:id` | Get site details |
-| `PATCH` | `/sites/:id` | Update site |
-| `POST` | `/sites/:id/regenerate-code` | Regenerate join code |
+| Method  | Endpoint                     | Description          |
+| ------- | ---------------------------- | -------------------- |
+| `GET`   | `/sites`                     | List sites           |
+| `POST`  | `/sites`                     | Create site          |
+| `GET`   | `/sites/:id`                 | Get site details     |
+| `PATCH` | `/sites/:id`                 | Update site          |
+| `POST`  | `/sites/:id/regenerate-code` | Regenerate join code |
 
 #### Posts
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/posts` | List posts (filtered) |
-| `POST` | `/posts` | Create post |
-| `GET` | `/posts/:id` | Get post detail |
-| `PATCH` | `/posts/:id` | Update post (if RECEIVED) |
-| `POST` | `/posts/:id/images` | Upload images |
-| `DELETE` | `/posts/:id/images/:imageId` | Remove image |
+| Method   | Endpoint                     | Description               |
+| -------- | ---------------------------- | ------------------------- |
+| `GET`    | `/posts`                     | List posts (filtered)     |
+| `POST`   | `/posts`                     | Create post               |
+| `GET`    | `/posts/:id`                 | Get post detail           |
+| `PATCH`  | `/posts/:id`                 | Update post (if RECEIVED) |
+| `POST`   | `/posts/:id/images`          | Upload images             |
+| `DELETE` | `/posts/:id/images/:imageId` | Remove image              |
 
 #### Reviews (Admin)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/posts/:id/review/start` | Start review |
-| `POST` | `/posts/:id/review/approve` | Approve + award points |
-| `POST` | `/posts/:id/review/reject` | Reject |
-| `POST` | `/posts/:id/review/request-info` | Request more info |
-| `POST` | `/posts/:id/supplement` | Worker submits additional info |
+| Method | Endpoint                         | Description                    |
+| ------ | -------------------------------- | ------------------------------ |
+| `POST` | `/posts/:id/review/start`        | Start review                   |
+| `POST` | `/posts/:id/review/approve`      | Approve + award points         |
+| `POST` | `/posts/:id/review/reject`       | Reject                         |
+| `POST` | `/posts/:id/review/request-info` | Request more info              |
+| `POST` | `/posts/:id/supplement`          | Worker submits additional info |
 
 #### Actions (Admin)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/posts/:id/action/require` | Mark as requiring action |
-| `POST` | `/posts/:id/action/assign` | Assign handler |
-| `POST` | `/posts/:id/action/start` | Start action |
-| `POST` | `/posts/:id/action/complete` | Complete with evidence |
-| `POST` | `/posts/:id/action/reopen` | Reopen |
+| Method | Endpoint                     | Description              |
+| ------ | ---------------------------- | ------------------------ |
+| `POST` | `/posts/:id/action/require`  | Mark as requiring action |
+| `POST` | `/posts/:id/action/assign`   | Assign handler           |
+| `POST` | `/posts/:id/action/start`    | Start action             |
+| `POST` | `/posts/:id/action/complete` | Complete with evidence   |
+| `POST` | `/posts/:id/action/reopen`   | Reopen                   |
 
 #### Points
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/points/me` | Get my points summary |
-| `GET` | `/points/me/history` | Get my point history |
-| `GET` | `/points/ranking` | Get site ranking |
-| `POST` | `/points/adjust` | Adjust points (admin) |
-| `GET` | `/points/policies` | Get point policies |
-| `PATCH` | `/points/policies` | Update policies (super admin) |
+| Method  | Endpoint             | Description                   |
+| ------- | -------------------- | ----------------------------- |
+| `GET`   | `/points/me`         | Get my points summary         |
+| `GET`   | `/points/me/history` | Get my point history          |
+| `GET`   | `/points/ranking`    | Get site ranking              |
+| `POST`  | `/points/adjust`     | Adjust points (admin)         |
+| `GET`   | `/points/policies`   | Get point policies            |
+| `PATCH` | `/points/policies`   | Update policies (super admin) |
 
 #### Notifications
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/notifications` | Get my notifications |
-| `PATCH` | `/notifications/:id/read` | Mark as read |
-| `POST` | `/notifications/subscribe` | Subscribe to push |
+| Method  | Endpoint                   | Description          |
+| ------- | -------------------------- | -------------------- |
+| `GET`   | `/notifications`           | Get my notifications |
+| `PATCH` | `/notifications/:id/read`  | Mark as read         |
+| `POST`  | `/notifications/subscribe` | Subscribe to push    |
 
 #### Announcements
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/announcements` | List announcements |
-| `POST` | `/announcements` | Create (admin) |
-| `PATCH` | `/announcements/:id` | Update (admin) |
-| `DELETE` | `/announcements/:id` | Delete (admin) |
+| Method   | Endpoint             | Description        |
+| -------- | -------------------- | ------------------ |
+| `GET`    | `/announcements`     | List announcements |
+| `POST`   | `/announcements`     | Create (admin)     |
+| `PATCH`  | `/announcements/:id` | Update (admin)     |
+| `DELETE` | `/announcements/:id` | Delete (admin)     |
 
 ### 6.3 Error Response Format
 
@@ -818,34 +829,34 @@ model AuditLog {
 
 ### 8.1 Authentication Security
 
-| Measure | Implementation |
-|---------|----------------|
-| OTP Security | 6 digits, 5min expiry, single-use, rate limited |
-| JWT Access Token | 15min expiry, RS256 signing |
-| JWT Refresh Token | 7 days expiry, rotation on use, stored in HttpOnly cookie |
-| Session Invalidation | Redis blacklist for revoked tokens |
+| Measure              | Implementation                                            |
+| -------------------- | --------------------------------------------------------- |
+| OTP Security         | 6 digits, 5min expiry, single-use, rate limited           |
+| JWT Access Token     | 15min expiry, RS256 signing                               |
+| JWT Refresh Token    | 7 days expiry, rotation on use, stored in HttpOnly cookie |
+| Session Invalidation | Redis blacklist for revoked tokens                        |
 
 ### 8.2 Rate Limiting
 
 ```typescript
 // Rate limit configuration
 const rateLimits = {
-  'otp:send:phone': { points: 5, duration: 3600 },      // 5/hour per phone
-  'otp:send:ip': { points: 20, duration: 600 },         // 20/10min per IP
-  'otp:verify:phone': { points: 5, duration: 900 },     // 5 attempts, 15min lockout
-  'register:ip': { points: 30, duration: 3600 },        // 30/hour per IP
-  'api:general': { points: 100, duration: 60 },         // 100/min per user
+  "otp:send:phone": { points: 5, duration: 3600 }, // 5/hour per phone
+  "otp:send:ip": { points: 20, duration: 600 }, // 20/10min per IP
+  "otp:verify:phone": { points: 5, duration: 900 }, // 5 attempts, 15min lockout
+  "register:ip": { points: 30, duration: 3600 }, // 30/hour per IP
+  "api:general": { points: 100, duration: 60 }, // 100/min per user
 };
 ```
 
 ### 8.3 Data Encryption
 
-| Data | Encryption | Key Management |
-|------|------------|----------------|
-| Phone numbers | AES-256-GCM | AWS KMS / Vault |
-| Date of birth | AES-256-GCM | AWS KMS / Vault |
-| Phone hash | SHA-256 (for lookup) | Static salt in env |
-| Passwords (admin) | bcrypt (cost 12) | N/A |
+| Data              | Encryption           | Key Management     |
+| ----------------- | -------------------- | ------------------ |
+| Phone numbers     | AES-256-GCM          | AWS KMS / Vault    |
+| Date of birth     | AES-256-GCM          | AWS KMS / Vault    |
+| Phone hash        | SHA-256 (for lookup) | Static salt in env |
+| Passwords (admin) | bcrypt (cost 12)     | N/A                |
 
 ### 8.4 Access Control
 
@@ -857,17 +868,17 @@ export class RolesGuard implements CanActivate {
     const requiredRoles = this.reflector.get<string[]>('roles', context.getHandler());
     const requiredFlags = this.reflector.get<string[]>('flags', context.getHandler());
     const user = context.switchToHttp().getRequest().user;
-    
+
     // Check role
     if (requiredRoles && !requiredRoles.includes(user.role)) {
       return false;
     }
-    
+
     // Check flags
     if (requiredFlags && !requiredFlags.every(f => user.flags.includes(f))) {
       return false;
     }
-    
+
     return true;
   }
 }
@@ -884,14 +895,14 @@ adjustPoints(@Body() dto: AdjustPointsDto) { ... }
 ```typescript
 // Mandatory audit events
 const auditEvents = [
-  'PII_VIEW_FULL',      // Full PII viewed
-  'EXPORT_EXCEL',       // Excel download
-  'EXPORT_IMAGE',       // Image download
-  'POINT_AWARD',        // Points awarded
-  'POINT_ADJUST',       // Points adjusted
-  'POLICY_CHANGE',      // Policy modified
-  'PERMISSION_CHANGE',  // Role/flag changed
-  'STATUS_OVERRIDE',    // Forced status change
+  "PII_VIEW_FULL", // Full PII viewed
+  "EXPORT_EXCEL", // Excel download
+  "EXPORT_IMAGE", // Image download
+  "POINT_AWARD", // Points awarded
+  "POINT_ADJUST", // Points adjusted
+  "POLICY_CHANGE", // Policy modified
+  "PERMISSION_CHANGE", // Role/flag changed
+  "STATUS_OVERRIDE", // Forced status change
 ];
 ```
 
@@ -901,12 +912,12 @@ const auditEvents = [
 
 ### 9.1 Test Pyramid
 
-| Level | Coverage Target | Tools |
-|-------|-----------------|-------|
-| Unit | 80%+ | Jest |
-| Integration | Key flows | Jest + Supertest |
-| E2E | Critical paths | Playwright |
-| Load | 500 concurrent | k6 |
+| Level       | Coverage Target | Tools            |
+| ----------- | --------------- | ---------------- |
+| Unit        | 80%+            | Jest             |
+| Integration | Key flows       | Jest + Supertest |
+| E2E         | Critical paths  | Playwright       |
+| Load        | 500 concurrent  | k6               |
 
 ### 9.2 Test Categories
 
@@ -914,19 +925,21 @@ const auditEvents = [
 
 ```typescript
 // Example: Point calculation
-describe('PointService', () => {
-  it('should calculate base points for hazard', () => {
-    expect(service.calculatePoints({ category: 'HAZARD' })).toBe(10);
+describe("PointService", () => {
+  it("should calculate base points for hazard", () => {
+    expect(service.calculatePoints({ category: "HAZARD" })).toBe(10);
   });
-  
-  it('should add risk level bonus', () => {
-    expect(service.calculatePoints({ 
-      category: 'HAZARD', 
-      riskLevel: 'HIGH' 
-    })).toBe(15);
+
+  it("should add risk level bonus", () => {
+    expect(
+      service.calculatePoints({
+        category: "HAZARD",
+        riskLevel: "HIGH",
+      }),
+    ).toBe(15);
   });
-  
-  it('should respect daily limit', async () => {
+
+  it("should respect daily limit", async () => {
     // ... test daily limit enforcement
   });
 });
@@ -936,15 +949,15 @@ describe('PointService', () => {
 
 ```typescript
 // Example: Post submission flow
-test('worker can submit hazard report', async ({ page }) => {
-  await page.goto('/posts/new');
-  await page.selectOption('[name=category]', 'HAZARD');
-  await page.fill('[name=content]', 'Exposed rebar on B2 floor');
-  await page.setInputFiles('[name=photo]', 'test-hazard.jpg');
-  await page.click('button[type=submit]');
-  
-  await expect(page.locator('.success-message')).toBeVisible();
-  await expect(page.locator('.post-status')).toHaveText('Received');
+test("worker can submit hazard report", async ({ page }) => {
+  await page.goto("/posts/new");
+  await page.selectOption("[name=category]", "HAZARD");
+  await page.fill("[name=content]", "Exposed rebar on B2 floor");
+  await page.setInputFiles("[name=photo]", "test-hazard.jpg");
+  await page.click("button[type=submit]");
+
+  await expect(page.locator(".success-message")).toBeVisible();
+  await expect(page.locator(".post-status")).toHaveText("Received");
 });
 ```
 
@@ -952,24 +965,24 @@ test('worker can submit hazard report', async ({ page }) => {
 
 ```javascript
 // k6 script
-import http from 'k6/http';
-import { check, sleep } from 'k6';
+import http from "k6/http";
+import { check, sleep } from "k6";
 
 export const options = {
   stages: [
-    { duration: '2m', target: 100 },  // Ramp up
-    { duration: '5m', target: 500 },  // Peak load
-    { duration: '2m', target: 0 },    // Ramp down
+    { duration: "2m", target: 100 }, // Ramp up
+    { duration: "5m", target: 500 }, // Peak load
+    { duration: "2m", target: 0 }, // Ramp down
   ],
   thresholds: {
-    http_req_duration: ['p(95)<1000'], // 95% under 1s
-    http_req_failed: ['rate<0.01'],    // <1% errors
+    http_req_duration: ["p(95)<1000"], // 95% under 1s
+    http_req_failed: ["rate<0.01"], // <1% errors
   },
 };
 
 export default function () {
-  const res = http.get('https://api.safetywallet.site/api/v1/posts');
-  check(res, { 'status 200': (r) => r.status === 200 });
+  const res = http.get("https://api.safetywallet.site/api/v1/posts");
+  check(res, { "status 200": (r) => r.status === 200 });
   sleep(1);
 }
 ```
@@ -980,12 +993,12 @@ export default function () {
 
 ### 10.1 Environments
 
-| Environment | Purpose | URL |
-|-------------|---------|-----|
-| Local | Development | localhost:3000 |
-| Dev | Integration testing | dev.safetywallet.site |
-| Staging | Pre-production | staging.safetywallet.site |
-| Production | Live | safetywallet.site |
+| Environment | Purpose             | URL                       |
+| ----------- | ------------------- | ------------------------- |
+| Local       | Development         | localhost:3000            |
+| Dev         | Integration testing | dev.safetywallet.site     |
+| Staging     | Pre-production      | staging.safetywallet.site |
+| Production  | Live                | safetywallet.site         |
 
 ### 10.2 CI/CD Pipeline
 
@@ -1040,10 +1053,10 @@ jobs:
 
 ### 10.3 Rollback Strategy
 
-| Scenario | Action |
-|----------|--------|
-| Failed deployment | Automatic rollback via Kubernetes |
-| Runtime errors spike | Manual rollback to previous version |
+| Scenario                   | Action                                  |
+| -------------------------- | --------------------------------------- |
+| Failed deployment          | Automatic rollback via Kubernetes       |
+| Runtime errors spike       | Manual rollback to previous version     |
 | Database migration failure | Restore from backup + redeploy previous |
 
 ---
@@ -1052,29 +1065,29 @@ jobs:
 
 ### 11.1 Technical Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| PWA push not working on iOS | High | Medium | Fallback to in-app + SMS for critical |
-| Image upload fails on slow networks | High | High | Client compression, chunked upload, retry |
-| Point calculation errors | Medium | High | Immutable ledger, comprehensive tests |
-| SMS costs exceed budget | Medium | Low | Rate limits, batch sending, monitor usage |
+| Risk                                | Probability | Impact | Mitigation                                |
+| ----------------------------------- | ----------- | ------ | ----------------------------------------- |
+| PWA push not working on iOS         | High        | Medium | Fallback to in-app + SMS for critical     |
+| Image upload fails on slow networks | High        | High   | Client compression, chunked upload, retry |
+| Point calculation errors            | Medium      | High   | Immutable ledger, comprehensive tests     |
+| SMS costs exceed budget             | Medium      | Low    | Rate limits, batch sending, monitor usage |
 
 ### 11.2 Operational Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Fraudulent registrations | Medium | Medium | Rate limits, device ID, admin approval mode |
-| Point gaming/abuse | High | Medium | Daily limits, duplicate detection, audit |
-| Data breach | Low | Critical | Encryption, access logs, security audit |
-| Site overwhelm at peak | Medium | High | Load testing, auto-scaling |
+| Risk                     | Probability | Impact   | Mitigation                                  |
+| ------------------------ | ----------- | -------- | ------------------------------------------- |
+| Fraudulent registrations | Medium      | Medium   | Rate limits, device ID, admin approval mode |
+| Point gaming/abuse       | High        | Medium   | Daily limits, duplicate detection, audit    |
+| Data breach              | Low         | Critical | Encryption, access logs, security audit     |
+| Site overwhelm at peak   | Medium      | High     | Load testing, auto-scaling                  |
 
 ### 11.3 Contingency Plans
 
-| Scenario | Response |
-|----------|----------|
-| Database corruption | Restore from hourly backup, max 1h data loss |
-| Third-party SMS outage | Switch to backup provider (have 2 configured) |
-| Complete outage | Static maintenance page, incident communication |
+| Scenario               | Response                                        |
+| ---------------------- | ----------------------------------------------- |
+| Database corruption    | Restore from hourly backup, max 1h data loss    |
+| Third-party SMS outage | Switch to backup provider (have 2 configured)   |
+| Complete outage        | Static maintenance page, incident communication |
 
 ---
 
@@ -1082,23 +1095,23 @@ jobs:
 
 ### 12.1 Recommended Team
 
-| Role | Count | Responsibilities |
-|------|-------|------------------|
-| Tech Lead | 1 | Architecture, code review, technical decisions |
-| Backend Developer | 2 | API, business logic, integrations |
-| Frontend Developer | 2 | Worker PWA, Admin web, UI/UX |
-| DevOps Engineer | 1 | Infrastructure, CI/CD, monitoring |
-| QA Engineer | 1 | Testing strategy, E2E tests, load tests |
-| UI/UX Designer | 0.5 | Design system, user flows (can be shared) |
+| Role               | Count | Responsibilities                               |
+| ------------------ | ----- | ---------------------------------------------- |
+| Tech Lead          | 1     | Architecture, code review, technical decisions |
+| Backend Developer  | 2     | API, business logic, integrations              |
+| Frontend Developer | 2     | Worker PWA, Admin web, UI/UX                   |
+| DevOps Engineer    | 1     | Infrastructure, CI/CD, monitoring              |
+| QA Engineer        | 1     | Testing strategy, E2E tests, load tests        |
+| UI/UX Designer     | 0.5   | Design system, user flows (can be shared)      |
 
 ### 12.2 Communication
 
-| Meeting | Frequency | Participants |
-|---------|-----------|--------------|
-| Daily standup | Daily, 15min | All dev team |
-| Sprint planning | Bi-weekly, 2h | All + PM |
-| Sprint review | Bi-weekly, 1h | All + stakeholders |
-| Tech sync | Weekly, 1h | Dev team |
+| Meeting         | Frequency     | Participants       |
+| --------------- | ------------- | ------------------ |
+| Daily standup   | Daily, 15min  | All dev team       |
+| Sprint planning | Bi-weekly, 2h | All + PM           |
+| Sprint review   | Bi-weekly, 1h | All + stakeholders |
+| Tech sync       | Weekly, 1h    | Dev team           |
 
 ### 12.3 Definition of Done
 
@@ -1183,6 +1196,6 @@ API_URL=https://api.safetywallet.site
 
 ## Change History
 
-| Version | Date | Changes |
-|---------|------|---------|
-| v1.0 | 2025-02-05 | Initial implementation plan |
+| Version | Date       | Changes                     |
+| ------- | ---------- | --------------------------- |
+| v1.0    | 2025-02-05 | Initial implementation plan |

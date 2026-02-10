@@ -382,13 +382,13 @@
 
 ### 7.6 Month-End / Dispute Flow
 
-| Stage               | Timing                         | Status             | Notes                              |
-| ------------------- | ------------------------------ | ------------------ | ---------------------------------- |
-| Month end           | Last day 23:59:59 KST          | ⚠️ Partial         | Timestamp recorded                 |
-| Snapshot generation | Next month D+1~3 business days | ⚠️ Partial         | Manual process, not automated      |
-| Dispute period      | 7 days after snapshot          | ❌ Not Implemented | **P1**: Need dispute ticket system |
-| Corrections         | Within dispute period          | ⚠️ Partial         | Can add correction ledger entries  |
-| Reward finalization | After dispute period           | ⚠️ Partial         | Manual process                     |
+| Stage               | Timing                         | Status     | Notes                                                      |
+| ------------------- | ------------------------------ | ---------- | ---------------------------------------------------------- |
+| Month end           | Last day 23:59:59 KST          | ⚠️ Partial | Timestamp recorded                                         |
+| Snapshot generation | Next month D+1~3 business days | ⚠️ Partial | Manual process, not automated                              |
+| Dispute period      | 7 days after snapshot          | ⚠️ Partial | Dispute routes exist (`disputes.ts`), ticket UI incomplete |
+| Corrections         | Within dispute period          | ⚠️ Partial | Can add correction ledger entries                          |
+| Reward finalization | After dispute period           | ⚠️ Partial | Manual process                                             |
 
 **Gap**: Month-end snapshot and dispute workflow not automated. **P1**: Implement automated snapshot generation.
 
@@ -713,15 +713,15 @@
 
 ### 13.1 Technology Stack Mapping
 
-| Previous Stack   | Cloudflare Native  | Status             | Notes                     |
-| ---------------- | ------------------ | ------------------ | ------------------------- |
-| NestJS (Node.js) | Cloudflare Workers | ✅                 | Hono.js implemented       |
-| PostgreSQL 15    | Cloudflare D1      | ✅                 | SQLite schema migrated    |
-| Redis 7          | Cloudflare KV      | ⚠️ Partial         | Not yet integrated        |
-| S3/MinIO         | Cloudflare R2      | ✅                 | Image upload working      |
-| Next.js hosting  | Cloudflare Pages   | ✅                 | Deployed                  |
-| BullMQ           | Cloudflare Queues  | ❌ Not Implemented | **P1**: For notifications |
-| -                | Durable Objects    | ❌ Not Implemented | **P1**: For rate limiting |
+| Previous Stack   | Cloudflare Native  | Status             | Notes                                           |
+| ---------------- | ------------------ | ------------------ | ----------------------------------------------- |
+| NestJS (Node.js) | Cloudflare Workers | ✅                 | Hono.js implemented                             |
+| PostgreSQL 15    | Cloudflare D1      | ✅                 | SQLite schema migrated                          |
+| Redis 7          | Cloudflare KV      | ⚠️ Partial         | Not yet integrated                              |
+| S3/MinIO         | Cloudflare R2      | ✅                 | Image upload working                            |
+| Next.js hosting  | Cloudflare Pages   | ✅                 | Deployed                                        |
+| BullMQ           | Cloudflare Queues  | ❌ Not Implemented | **P1**: For notifications                       |
+| -                | Durable Objects    | ✅ Implemented     | Rate limiting via DO + KV fallback (2025-02-05) |
 
 ### 13.2 Workers Configuration
 
