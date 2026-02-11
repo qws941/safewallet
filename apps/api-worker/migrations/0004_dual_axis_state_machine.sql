@@ -15,20 +15,21 @@ CREATE TABLE posts_new (
   location_zone TEXT,
   location_detail TEXT,
   content TEXT NOT NULL,
-  metadata TEXT,
   visibility TEXT NOT NULL DEFAULT 'WORKER_PUBLIC' CHECK(visibility IN ('WORKER_PUBLIC', 'ADMIN_ONLY')),
   is_anonymous INTEGER NOT NULL DEFAULT 0,
-  is_potential_duplicate INTEGER NOT NULL DEFAULT 0,
-  duplicate_of_post_id TEXT,
   review_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(review_status IN ('PENDING', 'IN_REVIEW', 'NEED_INFO', 'APPROVED', 'REJECTED', 'URGENT')),
   action_status TEXT NOT NULL DEFAULT 'NONE' CHECK(action_status IN ('NONE', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED', 'OVERDUE')),
   is_urgent INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER,
   updated_at INTEGER,
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY(site_id) REFERENCES sites(id) ON DELETE CASCADE,
-  FOREIGN KEY(duplicate_of_post_id) REFERENCES posts(id)
+  FOREIGN KEY(site_id) REFERENCES sites(id) ON DELETE CASCADE
 );
+
+-- Drop old indexes if they exist
+DROP INDEX IF EXISTS posts_site_review_status_idx;
+DROP INDEX IF EXISTS posts_site_created_at_idx;
+DROP INDEX IF EXISTS posts_user_created_at_idx;
 
 -- Create indexes for posts_new
 CREATE INDEX posts_site_review_status_idx ON posts_new(site_id, review_status);
@@ -48,11 +49,8 @@ SELECT
   location_zone,
   location_detail,
   content,
-  metadata,
   visibility,
   is_anonymous,
-  is_potential_duplicate,
-  duplicate_of_post_id,
   CASE 
     WHEN review_status = 'RECEIVED' THEN 'PENDING'
     ELSE review_status 
@@ -90,6 +88,9 @@ CREATE TABLE actions_new (
   FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
   FOREIGN KEY(assignee_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+-- Drop old indexes if they exist
+DROP INDEX IF EXISTS actions_post_idx;
 
 -- Create index for actions_new
 CREATE INDEX actions_post_idx ON actions_new(post_id);

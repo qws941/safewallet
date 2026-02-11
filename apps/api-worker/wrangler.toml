@@ -40,6 +40,7 @@ bucket_name = "safework2-acetime"
 [[hyperdrive]]
 binding = "FAS_HYPERDRIVE"
 id = "83c32c884d3b42b18c4b0601c0e2e0dc"
+localConnectionString = "postgresql://root:root@localhost:5432/fas_local"
 
 # KV Namespace for cache/sessions
 [[kv_namespaces]]
