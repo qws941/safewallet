@@ -117,7 +117,7 @@ export default function ActionsPage() {
           variant={
             isOverdue(item)
               ? "destructive"
-              : (statusColors[item.status] as any) || "default"
+              : statusColors[item.status] || "default"
           }
           className={
             item.status === "VERIFIED"

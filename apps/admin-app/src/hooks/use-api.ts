@@ -77,16 +77,20 @@ interface Announcement {
   createdAt: string;
 }
 
-interface AuditLog {
+export interface AuditLog {
   id: string;
+  actorId: string;
   action: string;
-  entityType: string;
-  entityId: string;
-  details: Record<string, unknown>;
+  targetType: string;
+  targetId: string;
+  reason: string | null;
+  ip: string | null;
+  userAgent: string | null;
   createdAt: string;
-  actor: {
-    nameMasked: string;
-  };
+  performer: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface DashboardStats {
@@ -402,14 +406,18 @@ export function useDeleteAnnouncement() {
   });
 }
 
-// Audit Logs
-// Note: Audit logs endpoint not implemented yet - placeholder for future
+// Audit Logs — refs #32
 export function useAuditLogs() {
   const siteId = useAuthStore((s) => s.currentSiteId);
 
   return useQuery({
     queryKey: ["admin", "audit", siteId],
-    queryFn: () => Promise.resolve([] as AuditLog[]),
+    queryFn: async () => {
+      const res = await apiFetch<{ data: { logs: AuditLog[] } }>(
+        `/admin/audit-logs?limit=100`,
+      );
+      return res.data.logs;
+    },
     enabled: !!siteId,
   });
 }
