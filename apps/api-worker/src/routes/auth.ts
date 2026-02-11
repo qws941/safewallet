@@ -241,24 +241,39 @@ auth.post(
     const dobEncrypted = await encrypt(c.env.ENCRYPTION_KEY, normalizedDob);
     const nameMasked = maskName(body.name);
 
-    const newUser = await db
-      .insert(users)
-      .values({
-        name: body.name,
-        nameMasked,
-        phone: normalizedPhone,
-        phoneHash,
-        phoneEncrypted,
-        dob: normalizedDob,
-        dobHash,
-        dobEncrypted,
-        role: "WORKER",
-      })
-      .onConflictDoNothing({
-        target: [users.phoneHash, users.dobHash],
-      })
-      .returning()
-      .get();
+    // Try insert first - if unique constraint fails, query existing user
+    let newUser;
+    try {
+      newUser = await db
+        .insert(users)
+        .values({
+          name: body.name,
+          nameMasked,
+          phone: normalizedPhone,
+          phoneHash,
+          phoneEncrypted,
+          dob: normalizedDob,
+          dobHash,
+          dobEncrypted,
+          role: "WORKER",
+        })
+        .returning()
+        .get();
+    } catch (err) {
+      // Unique constraint violation - user already exists
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("UNIQUE constraint failed") || errMsg.includes("unique")) {
+        newUser = null; // Fall through to existing user handling
+      } else {
+        // Unexpected error - log details and rethrow
+        console.error("User registration insert error:", {
+          message: errMsg,
+          phone: normalizedPhone.slice(0, 3) + "***",
+          dob: normalizedDob.slice(0, 4) + "**",
+        });
+        throw err;
+      }
+    }
 
     if (!newUser) {
       // --- Migration: backfill encrypted PII on duplicate registration ---
