@@ -14,10 +14,10 @@ type RankingTab = "monthly" | "cumulative";
 
 export default function PointsPage() {
   const { currentSiteId } = useAuth();
-  const [rankingTab, setRankingTab] = useState<RankingTab>("monthly");
+  const [rankingTab, setRankingTab] = useState<RankingTab>("cumulative");
   const { data, isLoading: pointsLoading } = usePoints(currentSiteId || "");
   const { data: leaderboardData, isLoading: leaderboardLoading } =
-    useLeaderboard(currentSiteId || null);
+    useLeaderboard(currentSiteId || null, rankingTab);
 
   const balance = data?.data?.balance || 0;
   const history = data?.data?.history || [];
