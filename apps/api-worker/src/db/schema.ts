@@ -3,6 +3,7 @@ import {
   text,
   integer,
   index,
+  uniqueIndex,
   unique,
   type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
@@ -132,7 +133,7 @@ export const users = sqliteTable(
     ),
   },
   (table) => ({
-    phoneHashDobHashIdx: index("users_phone_hash_dob_hash_idx").on(
+    phoneHashDobHashIdx: uniqueIndex("users_phone_hash_dob_hash_idx").on(
       table.phoneHash,
       table.dobHash,
     ),

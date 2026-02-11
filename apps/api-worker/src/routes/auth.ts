@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import {
   users,
@@ -246,6 +246,39 @@ auth.post("/register", zValidator("json", RegisterSchema), async (c) => {
     .get();
 
   if (!newUser) {
+    // --- Migration: backfill encrypted PII on duplicate registration ---
+    try {
+      const existingUser = await db
+        .select({
+          id: users.id,
+          phoneEncrypted: users.phoneEncrypted,
+          dobEncrypted: users.dobEncrypted,
+        })
+        .from(users)
+        .where(and(eq(users.phoneHash, phoneHash), eq(users.dobHash, dobHash)))
+        .get();
+      if (
+        existingUser &&
+        (!existingUser.phoneEncrypted || !existingUser.dobEncrypted)
+      ) {
+        const encUpdates: Record<string, unknown> = {};
+        if (!existingUser.phoneEncrypted) {
+          encUpdates.phoneEncrypted = phoneEncrypted;
+        }
+        if (!existingUser.dobEncrypted) {
+          encUpdates.dobEncrypted = dobEncrypted;
+        }
+        if (Object.keys(encUpdates).length > 0) {
+          encUpdates.updatedAt = new Date();
+          await db
+            .update(users)
+            .set(encUpdates)
+            .where(eq(users.id, existingUser.id));
+        }
+      }
+    } catch {
+      // Non-blocking: migration failure must not prevent response
+    }
     return error(c, "USER_EXISTS", "User already registered", 409);
   }
 
@@ -493,6 +526,31 @@ auth.post("/login", zValidator("json", LoginSchema), async (c) => {
     return respondWithDelay(
       error(c, "NAME_MISMATCH", "이름이 일치하지 않습니다.", 401),
     );
+  }
+
+  // --- Migration: backfill encrypted PII for pre-encryption users ---
+  if (!user.phoneEncrypted || !user.dobEncrypted) {
+    try {
+      const encUpdates: Record<string, unknown> = {};
+      if (!user.phoneEncrypted) {
+        encUpdates.phoneEncrypted = await encrypt(
+          c.env.ENCRYPTION_KEY,
+          normalizedPhone,
+        );
+      }
+      if (!user.dobEncrypted) {
+        encUpdates.dobEncrypted = await encrypt(
+          c.env.ENCRYPTION_KEY,
+          normalizedDob,
+        );
+      }
+      if (Object.keys(encUpdates).length > 0) {
+        encUpdates.updatedAt = new Date();
+        await db.update(users).set(encUpdates).where(eq(users.id, user.id));
+      }
+    } catch {
+      // Non-blocking: migration failure must not prevent login
+    }
   }
 
   const requireAttendance = c.env.REQUIRE_ATTENDANCE_FOR_LOGIN !== "false";
