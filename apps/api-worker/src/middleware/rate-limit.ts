@@ -32,7 +32,12 @@ export function rateLimitMiddleware(options: RateLimitOptions = {}) {
     try {
       const response = await stub.fetch("https://rate-limiter/check", {
         method: "POST",
-        body: JSON.stringify({ maxRequests, windowMs }),
+        body: JSON.stringify({
+          action: "checkLimit",
+          key,
+          limit: maxRequests,
+          windowMs,
+        }),
       });
 
       const result = await response.json<{

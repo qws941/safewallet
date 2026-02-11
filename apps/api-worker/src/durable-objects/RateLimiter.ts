@@ -48,6 +48,7 @@ const OTP_HOURLY_LIMIT = 5;
 const OTP_DAILY_LIMIT = 10;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const CLEANUP_ALARM_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export class RateLimiter {
   private state: DurableObjectState;
@@ -55,6 +56,47 @@ export class RateLimiter {
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     void env;
+
+    // Initialize alarm for cleanup on first access
+    state.blockConcurrencyWhile(async () => {
+      const currentAlarm = await state.storage.getAlarm();
+      if (currentAlarm === null) {
+        await state.storage.setAlarm(Date.now() + CLEANUP_ALARM_MS);
+      }
+    });
+  }
+
+  async alarm(): Promise<void> {
+    // Clean up expired entries older than 7 days
+    const now = Date.now();
+    const cutoff = now - CLEANUP_ALARM_MS;
+    
+    const allKeys = await this.state.storage.list();
+    const keysToDelete: string[] = [];
+
+    for (const [key, value] of allKeys) {
+      if (typeof value === "object" && value !== null) {
+        // Check LimitState entries
+        if ("resetAt" in value && typeof value.resetAt === "number") {
+          if (value.resetAt < cutoff) {
+            keysToDelete.push(key);
+          }
+        }
+        // Check OtpLimitState entries
+        else if ("dailyResetAt" in value && typeof value.dailyResetAt === "number") {
+          if (value.dailyResetAt < cutoff) {
+            keysToDelete.push(key);
+          }
+        }
+      }
+    }
+
+    if (keysToDelete.length > 0) {
+      await this.state.storage.delete(keysToDelete);
+    }
+
+    // Schedule next cleanup
+    await this.state.storage.setAlarm(Date.now() + CLEANUP_ALARM_MS);
   }
 
   async checkLimit(
