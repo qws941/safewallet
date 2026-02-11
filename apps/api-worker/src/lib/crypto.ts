@@ -1,21 +1,8 @@
-export async function hmac(secret: string, data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(data);
+import { KEY_VERSION } from "./key-manager";
 
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-
-  const signature = await crypto.subtle.sign("HMAC", key, messageData);
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -45,13 +32,57 @@ async function importAesKey(
   return crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, usages);
 }
 
+// ---------------------------------------------------------------------------
+// HMAC  —  accepts raw string (legacy) or derived CryptoKey
+// ---------------------------------------------------------------------------
+
+export async function hmac(
+  secret: string | CryptoKey,
+  data: string,
+): Promise<string> {
+  const messageData = new TextEncoder().encode(data);
+
+  let key: CryptoKey;
+  if (secret instanceof CryptoKey) {
+    key = secret;
+  } else {
+    key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+  }
+
+  const signature = await crypto.subtle.sign("HMAC", key, messageData);
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// ---------------------------------------------------------------------------
+// AES-GCM Encrypt
+//   CryptoKey  → versioned format  "v{N}:iv:ct:tag"  (base64 segments)
+//   string     → legacy format     "iv:ct:tag"        (base64 segments)
+// ---------------------------------------------------------------------------
+
 export async function encrypt(
-  base64Key: string,
+  key: string | CryptoKey,
   plaintext: string,
 ): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const plaintextData = new TextEncoder().encode(plaintext);
-  const cryptoKey = await importAesKey(base64Key, ["encrypt"]);
+
+  let cryptoKey: CryptoKey;
+  let versioned: boolean;
+  if (key instanceof CryptoKey) {
+    cryptoKey = key;
+    versioned = true;
+  } else {
+    cryptoKey = await importAesKey(key, ["encrypt"]);
+    versioned = false;
+  }
 
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv, tagLength: 128 },
@@ -64,14 +95,54 @@ export async function encrypt(
   const ciphertext = encryptedBytes.slice(0, encryptedBytes.length - tagLength);
   const authTag = encryptedBytes.slice(encryptedBytes.length - tagLength);
 
-  return `${bytesToBase64(iv)}:${bytesToBase64(ciphertext)}:${bytesToBase64(authTag)}`;
+  const payload = `${bytesToBase64(iv)}:${bytesToBase64(ciphertext)}:${bytesToBase64(authTag)}`;
+  return versioned ? `v${KEY_VERSION}:${payload}` : payload;
 }
 
+// ---------------------------------------------------------------------------
+// AES-GCM Decrypt  —  auto-detects versioned ("v1:…") vs legacy format
+//
+//   key             — primary key (CryptoKey for derived, string for legacy)
+//   encrypted       — ciphertext string
+//   legacyBase64Key — optional fallback key for legacy-encrypted data when
+//                     the primary key is a derived CryptoKey
+// ---------------------------------------------------------------------------
+
 export async function decrypt(
-  base64Key: string,
+  key: string | CryptoKey,
   encrypted: string,
+  legacyBase64Key?: string,
 ): Promise<string> {
-  const [ivBase64, ciphertextBase64, authTagBase64] = encrypted.split(":");
+  const versionMatch = encrypted.match(/^v(\d+):/);
+
+  let activeKey: CryptoKey;
+  let payload: string;
+
+  if (versionMatch) {
+    const version = parseInt(versionMatch[1], 10);
+    if (version !== KEY_VERSION) {
+      throw new Error(`Unsupported key version: v${version}`);
+    }
+    if (!(key instanceof CryptoKey)) {
+      throw new Error("Versioned ciphertext requires a derived CryptoKey");
+    }
+    activeKey = key;
+    payload = encrypted.slice(versionMatch[0].length);
+  } else {
+    if (key instanceof CryptoKey) {
+      if (!legacyBase64Key) {
+        throw new Error(
+          "Legacy ciphertext requires a base64 key string or legacyBase64Key fallback",
+        );
+      }
+      activeKey = await importAesKey(legacyBase64Key, ["decrypt"]);
+    } else {
+      activeKey = await importAesKey(key, ["decrypt"]);
+    }
+    payload = encrypted;
+  }
+
+  const [ivBase64, ciphertextBase64, authTagBase64] = payload.split(":");
   if (!ivBase64 || !ciphertextBase64 || !authTagBase64) {
     throw new Error("Invalid encrypted payload format");
   }
@@ -83,10 +154,9 @@ export async function decrypt(
   combined.set(ciphertext);
   combined.set(authTag, ciphertext.length);
 
-  const cryptoKey = await importAesKey(base64Key, ["decrypt"]);
   const plaintext = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv, tagLength: 128 },
-    cryptoKey,
+    activeKey,
     combined,
   );
 
