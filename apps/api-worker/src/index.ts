@@ -28,11 +28,14 @@ import approvalsRoute from "./routes/approvals";
 import educationRoute from "./routes/education";
 import acetimeRoute from "./routes/acetime";
 import recommendationsRoute from "./routes/recommendations";
+import imagesRoute from "./routes/images";
 import { securityHeaders } from "./middleware/security-headers";
+import { analyticsMiddleware } from "./middleware/analytics";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.use("*", securityHeaders);
+app.use("*", analyticsMiddleware);
 app.use("*", logger());
 app.use(
   "*",
@@ -134,6 +137,7 @@ api.route("/policies", policiesRoute);
 api.route("/approvals", approvalsRoute);
 api.route("/education", educationRoute);
 api.route("/acetime", acetimeRoute);
+api.route("/images", imagesRoute);
 
 // Catch-all for unmatched API routes — return 404 JSON instead of SPA HTML
 api.all("*", (c) => {
@@ -263,3 +267,4 @@ export { RateLimiter } from "./durable-objects/RateLimiter";
 export { scheduled } from "./scheduled";
 
 export default app;
+

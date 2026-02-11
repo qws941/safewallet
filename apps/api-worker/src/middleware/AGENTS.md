@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-6 middleware functions for auth, authorization, attendance verification, rate limiting, and security headers. All middleware uses **manual invocation pattern** (NOT Hono `.use()`) except `security-headers.ts` which uses `createMiddleware`.
+7 middleware functions for auth, authorization, attendance verification, rate limiting, security headers, and analytics. All middleware uses **manual invocation pattern** (NOT Hono `.use()`) except `security-headers.ts` and `analytics.ts` which use global `.use()`.
 
 ## FILES
 
@@ -14,6 +14,7 @@
 | `rate-limit.ts`       | 95    | Durable Objects rate limiter (100 req/60s default)  |
 | `fas-auth.ts`         | 23    | FAS API key authentication (`X-FAS-API-Key` header) |
 | `security-headers.ts` | 22    | CSP, HSTS, X-Frame-Options, Referrer-Policy         |
+| `analytics.ts`        | 87    | Analytics Engine metrics tracking (HTTP + events)   |
 
 ## KEY PATTERNS
 
@@ -65,6 +66,24 @@ await attendanceMiddleware(
 // Options: maxRequests (default: 100), windowMs (default: 60000), keyGenerator
 ```
 
+### Analytics Middleware (`analytics.ts`)
+
+```typescript
+// Automatically tracks HTTP requests to Analytics Engine
+// Used globally: app.use("*", analyticsMiddleware)
+// Tracks: endpoint, method, status, latency, errors
+// IMPORTANT: writeDataPoint() is non-blocking (never await)
+
+// Track custom business events
+trackEvent(c, "post_created", { 
+  category: "HAZARD", 
+  siteId, 
+  userId,
+  count: 1,
+  value: 100 
+});
+```
+
 ## INVOCATION PATTERN
 
 ```typescript
@@ -79,7 +98,11 @@ app.post("/endpoint", async (c) => {
   );
 });
 
-// WRONG: Do NOT use Hono .use() for these middleware
+// EXCEPTION: Global middleware uses .use()
+app.use("*", securityHeaders);
+app.use("*", analyticsMiddleware);
+
+// WRONG: Do NOT use Hono .use() for per-route middleware
 // (Exception: admin routes use .use('*', authMiddleware) — see admin/AGENTS.md)
 ```
 
@@ -89,3 +112,4 @@ app.post("/endpoint", async (c) => {
 - **Never skip auth middleware** — all authenticated routes must verify JWT
 - **Never hardcode roles** — use `requireRole()` / `requirePermission()`
 - **Never assume DO binding exists** — rate limiter must handle missing binding gracefully
+- **Never await Analytics Engine writeDataPoint()** — it's non-blocking by design
