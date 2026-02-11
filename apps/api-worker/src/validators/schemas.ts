@@ -314,6 +314,11 @@ export const AdminResolveSyncErrorSchema = z.object({
   status: z.enum(["RESOLVED", "IGNORED"] as const),
 });
 
+export const AdminEmergencyDeleteSchema = z.object({
+  reason: z.string().min(10, "Reason must be at least 10 characters"),
+  confirmPostId: z.string().min(1),
+});
+
 // ─── Education Schemas ───────────────────────────────────────────────────────
 
 export const CreateCourseSchema = z.object({

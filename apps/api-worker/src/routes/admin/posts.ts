@@ -6,6 +6,7 @@ import { eq, and, sql, desc, gte, lt } from "drizzle-orm";
 import type { Env, AuthContext } from "../../types";
 import {
   posts,
+  postImages,
   users,
   sites,
   reviews,
@@ -20,8 +21,10 @@ import { success, error } from "../../lib/response";
 import {
   AdminReviewPostSchema,
   AdminManualApprovalSchema,
+  AdminEmergencyDeleteSchema,
 } from "../../validators/schemas";
 import { AppContext, requireManagerOrAdmin, getTodayRange } from "./helpers";
+import { dbBatchChunked } from "../../db/helpers";
 
 const app = new Hono<{
   Bindings: Env;
@@ -450,6 +453,88 @@ app.post(
     });
 
     return success(c, { approval }, 201);
+  },
+);
+
+app.delete(
+  "/posts/:id/emergency-purge",
+  zValidator("json", AdminEmergencyDeleteSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const postId = c.req.param("id");
+    const body: z.infer<typeof AdminEmergencyDeleteSchema> =
+      c.req.valid("json");
+
+    if (user.role !== "SUPER_ADMIN") {
+      return error(
+        c,
+        "FORBIDDEN",
+        "Only SUPER_ADMIN can perform emergency purge",
+        403,
+      );
+    }
+
+    if (body.confirmPostId !== postId) {
+      return error(
+        c,
+        "CONFIRMATION_FAILED",
+        "Confirmation post ID mismatch",
+        400,
+      );
+    }
+
+    const post = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, postId))
+      .get();
+
+    if (!post) {
+      return error(c, "POST_NOT_FOUND", "Post not found", 404);
+    }
+
+    const [images, reviewsList, points] = await Promise.all([
+      db.select().from(postImages).where(eq(postImages.postId, postId)).all(),
+      db.select().from(reviews).where(eq(reviews.postId, postId)).all(),
+      db
+        .select()
+        .from(pointsLedger)
+        .where(eq(pointsLedger.postId, postId))
+        .all(),
+    ]);
+
+    for (const image of images) {
+      try {
+        await c.env.R2.delete(image.fileUrl);
+      } catch (e) {
+        console.error(`Failed to delete R2 image ${image.fileUrl}:`, e);
+      }
+    }
+
+    const ops = [
+      db.delete(postImages).where(eq(postImages.postId, postId)),
+      db.delete(reviews).where(eq(reviews.postId, postId)),
+      db.delete(pointsLedger).where(eq(pointsLedger.postId, postId)),
+      db.delete(posts).where(eq(posts.id, postId)),
+    ];
+
+    await dbBatchChunked(db, ops as Promise<unknown>[]);
+
+    await db.insert(auditLogs).values({
+      action: "EMERGENCY_DELETE",
+      actorId: user.id,
+      targetType: "POST",
+      targetId: postId,
+      reason: body.reason,
+    });
+
+    return success(c, {
+      deleted: true,
+      purgedImages: images.length,
+      purgedReviews: reviewsList.length,
+      purgedPoints: points.length,
+    });
   },
 );
 
