@@ -35,7 +35,6 @@ export interface Env {
   // Admin credentials
   ADMIN_USERNAME?: string;
   ADMIN_PASSWORD?: string;
-  BYPASS_SECRET?: string;
   // Cloudflare Queue for async notifications
   NOTIFICATION_QUEUE?: Queue;
 }
