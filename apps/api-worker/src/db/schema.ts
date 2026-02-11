@@ -51,6 +51,7 @@ export const actionStatusEnum = [
   "VERIFIED",
   "OVERDUE",
 ] as const;
+export const actionPriorityEnum = ["HIGH", "MEDIUM", "LOW"] as const;
 export const reviewActionEnum = [
   "APPROVE",
   "REJECT",
@@ -372,6 +373,8 @@ export const actions = sqliteTable(
       onDelete: "set null",
     }),
     dueDate: integer("due_date", { mode: "timestamp" }),
+    priority: text("priority", { enum: actionPriorityEnum }),
+    description: text("description"),
     actionStatus: text("action_status", { enum: actionStatusEnum })
       .default("NONE")
       .notNull(),

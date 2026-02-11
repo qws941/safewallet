@@ -115,6 +115,7 @@ export default function PostDetailPage() {
   const [assignee, setAssignee] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [actionNote, setActionNote] = useState("");
+  const [priority, setPriority] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const createAction = useCreateAction();
   const reviewPost = useReviewPost();
@@ -128,6 +129,7 @@ export default function PostDetailPage() {
         assigneeId: assignee,
         dueDate,
         description: actionNote || undefined,
+        priority: priority || undefined,
       });
       await reviewPost.mutateAsync({
         postId,
@@ -138,6 +140,7 @@ export default function PostDetailPage() {
       setAssignee("");
       setDueDate("");
       setActionNote("");
+      setPriority("");
       refetch();
     } catch {
       // Error handled by react-query
@@ -358,6 +361,24 @@ export default function PostDetailPage() {
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
                     />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="priority-select"
+                      className="text-sm font-medium"
+                    >
+                      우선순위
+                    </label>
+                    <Select value={priority} onValueChange={setPriority}>
+                      <SelectTrigger id="priority-select">
+                        <SelectValue placeholder="우선순위 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="HIGH">높음</SelectItem>
+                        <SelectItem value="MEDIUM">보통</SelectItem>
+                        <SelectItem value="LOW">낮음</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <label

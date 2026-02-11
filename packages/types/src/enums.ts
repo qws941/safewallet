@@ -49,6 +49,12 @@ export enum ActionStatus {
   OVERDUE = "OVERDUE",
 }
 
+export enum ActionPriority {
+  HIGH = "HIGH",
+  MEDIUM = "MEDIUM",
+  LOW = "LOW",
+}
+
 export enum ReviewAction {
   APPROVE = "APPROVE",
   REJECT = "REJECT",

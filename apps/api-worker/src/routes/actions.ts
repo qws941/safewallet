@@ -19,9 +19,16 @@ import {
   posts,
   pointsLedger,
   siteMemberships,
+  users,
 } from "../db/schema";
 
-type ActionStatus = "NONE" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "VERIFIED" | "OVERDUE";
+type ActionStatus =
+  | "NONE"
+  | "ASSIGNED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "VERIFIED"
+  | "OVERDUE";
 
 const VALID_ACTION_TRANSITIONS: Record<ActionStatus, ActionStatus[]> = {
   NONE: ["ASSIGNED"],
@@ -97,6 +104,8 @@ app.post("/", validateJson("json", CreateActionSchema), async (c) => {
       assigneeType: data.assigneeType || "UNASSIGNED",
       assigneeId: data.assigneeId || null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      priority: data.priority || null,
+      description: data.description || null,
       actionStatus: "NONE",
     })
     .returning()
@@ -123,28 +132,122 @@ app.get("/", async (c) => {
   if (postId) {
     conditions.push(eq(actions.postId, postId));
   }
-  if (status && ["NONE", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "VERIFIED", "OVERDUE"].includes(status)) {
+  if (
+    status &&
+    [
+      "NONE",
+      "ASSIGNED",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "VERIFIED",
+      "OVERDUE",
+    ].includes(status)
+  ) {
     conditions.push(eq(actions.actionStatus, status));
   }
 
   const baseQuery = db
     .select({
       action: actions,
+      post: {
+        id: posts.id,
+        title: posts.content,
+        category: posts.category,
+      },
+      assignee: {
+        id: users.id,
+        nameMasked: users.nameMasked,
+        companyName: users.companyName,
+      },
     })
     .from(actions)
+    .leftJoin(posts, eq(actions.postId, posts.id))
+    .leftJoin(users, eq(actions.assigneeId, users.id))
     .orderBy(desc(actions.createdAt));
 
   const query =
     conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
   const result = await query.limit(limit).offset(offset).all();
-  const results = result.map((row) => row.action);
+  const mapped = result.map((row) => ({
+    ...row.action,
+    post: row.post,
+    assignee: row.assignee,
+  }));
 
   return success(c, {
-    data: results,
+    data: mapped,
     pagination: {
       limit,
       offset,
-      count: results.length,
+      count: mapped.length,
+    },
+  });
+});
+
+app.get("/my", async (c) => {
+  const db = drizzle(c.env.DB);
+  const { user } = c.get("auth");
+  const status = c.req.query("status") as
+    | "NONE"
+    | "ASSIGNED"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "VERIFIED"
+    | "OVERDUE"
+    | undefined;
+  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
+  const offset = parseInt(c.req.query("offset") || "0");
+
+  const conditions = [eq(actions.assigneeId, user.id)];
+  if (
+    status &&
+    [
+      "NONE",
+      "ASSIGNED",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "VERIFIED",
+      "OVERDUE",
+    ].includes(status)
+  ) {
+    conditions.push(eq(actions.actionStatus, status));
+  }
+
+  const result = await db
+    .select({
+      action: actions,
+      post: {
+        id: posts.id,
+        title: posts.content,
+        category: posts.category,
+      },
+      assignee: {
+        id: users.id,
+        nameMasked: users.nameMasked,
+        companyName: users.companyName,
+      },
+    })
+    .from(actions)
+    .leftJoin(posts, eq(actions.postId, posts.id))
+    .leftJoin(users, eq(actions.assigneeId, users.id))
+    .where(and(...conditions))
+    .orderBy(desc(actions.createdAt))
+    .limit(limit)
+    .offset(offset)
+    .all();
+
+  const mapped = result.map((row) => ({
+    ...row.action,
+    post: row.post,
+    assignee: row.assignee,
+  }));
+
+  return success(c, {
+    data: mapped,
+    pagination: {
+      limit,
+      offset,
+      count: mapped.length,
     },
   });
 });
@@ -155,13 +258,27 @@ app.get("/:id", async (c) => {
   const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
   const offset = parseInt(c.req.query("offset") || "0");
 
-  const action = await db
-    .select()
+  const actionRow = await db
+    .select({
+      action: actions,
+      post: {
+        id: posts.id,
+        title: posts.content,
+        category: posts.category,
+      },
+      assignee: {
+        id: users.id,
+        nameMasked: users.nameMasked,
+        companyName: users.companyName,
+      },
+    })
     .from(actions)
+    .leftJoin(posts, eq(actions.postId, posts.id))
+    .leftJoin(users, eq(actions.assigneeId, users.id))
     .where(eq(actions.id, actionId))
     .get();
 
-  if (!action) {
+  if (!actionRow) {
     return error(c, "ACTION_NOT_FOUND", "Action not found", 404);
   }
 
@@ -175,7 +292,12 @@ app.get("/:id", async (c) => {
     .all();
 
   return success(c, {
-    data: { ...action, images },
+    data: {
+      ...actionRow.action,
+      post: actionRow.post,
+      assignee: actionRow.assignee,
+      images,
+    },
     pagination: {
       limit,
       offset,

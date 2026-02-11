@@ -244,11 +244,13 @@ export function useCreateAction() {
       assigneeId,
       dueDate,
       description,
+      priority,
     }: {
       postId: string;
       assigneeId: string;
       dueDate: string;
       description?: string;
+      priority?: string;
     }) =>
       apiFetch(`/actions`, {
         method: "POST",
@@ -258,6 +260,7 @@ export function useCreateAction() {
           assigneeId,
           dueDate,
           description,
+          priority,
         }),
       }),
     onSuccess: () => {

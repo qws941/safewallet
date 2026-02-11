@@ -214,7 +214,7 @@
 ### 8.2 근로자 동기화 상태
 
 - [x] FAS 등록자 수 vs SW 계정 수 ✅ NEW - GET /admin/sync-status
-- [ ] 미매칭 목록
+- [x] 미매칭 목록 ✅ - GET /attendance/unmatched 구현됨
 - [x] 최근 동기화 시간 ✅ NEW
 - [x] 동기화 에러 내역 ✅ NEW - sync_errors 테이블 + admin API/UI
 

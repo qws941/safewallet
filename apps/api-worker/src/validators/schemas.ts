@@ -123,6 +123,8 @@ export const CreateActionSchema = z.object({
   assigneeType: z.string().min(1),
   assigneeId: uuid.optional(),
   dueDate: isoDateStr.optional(),
+  priority: z.enum(["HIGH", "MEDIUM", "LOW"]).optional(),
+  description: z.string().optional(),
 });
 
 export const UpdateActionStatusSchema = z.object({
