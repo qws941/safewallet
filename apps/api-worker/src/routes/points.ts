@@ -250,6 +250,7 @@ app.get("/leaderboard/:siteId", async (c) => {
   const siteId = c.req.param("siteId");
   const limitParam = c.req.query("limit");
   const limit = Math.min(parseInt(limitParam || "10"), 50);
+  const type = c.req.query("type");
 
   const membership = await db
     .select()
@@ -267,13 +268,20 @@ app.get("/leaderboard/:siteId", async (c) => {
     return error(c, "NOT_SITE_MEMBER", "Not a member of this site", 403);
   }
 
+  const conditions = [eq(pointsLedger.siteId, siteId)];
+  if (type === "monthly") {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    conditions.push(eq(pointsLedger.settleMonth, currentMonth));
+  }
+
   const results = await db
     .select({
       userId: pointsLedger.userId,
       total: sql<number>`SUM(${pointsLedger.amount})`.as("total"),
     })
     .from(pointsLedger)
-    .where(eq(pointsLedger.siteId, siteId))
+    .where(and(...conditions))
     .groupBy(pointsLedger.userId)
     .orderBy(desc(sql`total`))
     .limit(limit)
@@ -297,11 +305,48 @@ app.get("/leaderboard/:siteId", async (c) => {
       rank: index + 1,
       userId: r.userId,
       nameMasked: userData?.nameMasked ?? null,
-      balance: r.total ?? 0,
+      totalPoints: r.total ?? 0,
+      isCurrentUser: r.userId === user.id,
     };
   });
 
-  return success(c, leaderboard);
+  let myRank: number | null = null;
+  const myEntry = leaderboard.find((e) => e.isCurrentUser);
+  if (myEntry) {
+    myRank = myEntry.rank;
+  } else {
+    const myTotal = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${pointsLedger.amount}), 0)`,
+      })
+      .from(pointsLedger)
+      .where(and(eq(pointsLedger.userId, user.id), ...conditions))
+      .get();
+
+    if (myTotal && myTotal.total > 0) {
+      const countAbove = await db
+        .select({
+          count: sql<number>`COUNT(*)`,
+        })
+        .from(
+          db
+            .select({
+              userId: pointsLedger.userId,
+              total: sql<number>`SUM(${pointsLedger.amount})`.as("total"),
+            })
+            .from(pointsLedger)
+            .where(and(...conditions))
+            .groupBy(pointsLedger.userId)
+            .having(sql`SUM(${pointsLedger.amount}) > ${myTotal.total}`)
+            .as("above"),
+        )
+        .get();
+
+      myRank = (countAbove?.count ?? 0) + 1;
+    }
+  }
+
+  return success(c, { leaderboard, myRank });
 });
 
 export default app;
