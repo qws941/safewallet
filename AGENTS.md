@@ -75,6 +75,7 @@ safework2/
 | Announce   | `api-worker/src/routes/announcements.ts`   | Site announcements                           |
 | Recommend  | `api-worker/src/routes/recommendations.ts` | Safety recommendations                       |
 | DB Schema  | `api-worker/src/db/schema.ts`              | Drizzle ORM, 32 tables, 20 enums             |
+| Images     | `api-worker/src/routes/images.ts`      | Image upload with EXIF stripping     |
 
 ### CRON Scheduled Jobs
 

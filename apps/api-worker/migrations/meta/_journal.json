@@ -8,6 +8,55 @@
       "when": 1770296898458,
       "tag": "0000_lovely_jocasta",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1770298500000,
+      "tag": "0001_add_user_pii_encrypted",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1770298560000,
+      "tag": "0002_add_false_report_restrictions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1770316140000,
+      "tag": "0003_add_disputes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1770307380000,
+      "tag": "0003_add_remaining_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1770861840000,
+      "tag": "0004_dual_axis_state_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1770888540000,
+      "tag": "0005_add_action_priority_description",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1770890000000,
+      "tag": "0006_add_missing_user_columns",
+      "breakpoints": true
     }
   ]
 }
