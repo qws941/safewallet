@@ -23,6 +23,8 @@ interface Announcement {
   title: string;
   content: string;
   isPinned: boolean;
+  scheduledAt: string | null;
+  status: "DRAFT" | "PUBLISHED" | "SCHEDULED";
   createdAt: string;
 }
 
@@ -140,14 +142,16 @@ export function useCreateAnnouncement() {
       title,
       content,
       isPinned,
+      scheduledAt,
     }: {
       title: string;
       content: string;
       isPinned?: boolean;
+      scheduledAt?: string | null;
     }) =>
       apiFetch(`/announcements`, {
         method: "POST",
-        body: JSON.stringify({ siteId, title, content, isPinned }),
+        body: JSON.stringify({ siteId, title, content, isPinned, scheduledAt }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "announcements"] });
@@ -164,15 +168,17 @@ export function useUpdateAnnouncement() {
       title,
       content,
       isPinned,
+      scheduledAt,
     }: {
       id: string;
       title: string;
       content: string;
       isPinned?: boolean;
+      scheduledAt?: string | null;
     }) =>
       apiFetch(`/announcements/${id}`, {
         method: "PUT",
-        body: JSON.stringify({ title, content, isPinned }),
+        body: JSON.stringify({ title, content, isPinned, scheduledAt }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "announcements"] });

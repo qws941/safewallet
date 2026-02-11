@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pin, Edit2, Trash2 } from "lucide-react";
+import { Plus, Pin, Edit2, Trash2, Clock } from "lucide-react";
 import {
   Button,
   Card,
@@ -29,6 +29,8 @@ interface Announcement {
   title: string;
   content: string;
   isPinned: boolean;
+  scheduledAt: string | null;
+  status: "DRAFT" | "PUBLISHED" | "SCHEDULED";
   createdAt: string;
 }
 
@@ -43,6 +45,7 @@ export default function AnnouncementsPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isPinned, setIsPinned] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<string>("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const resetForm = () => {
@@ -51,6 +54,7 @@ export default function AnnouncementsPage() {
     setTitle("");
     setContent("");
     setIsPinned(false);
+    setScheduledAt("");
   };
 
   const handleSubmit = () => {
@@ -58,12 +62,18 @@ export default function AnnouncementsPage() {
 
     if (editingId) {
       updateMutation.mutate(
-        { id: editingId, title, content, isPinned },
+        {
+          id: editingId,
+          title,
+          content,
+          isPinned,
+          scheduledAt: scheduledAt || null,
+        },
         { onSuccess: resetForm },
       );
     } else {
       createMutation.mutate(
-        { title, content, isPinned },
+        { title, content, isPinned, scheduledAt: scheduledAt || null },
         { onSuccess: resetForm },
       );
     }
@@ -74,6 +84,11 @@ export default function AnnouncementsPage() {
     setTitle(announcement.title);
     setContent(announcement.content);
     setIsPinned(announcement.isPinned);
+    setScheduledAt(
+      announcement.scheduledAt
+        ? new Date(announcement.scheduledAt).toISOString().slice(0, 16)
+        : "",
+    );
     setShowForm(true);
   };
 
@@ -144,6 +159,29 @@ export default function AnnouncementsPage() {
               />
               <span className="text-sm">상단 고정</span>
             </label>
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                예약 발행
+              </label>
+              <input
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              {scheduledAt && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  설정한 시간에 자동으로 발행됩니다.
+                  <button
+                    type="button"
+                    className="ml-2 text-destructive underline"
+                    onClick={() => setScheduledAt("")}
+                  >
+                    예약 취소
+                  </button>
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 onClick={handleSubmit}
@@ -182,12 +220,26 @@ export default function AnnouncementsPage() {
                     {announcement.isPinned && (
                       <Badge variant="secondary">고정</Badge>
                     )}
+                    {announcement.status === "SCHEDULED" && (
+                      <Badge variant="outline" className="gap-1">
+                        <Clock size={12} />
+                        예약
+                      </Badge>
+                    )}
                   </div>
                   <p className="whitespace-pre-wrap text-muted-foreground">
                     {announcement.content}
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {new Date(announcement.createdAt).toLocaleString("ko-KR")}
+                    {announcement.scheduledAt && (
+                      <span className="ml-2">
+                        · 예약:{" "}
+                        {new Date(announcement.scheduledAt).toLocaleString(
+                          "ko-KR",
+                        )}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-1">
