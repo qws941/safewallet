@@ -368,6 +368,68 @@ app.post("/:id/reissue-join-code", async (c) => {
   return success(c, { site: updated, previousCode: oldCode });
 });
 
+app.post(
+  "/:id/leave",
+  zValidator("json", z.object({ reason: z.string().max(500).optional() })),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const siteId = c.req.param("id");
+    const { reason } = c.req.valid("json");
+
+    const membership = await db
+      .select()
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.userId, user.id),
+          eq(siteMemberships.siteId, siteId),
+          eq(siteMemberships.status, "ACTIVE"),
+        ),
+      )
+      .get();
+
+    if (!membership) {
+      return error(c, "NOT_MEMBER", "이 현장의 활성 멤버가 아닙니다", 404);
+    }
+
+    // Site admins cannot leave — must be demoted first
+    if (membership.role === "SITE_ADMIN") {
+      return error(
+        c,
+        "ADMIN_CANNOT_LEAVE",
+        "현장 관리자는 탈퇴할 수 없습니다. 먼저 권한을 변경해주세요.",
+        403,
+      );
+    }
+
+    await db
+      .update(siteMemberships)
+      .set({
+        status: "LEFT",
+        leftAt: new Date(),
+        leftReason: reason || null,
+      })
+      .where(eq(siteMemberships.id, membership.id))
+      .run();
+
+    await db.insert(auditLogs).values({
+      actorId: user.id,
+      action: "LEAVE_SITE",
+      targetType: "SITE_MEMBERSHIP",
+      targetId: membership.id,
+      reason: reason || "자발적 탈퇴",
+      ip:
+        c.req.header("CF-Connecting-IP") ||
+        c.req.header("X-Forwarded-For") ||
+        "unknown",
+      userAgent: c.req.header("User-Agent"),
+    });
+
+    return success(c, { message: "현장에서 탈퇴했습니다" });
+  },
+);
+
 app.get("/:id/join-code-history", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");

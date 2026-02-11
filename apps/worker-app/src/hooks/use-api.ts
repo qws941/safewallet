@@ -383,6 +383,23 @@ export function useUploadActionImage() {
   });
 }
 
+// Leave site
+export function useLeaveSite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ siteId, reason }: { siteId: string; reason?: string }) =>
+      apiFetch<ApiResponse<{ message: string }>>(`/sites/${siteId}/leave`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["site"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
 export function useDeleteActionImage() {
   const queryClient = useQueryClient();
 

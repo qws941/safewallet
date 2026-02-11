@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { useProfile, useSiteInfo } from "@/hooks/use-api";
+import { useProfile, useSiteInfo, useLeaveSite } from "@/hooks/use-api";
 import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import {
@@ -13,13 +14,24 @@ import {
   AvatarFallback,
   Skeleton,
   toast,
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from "@safetywallet/ui";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { logout, currentSiteId } = useAuth();
+  const { logout, currentSiteId, setCurrentSite } = useAuth();
   const { data, isLoading } = useProfile();
   const { data: siteData } = useSiteInfo(currentSiteId);
+  const leaveSite = useLeaveSite();
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const user = data?.data;
   const site = siteData?.data?.site;
@@ -30,10 +42,25 @@ export default function ProfilePage() {
   };
 
   const handleLeaveSite = () => {
-    toast({
-      title: "알림",
-      description: "현장 탈퇴 기능은 준비 중입니다.",
-    });
+    if (!currentSiteId) return;
+    leaveSite.mutate(
+      { siteId: currentSiteId },
+      {
+        onSuccess: () => {
+          setLeaveOpen(false);
+          toast({ title: "완료", description: "현장에서 탈퇴했습니다." });
+          setCurrentSite(null);
+          router.replace("/join");
+        },
+        onError: () => {
+          toast({
+            title: "오류",
+            description: "탈퇴에 실패했습니다. 다시 시도해주세요.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -89,14 +116,36 @@ export default function ProfilePage() {
 
         {/* Actions */}
         <div className="space-y-3">
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={handleLeaveSite}
-          >
-            <span className="mr-2">📍</span>
-            현장 탈퇴하기
-          </Button>
+          <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                disabled={!currentSiteId}
+              >
+                <span className="mr-2">📍</span>
+                현장 탈퇴하기
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>현장 탈퇴</AlertDialogTitle>
+                <AlertDialogDescription>
+                  정말로 현재 현장에서 탈퇴하시겠습니까? 탈퇴 후에는 다시
+                  가입해야 합니다.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>취소</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleLeaveSite}
+                  disabled={leaveSite.isPending}
+                >
+                  {leaveSite.isPending ? "처리 중..." : "탈퇴하기"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button
             variant="outline"
             className="w-full justify-start text-destructive"

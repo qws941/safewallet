@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 interface User {
   id: string;
@@ -16,7 +16,7 @@ interface AuthState {
   currentSiteId: string | null;
   setUser: (user: User) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
-  setCurrentSite: (siteId: string) => void;
+  setCurrentSite: (siteId: string | null) => void;
   login: (user: User, accessToken: string, refreshToken: string) => void;
   logout: () => void;
 }
@@ -30,7 +30,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       currentSiteId: null,
       setUser: (user) => set({ user }),
-      setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
+      setTokens: (accessToken, refreshToken) =>
+        set({ accessToken, refreshToken }),
       setCurrentSite: (siteId) => set({ currentSiteId: siteId }),
       login: (user, accessToken, refreshToken) =>
         set({
@@ -49,7 +50,7 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: 'safetywallet-auth',
+      name: "safetywallet-auth",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,
@@ -58,6 +59,6 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         currentSiteId: state.currentSiteId,
       }),
-    }
-  )
+    },
+  ),
 );
