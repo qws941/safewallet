@@ -32,6 +32,5 @@ app.route("/", accessPoliciesApp);
 app.route("/", syncErrorsApp);
 app.route("/", recommendationsApp);
 app.route("/", monitoringApp);
-app.route("/", monitoringApp);
 
 export default app;

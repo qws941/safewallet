@@ -11,3 +11,4 @@ export * from "./use-attendance-api";
 export * from "./use-points-api";
 export * from "./use-education-api";
 export * from "./use-sites-api";
+export * from "./use-monitoring-api";
