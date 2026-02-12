@@ -140,10 +140,6 @@ export const CreateSiteSchema = z.object({
   requiresApproval: z.boolean().optional(),
 });
 
-export const JoinSiteSchema = z.object({
-  joinCode: z.string().min(1),
-});
-
 export const UpdateMemberStatusSchema = z.object({
   status: z.enum(MembershipStatus),
   reason: z.string().optional(),
@@ -453,7 +449,7 @@ export const AlimtalkSendSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1).max(28),
-        linkType: z.enum(['WL', 'AL', 'DS', 'BK', 'MD', 'BC']),
+        linkType: z.enum(["WL", "AL", "DS", "BK", "MD", "BC"]),
         linkTypeName: z.string().min(1),
       }),
     )
@@ -472,7 +468,7 @@ export const SmartNotificationSendSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1).max(28),
-        linkType: z.enum(['WL', 'AL', 'DS', 'BK', 'MD', 'BC']),
+        linkType: z.enum(["WL", "AL", "DS", "BK", "MD", "BC"]),
         linkTypeName: z.string().min(1),
       }),
     )

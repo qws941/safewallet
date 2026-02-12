@@ -8,7 +8,6 @@ export interface Site {
   id: string;
   name: string;
   active: boolean;
-  joinCode: string;
   joinEnabled?: boolean;
   createdAt: string;
   memberCount?: number;
@@ -46,21 +45,6 @@ export function useUpdateSite() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["site", variables.siteId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "my-sites"] });
-    },
-  });
-}
-
-export function useReissueJoinCode() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (siteId: string) =>
-      apiFetch<{ site: Site; previousCode: string }>(
-        `/sites/${siteId}/reissue-join-code`,
-        { method: "POST" },
-      ),
-    onSuccess: (_, siteId) => {
-      queryClient.invalidateQueries({ queryKey: ["site", siteId] });
     },
   });
 }

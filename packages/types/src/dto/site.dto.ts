@@ -1,9 +1,8 @@
-import type { MembershipStatus } from '../enums';
+import type { MembershipStatus } from "../enums";
 
 export interface SiteDto {
   id: string;
   name: string;
-  joinCode: string;
   active: boolean;
   joinEnabled: boolean;
   requiresApproval: boolean;
@@ -14,10 +13,6 @@ export interface SiteDto {
 export interface CreateSiteDto {
   name: string;
   requiresApproval?: boolean;
-}
-
-export interface JoinSiteDto {
-  joinCode: string;
 }
 
 export interface SiteMemberDto {

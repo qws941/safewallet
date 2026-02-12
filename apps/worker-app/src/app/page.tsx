@@ -6,17 +6,15 @@ import { useAuth } from "@/hooks/use-auth";
 
 export default function RootPage() {
   const router = useRouter();
-  const { isAuthenticated, currentSiteId } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace("/login");
-    } else if (!currentSiteId) {
-      router.replace("/join");
     } else {
       router.replace("/home");
     }
-  }, [isAuthenticated, currentSiteId, router]);
+  }, [isAuthenticated, router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
