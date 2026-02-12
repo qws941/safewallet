@@ -267,4 +267,3 @@ export { RateLimiter } from "./durable-objects/RateLimiter";
 export { scheduled } from "./scheduled";
 
 export default app;
-

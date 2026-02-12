@@ -36,6 +36,10 @@ const app = new Hono<{
 
 app.use("*", authMiddleware);
 
+app.get("/vapid-key", async (c) => {
+  return success(c, { publicKey: c.env.VAPID_PUBLIC_KEY });
+});
+
 const requireSiteAdmin = async (c: AppContext, next: Next) => {
   const { user } = c.get("auth");
   if (user.role !== "SITE_ADMIN" && user.role !== "SUPER_ADMIN") {
@@ -372,10 +376,7 @@ export default app;
 
 // ─── 알림톡 (Alimtalk) Endpoints ──────────────────────────────────────────────
 
-import {
-  sendAligoAlimtalk,
-  sendSmartNotification,
-} from "../lib/aligo";
+import { sendAligoAlimtalk, sendSmartNotification } from "../lib/aligo";
 import {
   AlimtalkSendSchema,
   SmartNotificationSendSchema,
@@ -388,7 +389,8 @@ app.post(
   async (c) => {
     const body: z.infer<typeof AlimtalkSendSchema> = c.req.valid("json");
 
-    const { siteId, userIds, templateCode, message, button, fallbackSms } = body;
+    const { siteId, userIds, templateCode, message, button, fallbackSms } =
+      body;
 
     if (!siteId || !userIds?.length || !templateCode || !message) {
       return error(
@@ -553,8 +555,12 @@ app.post(
       .where(inArray(users.id, userIds))
       .all();
 
-    const results: Array<{ userId: string; success: boolean; method?: string; error?: string }> =
-      [];
+    const results: Array<{
+      userId: string;
+      success: boolean;
+      method?: string;
+      error?: string;
+    }> = [];
 
     for (const user of targetUsers) {
       if (!user.phone) {
@@ -610,4 +616,3 @@ app.post(
     });
   },
 );
-
