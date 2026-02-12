@@ -107,8 +107,8 @@ export default function RecommendationsPage() {
         <Card>
           <CardContent className="p-6 text-center">
             <p className="text-muted-foreground">현장을 먼저 선택해주세요.</p>
-            <Button onClick={() => router.push("/join")} className="mt-4">
-              현장 선택
+            <Button onClick={() => router.push("/home")} className="mt-4">
+              홈으로
             </Button>
           </CardContent>
         </Card>

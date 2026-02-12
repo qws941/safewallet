@@ -73,7 +73,7 @@ export default function LoginPage() {
       const data = response.data;
 
       login(data.user, data.accessToken, data.refreshToken);
-      router.replace("/join");
+      router.replace("/home");
     } catch (err) {
       setError(parseErrorMessage(err));
     } finally {

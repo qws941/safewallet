@@ -68,7 +68,7 @@ export default function ProfilePage() {
           setLeaveOpen(false);
           toast({ title: "완료", description: "현장에서 탈퇴했습니다." });
           setCurrentSite(null);
-          router.replace("/join");
+          router.replace("/home");
         },
         onError: () => {
           toast({

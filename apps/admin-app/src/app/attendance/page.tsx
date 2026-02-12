@@ -18,7 +18,35 @@ import {
 import { DataTable, type Column } from "@/components/data-table";
 import { useAttendanceLogs, useUnmatchedRecords } from "@/hooks/use-attendance";
 import { useAuthStore } from "@/stores/auth";
-import { Users, CheckCircle, AlertTriangle } from "lucide-react";
+import {
+  Users,
+  CheckCircle,
+  AlertTriangle,
+  AlertCircle,
+  Clock,
+} from "lucide-react";
+
+type AnomalyType = "EARLY" | "LATE" | "NO_CHECKOUT" | "DUPLICATE";
+
+const ANOMALY_LABELS: Record<AnomalyType, string> = {
+  EARLY: "이른출근",
+  LATE: "늦은출근",
+  NO_CHECKOUT: "미퇴근",
+  DUPLICATE: "중복",
+};
+
+const ANOMALY_COLORS: Record<AnomalyType, string> = {
+  EARLY: "bg-blue-100 text-blue-800",
+  LATE: "bg-orange-100 text-orange-800",
+  NO_CHECKOUT: "bg-yellow-100 text-yellow-800",
+  DUPLICATE: "bg-red-100 text-red-800",
+};
+
+const getKSTHour = (dateStr: string): number => {
+  const d = new Date(dateStr);
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  return kst.getUTCHours();
+};
 
 const formatDateForInput = (date: Date) => {
   return date.toISOString().split("T")[0];
@@ -45,6 +73,8 @@ export default function AttendancePage() {
   const [resultFilter, setResultFilter] = useState<"ALL" | "SUCCESS" | "FAIL">(
     "ALL",
   );
+  const [companyFilter, setCompanyFilter] = useState<string>("ALL");
+  const [showAnomalyOnly, setShowAnomalyOnly] = useState(false);
 
   const { data: logsResponse, isLoading: isLogsLoading } = useAttendanceLogs(
     1,
@@ -65,13 +95,63 @@ export default function AttendancePage() {
     };
   }, [allLogs]);
 
+  const companyNames = useMemo(() => {
+    const names = new Set(allLogs.map((l) => l.companyName).filter(Boolean));
+    return Array.from(names).sort();
+  }, [allLogs]);
+
   const filteredLogs = useMemo(() => {
     let logs = allLogs;
     if (resultFilter !== "ALL") {
-      logs = allLogs.filter((l) => l.result === resultFilter);
+      logs = logs.filter((l) => l.result === resultFilter);
     }
-    return logs.map((log, i) => ({ ...log, index: i + 1 }));
-  }, [allLogs, resultFilter]);
+    if (companyFilter !== "ALL") {
+      logs = logs.filter((l) => l.companyName === companyFilter);
+    }
+
+    const nameCounts = new Map<string, number>();
+    for (const l of logs) {
+      if (l.userName) {
+        nameCounts.set(l.userName, (nameCounts.get(l.userName) || 0) + 1);
+      }
+    }
+
+    const today = formatDateForInput(new Date());
+    const isPastDate = date < today;
+
+    const withAnomalies = logs.map((log, i) => {
+      const anomalies: AnomalyType[] = [];
+
+      if (log.checkInTime) {
+        const hour = getKSTHour(log.checkInTime);
+        if (hour < 5) anomalies.push("EARLY");
+        if (hour >= 12) anomalies.push("LATE");
+      }
+
+      if (isPastDate && log.result === "SUCCESS" && !log.checkOutTime) {
+        anomalies.push("NO_CHECKOUT");
+      }
+
+      if (log.userName && (nameCounts.get(log.userName) || 0) > 1) {
+        anomalies.push("DUPLICATE");
+      }
+
+      return { ...log, index: i + 1, anomalies };
+    });
+
+    if (showAnomalyOnly) {
+      return withAnomalies
+        .filter((l) => l.anomalies.length > 0)
+        .map((l, i) => ({ ...l, index: i + 1 }));
+    }
+
+    return withAnomalies;
+  }, [allLogs, resultFilter, companyFilter, date, showAnomalyOnly]);
+
+  const anomalyCount = useMemo(
+    () => filteredLogs.filter((l) => l.anomalies.length > 0).length,
+    [filteredLogs],
+  );
 
   const unmatchedWithIndex = useMemo(() => {
     return unmatchedList.map((item, i) => ({ ...item, index: i + 1 }));
@@ -111,6 +191,23 @@ export default function AttendancePage() {
           {item.result === "SUCCESS" ? "성공" : "실패"}
         </Badge>
       ),
+    },
+    {
+      key: "anomalies",
+      header: "이상치",
+      render: (item) =>
+        item.anomalies.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {item.anomalies.map((a) => (
+              <span
+                key={a}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ANOMALY_COLORS[a]}`}
+              >
+                {ANOMALY_LABELS[a]}
+              </span>
+            ))}
+          </div>
+        ) : null,
     },
     {
       key: "checkInTime",
@@ -192,7 +289,7 @@ export default function AttendancePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">오늘 출근</CardTitle>
@@ -223,6 +320,17 @@ export default function AttendancePage() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.fail}명</div>
             <p className="text-xs text-muted-foreground">인증/위치 실패</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">이상치</CardTitle>
+            <AlertCircle className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{anomalyCount}건</div>
+            <p className="text-xs text-muted-foreground">비정상 패턴 감지</p>
           </CardContent>
         </Card>
       </div>
@@ -279,6 +387,31 @@ export default function AttendancePage() {
                       <SelectItem value="FAIL">실패</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select
+                    value={companyFilter}
+                    onValueChange={setCompanyFilter}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="소속" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">전체 소속</SelectItem>
+                      {companyNames.map((name) => (
+                        <SelectItem key={name} value={name!}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant={showAnomalyOnly ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowAnomalyOnly(!showAnomalyOnly)}
+                    className="whitespace-nowrap"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    이상치만
+                  </Button>
                 </div>
               </div>
             </CardHeader>
