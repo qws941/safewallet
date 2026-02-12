@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Auth Endpoints", () => {
-  test.describe.configure({ mode: "parallel" });
+  test.describe.configure({ mode: "serial" });
 
   test("POST /auth/login with empty body returns 400 @smoke", async ({
     request,
@@ -81,6 +81,113 @@ test.describe("Auth Endpoints", () => {
       },
     });
     expect(response.status()).toBeGreaterThanOrEqual(400);
+  });
+
+  test("POST /auth/login with valid credentials returns 200 and tokens", async ({
+    request,
+  }) => {
+    const response = await request.post("./auth/login", {
+      data: {
+        name: "김선민",
+        phone: "01076015830",
+        dob: "19990308",
+      },
+    });
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(body.data).toBeDefined();
+    expect(body.data).toHaveProperty("accessToken");
+    expect(body.data).toHaveProperty("refreshToken");
+    expect(typeof body.data.accessToken).toBe("string");
+    expect(typeof body.data.refreshToken).toBe("string");
+    expect(body.data.accessToken.length).toBeGreaterThan(0);
+    expect(body.data.refreshToken.length).toBeGreaterThan(0);
+  });
+
+  test("POST /auth/login returns user info in response", async ({
+    request,
+  }) => {
+    const response = await request.post("./auth/login", {
+      data: {
+        name: "김선민",
+        phone: "01076015830",
+        dob: "19990308",
+      },
+    });
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(body.data.user).toBeDefined();
+    expect(body.data.user.name).toBe("김선민");
+    expect(body.data.user).toHaveProperty("id");
+    expect(body.data.user).toHaveProperty("role");
+  });
+
+  test("Authenticated request to /users/me succeeds with login token", async ({
+    request,
+  }) => {
+    const loginRes = await request.post("./auth/login", {
+      data: {
+        name: "김선민",
+        phone: "01076015830",
+        dob: "19990308",
+      },
+    });
+    expect(loginRes.status()).toBe(200);
+    const { data } = await loginRes.json();
+
+    const meRes = await request.get("./users/me", {
+      headers: { Authorization: `Bearer ${data.accessToken}` },
+    });
+    expect(meRes.status()).toBe(200);
+
+    const meBody = await meRes.json();
+    expect(meBody.success).toBe(true);
+    expect(meBody.data.user.name).toBe("김선민");
+  });
+
+  test("POST /auth/refresh with valid refresh token returns new tokens", async ({
+    request,
+  }) => {
+    const loginRes = await request.post("./auth/login", {
+      data: {
+        name: "김선민",
+        phone: "01076015830",
+        dob: "19990308",
+      },
+    });
+    expect(loginRes.status()).toBe(200);
+    const { data } = await loginRes.json();
+
+    const refreshRes = await request.post("./auth/refresh", {
+      data: { refreshToken: data.refreshToken },
+    });
+    expect(refreshRes.status()).toBe(200);
+
+    const refreshBody = await refreshRes.json();
+    expect(refreshBody.success).toBe(true);
+    expect(refreshBody.data).toHaveProperty("accessToken");
+    expect(refreshBody.data).toHaveProperty("refreshToken");
+    expect(refreshBody.data.refreshToken).not.toBe(data.refreshToken);
+  });
+
+  test("POST /auth/login with wrong credentials returns 401", async ({
+    request,
+  }) => {
+    const response = await request.post("./auth/login", {
+      data: {
+        name: "김선민",
+        phone: "01012345678",
+        dob: "19990308",
+      },
+    });
+    expect(response.status()).toBe(401);
+
+    const body = await response.json();
+    expect(body.success).toBe(false);
   });
 });
 
