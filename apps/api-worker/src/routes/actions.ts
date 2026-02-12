@@ -8,7 +8,7 @@ import { authMiddleware } from "../middleware/auth";
 import { attendanceMiddleware } from "../middleware/attendance";
 import { success, error } from "../lib/response";
 import { logAuditWithContext } from "../lib/audit";
-import { notifyUser } from "../lib/notification";
+
 import {
   CreateActionSchema,
   UpdateActionStatusSchema,
@@ -440,14 +440,6 @@ app.patch("/:id", validateJson("json", UpdateActionStatusSchema), async (c) => {
       actionId,
       { from: action.actionStatus, to: requestedActionStatus },
     );
-  }
-
-  // Fire-and-forget notification to assigned worker
-  if (action.assigneeId && requestedActionStatus) {
-    notifyUser(db, c.env, action.assigneeId, "ACTION_STATUS_CHANGED", {
-      actionId,
-      status: requestedActionStatus,
-    }).catch(() => {});
   }
 
   return success(c, { action: updated });

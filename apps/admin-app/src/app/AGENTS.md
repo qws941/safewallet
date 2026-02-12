@@ -37,7 +37,7 @@ Next.js 14 App Router pages for the admin dashboard. 14 feature directories + ro
 ## CONVENTIONS
 
 - **All pages `'use client'`** — no RSC
-- **API calls via `use-api.ts` hook** (`apps/admin-app/src/hooks/use-api.ts`)
+- **API calls via domain hooks** — `use-admin-api.ts`, `use-posts-api.ts`, etc. (barrel: `use-api.ts`)
 - **UI components from `@safetywallet/ui`** (shared package)
 - **Korean UI text** — admin-facing labels
 - **Port 3001** in development

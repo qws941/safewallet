@@ -7,7 +7,7 @@ export const securityHeaders = createMiddleware<{ Bindings: Env }>(
 
     c.header(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https:; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https:; frame-ancestors 'none'",
     );
     c.header(
       "Strict-Transport-Security",

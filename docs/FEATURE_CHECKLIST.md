@@ -62,8 +62,8 @@
 ### 2.3 연동 방식
 
 - [x] A안: API/Webhook (실시간) - POST /attendance/sync, POST /fas/workers/sync
-- [ ] B안: DB Polling (1~5분 주기)
-- [ ] C안: CSV Import
+- [x] ~~B안: DB Polling~~ → N/A (A안 FAS 실시간 동기화 채택)
+- [x] ~~C안: CSV Import~~ → N/A (A안 FAS 실시간 동기화 채택)
 
 ---
 
@@ -139,7 +139,7 @@
 ### 5.3 후보 목록
 
 - [x] 관리자 등록 후보 표시
-- [ ] (옵션) 포인트 상위 N명 자동 후보
+- [x] ~~(옵션) 포인트 상위 N명 자동 후보~~ → N/A (관리자 수동 등록으로 운영)
 - [x] 후보 정보: 마스킹된 이름, 업체, 공정
 
 ### 5.4 투표 기능
@@ -383,7 +383,7 @@
 - [x] CryptoService 구현 (AES-256-GCM) ✅ NEW
 - [x] HMAC 해시 인덱스 (검색용)
 - [x] 전화번호/생년월일 실제 암호화 적용 ✅ (phoneEncrypted, dobEncrypted)
-- [ ] 암호화 키 관리 (KMS)
+- [x] ~~암호화 키 관리 (KMS)~~ → N/A (CF Workers Secrets 사용 — 별도 KMS 불필요)
 
 ### 11.2 접근 제어
 

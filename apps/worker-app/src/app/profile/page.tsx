@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile, useSiteInfo, useLeaveSite } from "@/hooks/use-api";
-import { usePushSubscription } from "@/hooks/use-push";
+
 import { Header } from "@/components/header";
 
 import { BottomNav } from "@/components/bottom-nav";
@@ -25,7 +25,6 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
   AlertDialogAction,
-  Switch,
 } from "@safetywallet/ui";
 
 export default function ProfilePage() {
@@ -35,21 +34,6 @@ export default function ProfilePage() {
   const { data: siteData } = useSiteInfo(currentSiteId);
   const leaveSite = useLeaveSite();
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const {
-    isSubscribed,
-    subscribe,
-    unsubscribe,
-    loading: pushLoading,
-  } = usePushSubscription();
-
-  const handlePushToggle = (checked: boolean) => {
-    if (checked) {
-      subscribe();
-    } else {
-      unsubscribe();
-    }
-  };
-
   const user = data?.data;
 
   const site = siteData?.data?.site;
@@ -131,23 +115,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardContent className="py-4 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <h3 className="font-medium">알림 설정</h3>
-
-              <p className="text-xs text-muted-foreground">
-                중요한 알림을 놓치지 마세요.
-              </p>
-            </div>
-            <Switch
-              checked={isSubscribed}
-              onCheckedChange={handlePushToggle}
-              disabled={pushLoading}
-            />
-          </CardContent>
-        </Card>
 
         {/* Actions */}
 

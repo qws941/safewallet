@@ -44,15 +44,8 @@ export interface Env {
   // Admin credentials
   ADMIN_USERNAME?: string;
   ADMIN_PASSWORD?: string;
-  // Cloudflare Queue for async notifications
-  NOTIFICATION_QUEUE?: Queue;
   // Analytics Engine for observability
   ANALYTICS?: AnalyticsEngineDataset;
-  // Aligo SMS + 알림톡 credentials
-  ALIGO_API_KEY?: string;
-  ALIGO_USER_ID?: string;
-  ALIGO_SENDER?: string;
-  KAKAO_SENDER_KEY?: string;
 }
 
 export interface User {
@@ -67,4 +60,3 @@ export interface AuthContext {
   user: User;
   loginDate: string;
 }
-

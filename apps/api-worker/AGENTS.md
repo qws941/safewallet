@@ -12,8 +12,8 @@ Hono.js REST API on Cloudflare Workers. D1 (SQLite) via Drizzle ORM + R2 (images
 src/
 ├── index.ts           # Hono app entry, route mounting, CRON scheduled handler
 ├── routes/            # 19 route modules (18 files + admin/ subdir)
-├── middleware/         # 6 middleware modules
-├── lib/               # 16 utility modules
+├── middleware/         # 7 middleware modules
+├── lib/               # 24 utility modules
 ├── validators/        # Zod validation schemas
 ├── utils/             # Common utilities
 ├── db/
@@ -109,18 +109,19 @@ const result = await db.select().from(users).where(eq(users.id, id));
 | /recommend     | recommendations.ts   | Yes  | Safety recommendations                                    |
 | /acetime       | acetime.ts           | Yes  | AceTime integration, photo sync                           |
 
-## MIDDLEWARE (6)
+## MIDDLEWARE (7)
 
-| File                | Purpose                                |
-| ------------------- | -------------------------------------- |
-| auth.ts             | JWT validation, user context injection |
-| attendance.ts       | Attendance state check                 |
-| fas-auth.ts         | FAS (external system) auth             |
-| permission.ts       | Role-based access control              |
-| rate-limit.ts       | Rate limiting logic                    |
-| security-headers.ts | HTTP security header injection         |
+| File                | Purpose                                      |
+| ------------------- | -------------------------------------------- |
+| auth.ts             | JWT validation, user context injection       |
+| attendance.ts       | Attendance state check                       |
+| fas-auth.ts         | FAS (external system) auth                   |
+| permission.ts       | Role-based access control                    |
+| rate-limit.ts       | Rate limiting logic                          |
+| security-headers.ts | HTTP security header injection               |
+| analytics.ts        | CF Analytics Engine, global `.use()` pattern |
 
-## LIB UTILITIES (16)
+## LIB UTILITIES (24)
 
 | File                     | Purpose                                                                |
 | ------------------------ | ---------------------------------------------------------------------- |
@@ -140,6 +141,14 @@ const result = await db.select().from(users).where(eq(users.id, id));
 | aceviewer-parser.ts      | AceViewer data parsing                                                 |
 | sql-js.d.ts              | sql.js type declarations                                               |
 | fas-sync.ts              | FAS employee data sync, hash/encrypt PII, upsert to D1                 |
+| aligo.ts (358L)          | Aligo SMS/notification service integration                             |
+| constants.ts             | Shared constant values                                                 |
+| image-privacy.ts (148L)  | EXIF stripping, image privacy processing                               |
+| key-manager.ts (108L)    | Encryption key management and rotation                                 |
+| logger.ts                | Structured logging utilities                                           |
+| observability.ts (111L)  | Request/response observability, tracing                                |
+| sync-lock.ts             | Distributed sync locking mechanism                                     |
+| piexifjs.d.ts            | piexifjs type declarations                                             |
 
 ## VALIDATORS
 

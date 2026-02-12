@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from "@/stores/auth";
 
 export function useAuth() {
   const {
     user,
     isAuthenticated,
     currentSiteId,
+    _hasHydrated,
     login,
     logout,
     setCurrentSite,
@@ -16,6 +17,7 @@ export function useAuth() {
     user,
     isAuthenticated,
     currentSiteId,
+    _hasHydrated,
     login,
     logout,
     setCurrentSite,

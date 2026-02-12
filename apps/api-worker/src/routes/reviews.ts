@@ -7,7 +7,7 @@ import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { success, error } from "../lib/response";
 import { logAuditWithContext } from "../lib/audit";
-import { notifyUser, NotificationType } from "../lib/notification";
+
 import { ReviewActionSchema } from "../validators/schemas";
 import {
   reviews,
@@ -90,7 +90,8 @@ function determineNewStatuses(
     case "APPROVE":
       return {
         newReviewStatus: "APPROVED",
-        newActionStatus: currentActionStatus === "NONE" ? "COMPLETED" : "VERIFIED",
+        newActionStatus:
+          currentActionStatus === "NONE" ? "COMPLETED" : "VERIFIED",
       };
     case "REJECT":
       return { newReviewStatus: "REJECTED" };
@@ -278,17 +279,6 @@ app.post("/", validateJson("json", ReviewActionSchema), async (c) => {
 
     pointsAwarded = DEFAULT_APPROVAL_POINTS;
   }
-
-  // Fire-and-forget notification to post author
-  const notifType =
-    data.action === "APPROVE"
-      ? "POST_APPROVED"
-      : data.action === "REJECT"
-        ? "POST_REJECTED"
-        : "NEED_INFO";
-  notifyUser(db, c.env, post.userId, notifType as NotificationType, {
-    postId: data.postId,
-  }).catch(() => {});
 
   return success(
     c,

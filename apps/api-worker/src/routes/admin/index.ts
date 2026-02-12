@@ -12,6 +12,7 @@ import votesApp from "./votes";
 import accessPoliciesApp from "./access-policies";
 import syncErrorsApp from "./sync-errors";
 import recommendationsApp from "./recommendations";
+import monitoringApp from "./monitoring";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -30,5 +31,7 @@ app.route("/", votesApp);
 app.route("/", accessPoliciesApp);
 app.route("/", syncErrorsApp);
 app.route("/", recommendationsApp);
+app.route("/", monitoringApp);
+app.route("/", monitoringApp);
 
 export default app;

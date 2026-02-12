@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-10  
-**Branch:** main
+**Generated:** 2026-02-12  
+**Branch:** master
 
 ## OVERVIEW
 
@@ -19,7 +19,7 @@ safework2/
 │   ├── types/            # Shared TypeScript types, 15 enums, 10 DTOs
 │   └── ui/               # shadcn/ui component library (13 components)
 ├── e2e/                  # Playwright e2e tests (4 projects, 1064 lines)
-├── scripts/              # Build/deploy helper scripts (5 files)
+├── scripts/              # Build/deploy helper scripts (7 files)
 ├── docker/               # Development Docker Compose
 ├── docs/                 # PRD, implementation plans, status docs
 └── .sisyphus/            # AI agent planning artifacts
@@ -36,7 +36,7 @@ safework2/
 | Add worker page       | `apps/worker-app/src/app/`         | Next.js 14 App Router           |
 | Add admin page        | `apps/admin-app/src/app/`          | Next.js 14 App Router           |
 | Configure CF bindings | `apps/api-worker/wrangler.toml`    | D1, R2×3, KV, DO, CRON          |
-| Add middleware        | `apps/api-worker/src/middleware/`  | 6 files, manual invocation      |
+| Add middleware        | `apps/api-worker/src/middleware/`  | 7 files, manual invocation      |
 | Add validation schema | `apps/api-worker/src/validators/`  | Zod schemas                     |
 | Add CRON job          | `apps/api-worker/src/scheduled/`   | Separate module, KST timezone   |
 | Add/run e2e tests     | `e2e/`                             | Playwright, 4 projects          |
@@ -75,7 +75,7 @@ safework2/
 | Announce   | `api-worker/src/routes/announcements.ts`   | Site announcements                           |
 | Recommend  | `api-worker/src/routes/recommendations.ts` | Safety recommendations                       |
 | DB Schema  | `api-worker/src/db/schema.ts`              | Drizzle ORM, 32 tables, 20 enums             |
-| Images     | `api-worker/src/routes/images.ts`      | Image upload with EXIF stripping     |
+| Images     | `api-worker/src/routes/images.ts`          | Image upload with EXIF stripping             |
 
 ### CRON Scheduled Jobs
 

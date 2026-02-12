@@ -14,11 +14,7 @@ workers_dev = true
 ENVIRONMENT = "production"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
-# Aligo SMS + 알림톡 (replace with your credentials)
-ALIGO_API_KEY = "your_api_key_here"
-ALIGO_USER_ID = "your_user_id_here"
-ALIGO_SENDER = "02-1234-5678"
-KAKAO_SENDER_KEY = "your_kakao_sender_key_here"
+
 # Security secrets (dev only - use Cloudflare Secrets in production)
 JWT_SECRET = "dev-jwt-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz0123456789"
 HMAC_SECRET = "dev-hmac-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz012345678"
@@ -75,15 +71,6 @@ bindings = [
 tag = "v1"
 new_sqlite_classes = ["RateLimiter"]
 
-# Queue for async notification processing
-[[queues.producers]]
-queue = "safework2-notifications"
-binding = "NOTIFICATION_QUEUE"
-
-# [[queues.consumers]]
-# queue = "safework2-notifications"
-# max_batch_size = 10
-# max_retries = 3
 
 [triggers]
 crons = ["*/5 * * * *", "0 0 1 * *", "0 3 * * SUN", "0 21 * * *"]
@@ -96,10 +83,7 @@ name = "safework2-api-dev"
 ENVIRONMENT = "development"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
-ALIGO_API_KEY = "your_api_key_here"
-ALIGO_USER_ID = "your_user_id_here"
-ALIGO_SENDER = "02-1234-5678"
-KAKAO_SENDER_KEY = "your_kakao_sender_key_here"
+
 # Security secrets (dev only - use Cloudflare Secrets in production)
 JWT_SECRET = "dev-jwt-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz0123456789"
 HMAC_SECRET = "dev-hmac-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz012345678"
@@ -143,6 +127,4 @@ bindings = [
   { name = "RATE_LIMITER", class_name = "RateLimiter" }
 ]
 
-[[env.dev.queues.producers]]
-queue = "safework2-notifications"
-binding = "NOTIFICATION_QUEUE"
+

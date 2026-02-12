@@ -1039,31 +1039,6 @@ export const pointPolicies = sqliteTable(
   }),
 );
 
-// Push Subscriptions - Web Push notification subscriptions
-export const pushSubscriptions = sqliteTable(
-  "push_subscriptions",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    endpoint: text("endpoint").notNull(),
-    p256dh: text("p256dh").notNull(),
-    auth: text("auth").notNull(),
-    userAgent: text("user_agent"),
-    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-      () => new Date(),
-    ),
-    lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
-  },
-  (table) => ({
-    userIdx: index("push_subscriptions_user_idx").on(table.userId),
-    endpointUnique: unique().on(table.endpoint),
-  }),
-);
-
 // ============================================================================
 // NEW RELATIONS
 // ============================================================================
@@ -1095,16 +1070,6 @@ export const deviceRegistrationsRelations = relations(
 export const pointPoliciesRelations = relations(pointPolicies, ({ one }) => ({
   site: one(sites, { fields: [pointPolicies.siteId], references: [sites.id] }),
 }));
-
-export const pushSubscriptionsRelations = relations(
-  pushSubscriptions,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [pushSubscriptions.userId],
-      references: [users.id],
-    }),
-  }),
-);
 
 // ============================================================================
 // SAFETY EDUCATION (안전교육)
@@ -1524,3 +1489,30 @@ export const syncErrorsRelations = relations(syncErrors, ({ one }) => ({
     references: [sites.id],
   }),
 }));
+
+// ============================================================================
+// API METRICS — 5-minute bucketed request metrics for monitoring dashboard
+// ============================================================================
+
+export const apiMetrics = sqliteTable(
+  "api_metrics",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    bucket: text("bucket").notNull(), // "2025-02-12T14:05" (5-min truncated ISO)
+    endpoint: text("endpoint").notNull(), // "/api/posts/:id"
+    method: text("method").notNull(), // "GET", "POST", etc.
+    requestCount: integer("request_count").notNull().default(0),
+    errorCount: integer("error_count").notNull().default(0), // status >= 400
+    totalDurationMs: integer("total_duration_ms").notNull().default(0),
+    maxDurationMs: integer("max_duration_ms").notNull().default(0),
+    status2xx: integer("status_2xx").notNull().default(0),
+    status4xx: integer("status_4xx").notNull().default(0),
+    status5xx: integer("status_5xx").notNull().default(0),
+  },
+  (table) => ({
+    bucketEndpointMethodIdx: uniqueIndex(
+      "api_metrics_bucket_endpoint_method_idx",
+    ).on(table.bucket, table.endpoint, table.method),
+    bucketIdx: index("api_metrics_bucket_idx").on(table.bucket),
+  }),
+);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -44,13 +44,19 @@ function parseErrorMessage(err: unknown): string {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, isAuthenticated, _hasHydrated } = useAuth();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
+
+  useEffect(() => {
+    if (_hasHydrated && isAuthenticated) {
+      router.replace("/home");
+    }
+  }, [_hasHydrated, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

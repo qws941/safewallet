@@ -208,33 +208,6 @@ export const UpdateDisputeStatusSchema = z.object({
   status: z.enum(DisputeStatus),
 });
 
-// ─── Notifications Schemas ───────────────────────────────────────────────────
-
-export const SmsSendSchema = z.object({
-  siteId: uuid,
-  userIds: z.array(uuid).min(1).max(100),
-  message: z.string().min(1).max(500),
-});
-
-export const PushNotificationSendSchema = z.object({
-  siteId: uuid,
-  userIds: z.array(uuid).min(1).max(100),
-  type: z.string().min(1),
-  params: z.record(z.union([z.string(), z.number()])),
-});
-
-export const PushSubscribeSchema = z.object({
-  endpoint: z.string().url(),
-  keys: z.object({
-    p256dh: z.string().min(1),
-    auth: z.string().min(1),
-  }),
-});
-
-export const PushUnsubscribeSchema = z.object({
-  endpoint: z.string().url(),
-});
-
 // ─── Announcements Schemas ───────────────────────────────────────────────────
 
 export const CreateAnnouncementSchema = z.object({

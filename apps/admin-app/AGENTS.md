@@ -47,12 +47,20 @@ src/
 │   ├── approvals/                    # approval-list, approval-dialog, approval-history, reject-dialog
 │   └── votes/candidate-dialog.tsx    # Vote candidate modal
 ├── hooks/
-│   ├── use-api.ts                    # 1288L, 60+ hooks (MONOLITHIC — needs split)
-│   ├── use-votes.ts                  # Vote hooks (separated — good pattern)
-│   ├── use-attendance-logs.ts        # Attendance log hooks
-│   ├── use-sync-errors.ts            # FAS sync error hooks
-│   ├── use-attendance.ts             # Attendance query hooks (80L)
+│   ├── use-api.ts                    # Barrel re-export (13L) — was 1288L monolithic, NOW SPLIT
+│   ├── use-api-base.ts               # Base hook factory (5L)
+│   ├── use-admin-api.ts              # Admin management hooks (300L)
+│   ├── use-education-api.ts          # Education CRUD hooks (531L — largest)
+│   ├── use-points-api.ts             # Points/ledger hooks (175L)
+│   ├── use-votes.ts                  # Vote management hooks (138L)
+│   ├── use-attendance-api.ts         # Attendance hooks (114L)
+│   ├── use-posts-api.ts              # Post hooks (111L)
+│   ├── use-attendance-logs.ts        # Attendance log hooks (102L)
 │   ├── use-recommendations.ts        # Recommendation hooks (118L)
+│   ├── use-attendance.ts             # Attendance query hooks (80L)
+│   ├── use-actions-api.ts            # Corrective action hooks (77L)
+│   ├── use-sync-errors.ts            # FAS sync error hooks (75L)
+│   ├── use-sites-api.ts              # Site management hooks (50L)
 │   └── use-stats.ts                  # Dashboard stats hooks (33L)
 ├── stores/
 │   └── auth.ts                       # Zustand auth store
@@ -63,13 +71,13 @@ src/
 
 ## KEY DETAILS
 
-| Component  | Detail                                                                   |
-| ---------- | ------------------------------------------------------------------------ |
-| Dashboard  | 8 stat cards (users, posts, sites, etc.) + category distribution chart   |
-| data-table | Generic, reusable: column sort, search filter, pagination, row selection |
-| Attendance | 30-second auto-refetch interval                                          |
-| use-api.ts | **1288 lines, 60+ hooks** — monolithic, refactor candidate               |
-| education  | **1391 lines** — single-page CRUD for courses/quizzes/TBM                |
+| Component  | Detail                                                                           |
+| ---------- | -------------------------------------------------------------------------------- |
+| Dashboard  | 8 stat cards (users, posts, sites, etc.) + category distribution chart           |
+| data-table | Generic, reusable: column sort, search filter, pagination, row selection         |
+| Attendance | 30-second auto-refetch interval                                                  |
+| use-api.ts | **Refactored** — split into 15 domain-specific hook files (was 1288L monolithic) |
+| education  | **1391 lines** — single-page CRUD for courses/quizzes/TBM                        |
 
 ## CONVENTIONS
 
@@ -85,4 +93,4 @@ src/
 - **Known**: `app/actions/page.tsx:120` — `(statusColors[item.status] as any)` type assertion
 - No `alert()`/`confirm()` — use modal components
 - **Known**: `dashboard/layout.tsx:16-22` — client-side auth guard via useEffect (should be middleware)
-- **Refactor targets**: `use-api.ts` (split by domain), `education/page.tsx` (extract sub-components)
+- **Refactor targets**: `education/page.tsx` (extract sub-components)
