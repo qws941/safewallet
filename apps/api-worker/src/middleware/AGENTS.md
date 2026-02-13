@@ -45,66 +45,15 @@ requirePermission("canExportData");
 
 ### Attendance Middleware (`attendance.ts`)
 
-```typescript
-// Checks: site membership → daily attendance record → manual approval override
-// Takes optional siteId parameter
-// Uses in-memory idempotency cache (1-hour TTL)
-await attendanceMiddleware(
-  c,
-  async () => {
-    /* handler */
-  },
-  siteId,
-);
-```
+Checks site membership → daily attendance → manual approval override. Optional `siteId` param. In-memory idempotency cache (1-hour TTL).
 
 ### Rate Limiter (`rate-limit.ts`)
 
-```typescript
-// Uses RATE_LIMITER Durable Object binding
-// Falls back to pass-through if DO not configured
-// Options: maxRequests (default: 100), windowMs (default: 60000), keyGenerator
-```
+Uses `RATE_LIMITER` DO binding. Falls back to pass-through if DO unconfigured. Options: `maxRequests` (100), `windowMs` (60000), `keyGenerator`.
 
 ### Analytics Middleware (`analytics.ts`)
 
-```typescript
-// Automatically tracks HTTP requests to Analytics Engine
-// Used globally: app.use("*", analyticsMiddleware)
-// Tracks: endpoint, method, status, latency, errors
-// IMPORTANT: writeDataPoint() is non-blocking (never await)
-
-// Track custom business events
-trackEvent(c, "post_created", { 
-  category: "HAZARD", 
-  siteId, 
-  userId,
-  count: 1,
-  value: 100 
-});
-```
-
-## INVOCATION PATTERN
-
-```typescript
-// CORRECT: Manual invocation inside route handlers
-app.post("/endpoint", async (c) => {
-  await attendanceMiddleware(
-    c,
-    async () => {
-      // handler logic
-    },
-    siteId,
-  );
-});
-
-// EXCEPTION: Global middleware uses .use()
-app.use("*", securityHeaders);
-app.use("*", analyticsMiddleware);
-
-// WRONG: Do NOT use Hono .use() for per-route middleware
-// (Exception: admin routes use .use('*', authMiddleware) — see admin/AGENTS.md)
-```
+Global `app.use("*", analyticsMiddleware)` — tracks HTTP requests + custom business events via CF Analytics Engine. `writeDataPoint()` is **non-blocking** (never await). Use `trackEvent(c, eventName, data)` for custom events.
 
 ## ANTI-PATTERNS
 

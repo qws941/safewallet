@@ -25,6 +25,9 @@ src/
 │   ├── points/page.tsx         # Leaderboard
 │   ├── announcements/page.tsx  # Site announcements
 │   ├── votes/page.tsx          # Monthly voting
+│   ├── actions/
+│   │   ├── page.tsx            # Corrective actions list
+│   │   └── view/page.tsx       # Action detail view
 │   └── profile/page.tsx        # User profile, logout
 ├── components/
 │   ├── providers.tsx           # TanStack QueryClient + Toaster
@@ -55,8 +58,7 @@ src/
 - **Server data**: TanStack Query (staleTime: 60s, no auto-refetch)
 - **API base**: `NEXT_PUBLIC_API_URL` env or `http://localhost:3333`
 - **Auto 401 handling**: `lib/api.ts` intercepts → refresh → retry → logout
-- **Korean (ko-KR)** localization throughout
-- **Mobile-first**: `pb-nav` / `safe-bottom` padding for bottom nav
+- **Korean (ko-KR)** localization, **mobile-first** (`pb-nav` / `safe-bottom` padding)
 
 ## ANTI-PATTERNS
 
@@ -73,6 +75,5 @@ src/
 
 ## PWA
 
-- **Manifest**: Korean, portrait, standalone, `#ff8c42` theme
+- **Manifest**: Korean, portrait, standalone, `#ff8c42` theme. Viewport: no-zoom
 - **Service worker**: next-pwa generated `sw.js`
-- **Viewport**: no-zoom (`user-scalable=no`)

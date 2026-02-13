@@ -51,40 +51,6 @@ safework2/
 | worker-app | `src/app/layout.tsx` | Next.js 14 | 3000        |
 | admin-app  | `src/app/layout.tsx` | Next.js 14 | 3001        |
 
-### Key Modules
-
-| Module     | Location                                   | Purpose                                      |
-| ---------- | ------------------------------------------ | -------------------------------------------- |
-| Auth       | `api-worker/src/routes/auth.ts`            | JWT login, refresh, logout, lockout          |
-| Admin      | `api-worker/src/routes/admin.ts`           | User/post/site management, stats, CSV export |
-| Education  | `api-worker/src/routes/education.ts`       | Courses, materials, quizzes                  |
-| Posts      | `api-worker/src/routes/posts.ts`           | Safety reports with R2 images                |
-| Attendance | `api-worker/src/routes/attendance.ts`      | FAS sync, daily check-in                     |
-| Sites      | `api-worker/src/routes/sites.ts`           | Site management, memberships                 |
-| Approvals  | `api-worker/src/routes/approvals.ts`       | Review workflow approvals                    |
-| Votes      | `api-worker/src/routes/votes.ts`           | Monthly worker voting                        |
-| Points     | `api-worker/src/routes/points.ts`          | Point ledger, balance, policies              |
-| Disputes   | `api-worker/src/routes/disputes.ts`        | Safety dispute resolution                    |
-| Actions    | `api-worker/src/routes/actions.ts`         | Corrective action tracking                   |
-| Reviews    | `api-worker/src/routes/reviews.ts`         | Post review workflow                         |
-| Notifs     | `api-worker/src/routes/notifications.ts`   | Push notifications, device registration      |
-| Policies   | `api-worker/src/routes/policies.ts`        | Point calculation policies                   |
-| FAS        | `api-worker/src/routes/fas.ts`             | Foreign worker attendance system             |
-| Users      | `api-worker/src/routes/users.ts`           | User profile management                      |
-| AceTime    | `api-worker/src/routes/acetime.ts`         | AceTime integration, photo sync              |
-| Announce   | `api-worker/src/routes/announcements.ts`   | Site announcements                           |
-| Recommend  | `api-worker/src/routes/recommendations.ts` | Safety recommendations                       |
-| DB Schema  | `api-worker/src/db/schema.ts`              | Drizzle ORM, 32 tables, 20 enums             |
-| Images     | `api-worker/src/routes/images.ts`          | Image upload with EXIF stripping             |
-
-### CRON Scheduled Jobs
-
-| Schedule      | Purpose                    | Location                 |
-| ------------- | -------------------------- | ------------------------ |
-| `*/5 * * * *` | FAS attendance sync        | `src/scheduled/index.ts` |
-| `0 0 1 * *`   | Monthly points calculation | `src/scheduled/index.ts` |
-| `0 3 * * 0`   | Sunday cleanup             | `src/scheduled/index.ts` |
-
 ## CONVENTIONS
 
 ### Code Style
@@ -115,19 +81,6 @@ error(c, code, msg); // { success: false, error: { code, message }, timestamp }
 - **PII**: HMAC-SHA256 hashed (phoneHash, dobHash)
 - **Refresh**: UUID token, rotated on each refresh
 
-### Middleware Pattern
-
-```typescript
-// Middleware called manually inside handlers (NOT Hono .use())
-await attendanceMiddleware(
-  c,
-  async () => {
-    /* handler */
-  },
-  siteId,
-);
-```
-
 ## ANTI-PATTERNS (THIS PROJECT)
 
 | Pattern                            | Why Forbidden                          |
@@ -149,56 +102,22 @@ await attendanceMiddleware(
 ## COMMANDS
 
 ```bash
-# Development
 npm run dev              # Start all apps (Turborepo)
 npm run dev:worker       # Start worker-app only
 npm run dev:admin        # Start admin-app only
-
-# Database (Drizzle Kit)
 npx drizzle-kit generate # Generate migration SQL
 npx drizzle-kit push     # Push schema to D1
-npx drizzle-kit studio   # Open Drizzle Studio
-
-# Build & Deploy
 npm run build            # Build all apps
 tsc --noEmit             # Typecheck (only quality gate)
-
-# Docker
-docker compose -f docker/docker-compose.yml up -d
 ```
-
-## CI/CD
-
-| Workflow   | Trigger    | Steps                                        |
-| ---------- | ---------- | -------------------------------------------- |
-| CI         | Push/PR    | typecheck → parallel matrix build            |
-| Production | Manual/tag | build → parallel deploy (Workers + 2× Pages) |
-| Staging    | Manual     | sequential single-job deploy                 |
-
-## CLOUDFLARE BINDINGS
-
-| Binding        | Type | Name               | Purpose                            |
-| -------------- | ---- | ------------------ | ---------------------------------- |
-| DB             | D1   | safework2-db       | SQLite database (Drizzle)          |
-| IMAGES         | R2   | safework2-images   | Image storage (posts)              |
-| STATIC         | R2   | safework2-static   | SPA static file hosting            |
-| ACETIME_BUCKET | R2   | safework2-acetime  | AceTime photo sync storage         |
-| SESSIONS       | KV   | safework2-sessions | Session cache (not yet used)       |
-| RATE_LIMITER   | DO   | RateLimiter        | Rate limiting (declared, not used) |
-| FAS_HYPERDRIVE | HD   | (env var)          | MariaDB proxy for FAS attendance   |
 
 ## NOTES
 
 - **5 AM KST cutoff**: All "today" logic uses Korea timezone with 5 AM as day boundary
-- **Package manager**: npm (declared in package.json)
-- **E2E tests only**: 4 Playwright projects (api, worker-app, admin-app, cross-app), no unit tests
-- **Static export**: worker-app uses `output: 'export'`; admin-app uses `@cloudflare/next-on-pages` (no explicit `output: 'export'`)
-- **@cloudflare/next-on-pages**: Adapter for CF Pages deployment
-- **Enum sync**: 15 enums in `packages/types` MUST match Drizzle schema enums (5 additional enums are schema-only)
+- **Package manager**: npm (`pnpm-workspace.yaml` is vestigial)
+- **E2E tests only**: 4 Playwright projects, no unit tests
+- **Static export**: worker-app uses `output: 'export'`; admin-app uses `@cloudflare/next-on-pages`
+- **Enum sync**: 15 enums in `packages/types` MUST match Drizzle schema enums (5 additional schema-only)
 - **FAS integration**: Foreign Attendance System via Hyperdrive (MariaDB proxy), 5-min CRON sync
-- **Static hosting**: R2 STATIC bucket serves SPA with MIME-type detection and `index.html` fallback
-- **Korean localization**: Worker-app UI fully Korean, 5 AM KST day boundary
-- **CORS origins**: safework2.jclee.me, admin.safework2.jclee.me, localhost:3000/3001
-- **Vestigial file**: `pnpm-workspace.yaml` exists but npm is used (not pnpm)
+- **Korean localization**: Worker-app UI fully Korean
 - **State machine**: Post review workflow `RECEIVED→IN_REVIEW→APPROVED/REJECTED/NEED_INFO`
-- **Crypto formats**: HMAC-SHA256→hex string, AES-GCM→`iv:ciphertext:authTag` (base64)

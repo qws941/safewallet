@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Next.js 14 App Router pages for the admin dashboard. 14 feature directories + root layout files. All pages use `'use client'` — zero React Server Components.
+Next.js 14 App Router pages for the admin dashboard. 16 feature directories + root layout files. All pages use `'use client'` — zero React Server Components.
 
 ## STRUCTURE
 
@@ -11,7 +11,7 @@ Next.js 14 App Router pages for the admin dashboard. 14 feature directories + ro
 | `actions/`         | 1     | Corrective action tracking                 |
 | `announcements/`   | 1     | Site announcement management               |
 | `approvals/`       | 0     | Approval workflow (empty — may be pending) |
-| `attendance/`      | 3     | Attendance records, FAS sync status        |
+| `attendance/`      | 2     | Attendance records, unmatched records      |
 | `audit/`           | 1     | Audit log viewer                           |
 | `dashboard/`       | 4     | Main dashboard with stats/charts           |
 | `education/`       | 1     | Course and material management             |
@@ -20,6 +20,7 @@ Next.js 14 App Router pages for the admin dashboard. 14 feature directories + ro
 | `points/`          | 1     | Point ledger and policies                  |
 | `posts/`           | 2     | Safety report management and review        |
 | `recommendations/` | 1     | Safety recommendations                     |
+| `monitoring/`      | 1     | System monitoring dashboard                |
 | `settings/`        | 1     | Site/system settings                       |
 | `votes/`           | 4     | Monthly worker voting management           |
 

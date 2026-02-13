@@ -15,10 +15,8 @@ ENVIRONMENT = "production"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
 
-# Security secrets (dev only - use Cloudflare Secrets in production)
-JWT_SECRET = "dev-jwt-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz0123456789"
-HMAC_SECRET = "dev-hmac-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz012345678"
-ENCRYPTION_KEY = "kbyIahBgmFW47YwMoPxykdPe7DV8LycSzHrp0wwgE28="
+# Security secrets: use .dev.vars for local dev, Cloudflare Secrets for production
+# See: wrangler secret put JWT_SECRET / HMAC_SECRET / ENCRYPTION_KEY
 
 # D1 Database
 [[d1_databases]]
@@ -84,10 +82,8 @@ ENVIRONMENT = "development"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
 
-# Security secrets (dev only - use Cloudflare Secrets in production)
-JWT_SECRET = "dev-jwt-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz0123456789"
-HMAC_SECRET = "dev-hmac-secret-32-chars-long-abcdefghijklmnopqrstuvwxyz012345678"
-ENCRYPTION_KEY = "kbyIahBgmFW47YwMoPxykdPe7DV8LycSzHrp0wwgE28="
+# Security secrets: use .dev.vars for local dev, Cloudflare Secrets for staging
+# See: wrangler secret put JWT_SECRET / HMAC_SECRET / ENCRYPTION_KEY
 
 [[env.dev.d1_databases]]
 binding = "DB"

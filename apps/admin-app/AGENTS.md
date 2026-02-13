@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Admin dashboard for site managers. Next.js 14 App Router, deployed to CF Pages via `@cloudflare/next-on-pages` (port 3001). Note: does NOT use `output: 'export'` (diverges from worker-app). 22 pages, 12-item sidebar.
+Admin dashboard for site managers. Next.js 14 App Router, deployed to CF Pages via `@cloudflare/next-on-pages` (port 3001). Note: does NOT use `output: 'export'` (diverges from worker-app). 26 pages, 12-item sidebar.
 
 ## STRUCTURE
 
@@ -13,7 +13,9 @@ src/
 │   ├── login/page.tsx                # Admin login
 │   ├── dashboard/                    # Dashboard home
 │   │   ├── layout.tsx                # Sidebar layout (wraps /dashboard)
-│   │   └── page.tsx                  # 8 stat cards + chart
+│   │   ├── page.tsx                  # 8 stat cards + chart
+│   │   ├── analytics/page.tsx        # Dashboard analytics
+│   │   └── recommendations/page.tsx  # Dashboard recommendations
 │   ├── (dashboard)/                  # Route group (organizational, no URL segment)
 │   │   ├── approvals/page.tsx        # Approval workflow
 │   │   ├── points/policies/page.tsx  # Point policies
@@ -25,7 +27,9 @@ src/
 │   ├── members/[id]/page.tsx         # Member detail
 │   ├── education/page.tsx            # Education (1391L — BLOATED, needs split)
 │   ├── attendance/page.tsx           # Attendance (30s real-time refetch)
+│   ├── attendance/unmatched/page.tsx # Unmatched attendance records
 │   ├── announcements/page.tsx        # Announcements
+│   ├── monitoring/page.tsx           # System monitoring dashboard
 │   ├── votes/page.tsx                # Vote management
 │   ├── votes/new/page.tsx            # Create vote
 │   ├── votes/[id]/page.tsx           # Vote detail
@@ -48,20 +52,7 @@ src/
 │   └── votes/candidate-dialog.tsx    # Vote candidate modal
 ├── hooks/
 │   ├── use-api.ts                    # Barrel re-export (13L) — was 1288L monolithic, NOW SPLIT
-│   ├── use-api-base.ts               # Base hook factory (5L)
-│   ├── use-admin-api.ts              # Admin management hooks (300L)
-│   ├── use-education-api.ts          # Education CRUD hooks (531L — largest)
-│   ├── use-points-api.ts             # Points/ledger hooks (175L)
-│   ├── use-votes.ts                  # Vote management hooks (138L)
-│   ├── use-attendance-api.ts         # Attendance hooks (114L)
-│   ├── use-posts-api.ts              # Post hooks (111L)
-│   ├── use-attendance-logs.ts        # Attendance log hooks (102L)
-│   ├── use-recommendations.ts        # Recommendation hooks (118L)
-│   ├── use-attendance.ts             # Attendance query hooks (80L)
-│   ├── use-actions-api.ts            # Corrective action hooks (77L)
-│   ├── use-sync-errors.ts            # FAS sync error hooks (75L)
-│   ├── use-sites-api.ts              # Site management hooks (50L)
-│   └── use-stats.ts                  # Dashboard stats hooks (33L)
+│   └── 15 domain hooks              # Largest: use-education-api.ts (531L)
 ├── stores/
 │   └── auth.ts                       # Zustand auth store
 └── lib/
@@ -69,21 +60,10 @@ src/
     └── utils.ts                      # cn() re-export
 ```
 
-## KEY DETAILS
-
-| Component  | Detail                                                                           |
-| ---------- | -------------------------------------------------------------------------------- |
-| Dashboard  | 8 stat cards (users, posts, sites, etc.) + category distribution chart           |
-| data-table | Generic, reusable: column sort, search filter, pagination, row selection         |
-| Attendance | 30-second auto-refetch interval                                                  |
-| use-api.ts | **Refactored** — split into 15 domain-specific hook files (was 1288L monolithic) |
-| education  | **1391 lines** — single-page CRUD for courses/quizzes/TBM                        |
-
 ## CONVENTIONS
 
-- **ALL pages `'use client'`** — zero RSC, static export
-- **Dynamic routes**: `[id]` pattern for member/post/vote detail pages
-- **Route groups**: `(dashboard)/` for shared sidebar layout
+- **ALL pages `'use client'`** — zero RSC
+- **Dynamic routes**: `[id]` for detail pages. **Route groups**: `(dashboard)/` for shared sidebar layout
 - **API base**: `NEXT_PUBLIC_API_URL` env or `http://localhost:3333`
 - Same auth/API patterns as worker-app (Zustand + TanStack Query)
 

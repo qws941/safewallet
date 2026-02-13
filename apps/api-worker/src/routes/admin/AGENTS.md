@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Admin-only API sub-routes mounted at `/admin`. 11 domain modules + shared helpers. All routes require authentication and admin role.
+Admin-only API sub-routes mounted at `/admin`. 12 domain modules + shared helpers. All routes require authentication and admin role.
 
 ## STRUCTURE
 
@@ -20,7 +20,8 @@ admin/
 ├── fas.ts               # FAS sync status, error handling
 ├── sync-errors.ts       # FAS sync error management
 ├── access-policies.ts   # Point policies, reward config
-└── recommendations.ts   # Safety recommendations CRUD
+├── recommendations.ts   # Safety recommendations CRUD
+└── monitoring.ts        # System monitoring endpoints
 ```
 
 ## KEY DIFFERENCE FROM OTHER ROUTES
@@ -42,7 +43,6 @@ Shared utilities imported by all admin sub-modules:
 | `parseDateParam()`      | Parse date string query params            |
 | `toExclusiveEndDate()`  | Adjust end date for exclusive range       |
 | `formatKst()`           | Format date to KST timezone string        |
-| `formatYearMonth()`     | Format as YYYY-MM                         |
 | `csvEscape()`           | Escape CSV cell values                    |
 | `buildCsv()`            | Build CSV with UTF-8 BOM                  |
 | `csvResponse()`         | Return CSV as downloadable response       |
@@ -61,6 +61,7 @@ Shared utilities imported by all admin sub-modules:
 | users.ts           | 311   | Search, detail, role update, suspend |
 | fas.ts             | 285   | FAS sync trigger, status, errors     |
 | recommendations.ts | 211   | Safety recommendation CRUD           |
+| monitoring.ts      | 166   | System monitoring endpoints          |
 | sync-errors.ts     | 149   | FAS sync error list, resolve, retry  |
 | attendance.ts      | 144   | Attendance logs, manual override     |
 | stats.ts           | 113   | Dashboard counts, category stats     |
@@ -69,46 +70,10 @@ Shared utilities imported by all admin sub-modules:
 
 ## CONVENTIONS
 
-### Route Pattern
-
-```typescript
-// Every admin sub-module follows this pattern:
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import type { Env } from "../../types";
-import { drizzle } from "drizzle-orm/d1";
-import { success, error } from "../../lib/response";
-import { requireAdmin, type AppContext } from "./helpers";
-
-const app = new Hono<{ Bindings: Env; Variables: { auth: AuthContext } }>();
-
-app.get("/list", requireAdmin, async (c: AppContext) => {
-  const db = drizzle(c.env.DB);
-  // ... Drizzle query
-  return success(c, data);
-});
-
-export default app;
-```
-
-### Guard Middleware
-
-- Use `requireAdmin` for most admin endpoints
-- Use `requireManagerOrAdmin` for site-scoped admin actions
-- Use `requireExportAccess` + `exportRateLimit` for CSV exports
-
-### CSV Export Pattern
-
-```typescript
-app.get("/export/users", requireExportAccess, exportRateLimit, async (c: AppContext) => {
-  const rows = await db.select()...;
-  const csv = buildCsv(headers, rows);
-  return csvResponse(c, csv, "users-export.csv");
-});
-```
+- **Route pattern**: Import Hono + `requireAdmin` + `AppContext` from `./helpers`, export `default app`
+- **Guards**: `requireAdmin` (most), `requireManagerOrAdmin` (site-scoped), `requireExportAccess` + `exportRateLimit` (CSV). CSV: `buildCsv()` → `csvResponse()` (UTF-8 BOM)
 
 ## ANTI-PATTERNS
 
-- **No `.use()` in sub-modules** — only `index.ts` uses global `.use()` for auth
-- **Import guards from `./helpers`** — don't recreate role checks
+- **No `.use()` in sub-modules** — only `index.ts` uses global `.use()`. Import guards from `./helpers`
 - **Don't bypass rate limits** — export endpoints MUST use `exportRateLimit`

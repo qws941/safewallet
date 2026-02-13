@@ -43,6 +43,8 @@ app.use(
     origin: [
       "https://safework2.jclee.me",
       "https://admin.safework2.jclee.me",
+      "https://safework2-api.jclee.workers.dev",
+      "https://safework2-admin.pages.dev",
       "http://localhost:3000",
       "http://localhost:3001",
     ],

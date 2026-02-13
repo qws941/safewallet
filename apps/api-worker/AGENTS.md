@@ -13,13 +13,13 @@ src/
 ├── index.ts           # Hono app entry, route mounting, CRON scheduled handler
 ├── routes/            # 19 route modules (18 files + admin/ subdir)
 ├── middleware/         # 7 middleware modules
-├── lib/               # 24 utility modules
+├── lib/               # 19 utility modules
 ├── validators/        # Zod validation schemas
 ├── utils/             # Common utilities
 ├── db/
 │   └── schema.ts      # Drizzle ORM schema (32 tables, 20 enums, 1518 lines)
 ├── scheduled/
-│   └── index.ts       # CRON job handlers (365 lines)
+│   └── index.ts       # CRON job handlers (683 lines)
 ├── durable-objects/
 │   └── RateLimiter.ts # DO rate limiter (declared, not active)
 └── types.ts           # Env bindings, context types
@@ -57,21 +57,9 @@ app.get("/", async (c) => {
 export default app;
 ```
 
-### Middleware Pattern (Manual Invocation)
+### Middleware
 
-```typescript
-// NOT: app.use(authMiddleware)
-// YES: called inside handler
-app.get("/", async (c) => {
-  await attendanceMiddleware(
-    c,
-    async () => {
-      // handler logic
-    },
-    siteId,
-  );
-});
-```
+Manual invocation pattern (NOT `.use()`) — see `src/middleware/AGENTS.md` for details.
 
 ### Database (Drizzle ORM)
 
@@ -89,8 +77,8 @@ const result = await db.select().from(users).where(eq(users.id, id));
 
 | Route          | File                 | Auth | Purpose                                                   |
 | -------------- | -------------------- | ---- | --------------------------------------------------------- |
-| /auth          | auth.ts (1116L)      | No   | Login, refresh, logout, lockout                           |
-| /admin         | admin/ (11 modules)  | Yes  | User/post/site mgmt, stats, CSV → **See admin/AGENTS.md** |
+| /auth          | auth.ts (1001L)      | No   | Login, refresh, logout, lockout                           |
+| /admin         | admin/ (12 modules)  | Yes  | User/post/site mgmt, stats, CSV → **See admin/AGENTS.md** |
 | /education     | education.ts (1508L) | Yes  | Courses, materials, quizzes                               |
 | /posts         | posts.ts             | Yes  | Safety reports, R2 images                                 |
 | /sites         | sites.ts             | Yes  | Site CRUD, memberships                                    |
@@ -121,66 +109,29 @@ const result = await db.select().from(users).where(eq(users.id, id));
 | security-headers.ts | HTTP security header injection               |
 | analytics.ts        | CF Analytics Engine, global `.use()` pattern |
 
-## LIB UTILITIES (24)
+## LIB UTILITIES (19)
 
-| File                     | Purpose                                                                |
-| ------------------------ | ---------------------------------------------------------------------- |
-| response.ts              | `success()`, `error()` response helpers                                |
-| jwt.ts                   | JWT sign/verify, token management                                      |
-| crypto.ts (95L)          | HMAC-SHA256→hex, AES-GCM→`iv:ciphertext:authTag` (base64), PII hashing |
-| audit.ts (182L)          | Audit trail logging, 47 action types                                   |
-| notification.ts          | Push notification dispatch                                             |
-| notification-triggers.ts | Event-driven notification triggers                                     |
-| push.ts                  | Web Push protocol implementation                                       |
-| web-push.ts              | Web Push subscription management                                       |
-| fas-mariadb.ts           | External FAS MariaDB connector                                         |
-| device-registrations.ts  | Device token management                                                |
-| rate-limit.ts            | Rate limiter utilities                                                 |
-| points-engine.ts         | Point calculation engine                                               |
-| state-machine.ts         | Post review: RECEIVED→IN_REVIEW→APPROVED/REJECTED/NEED_INFO            |
-| aceviewer-parser.ts      | AceViewer data parsing                                                 |
-| sql-js.d.ts              | sql.js type declarations                                               |
-| fas-sync.ts              | FAS employee data sync, hash/encrypt PII, upsert to D1                 |
-| aligo.ts (358L)          | Aligo SMS/notification service integration                             |
-| constants.ts             | Shared constant values                                                 |
-| image-privacy.ts (148L)  | EXIF stripping, image privacy processing                               |
-| key-manager.ts (108L)    | Encryption key management and rotation                                 |
-| logger.ts                | Structured logging utilities                                           |
-| observability.ts (111L)  | Request/response observability, tracing                                |
-| sync-lock.ts             | Distributed sync locking mechanism                                     |
-| piexifjs.d.ts            | piexifjs type declarations                                             |
-
-## VALIDATORS
-
-| File       | Purpose                                  |
-| ---------- | ---------------------------------------- |
-| schemas.ts | Zod validation schemas for API endpoints |
-
-## UTILS
-
-| File      | Purpose                  |
-| --------- | ------------------------ |
-| common.ts | Shared utility functions |
-
-## BINDINGS (wrangler.toml)
-
-| Binding        | Type | Name               | Usage                            |
-| -------------- | ---- | ------------------ | -------------------------------- |
-| DB             | D1   | safework2-db       | All database queries (Drizzle)   |
-| IMAGES         | R2   | safework2-images   | Post image upload/serve          |
-| STATIC         | R2   | safework2-static   | SPA static file hosting          |
-| ACETIME_BUCKET | R2   | safework2-acetime  | AceTime photo sync storage       |
-| SESSIONS       | KV   | safework2-sessions | Token storage (unused)           |
-| RATE_LIMITER   | DO   | RateLimiter        | Rate limiting (declared, unused) |
-| FAS_HYPERDRIVE | HD   | (env var)          | MariaDB proxy for FAS attendance |
-
-## CRON SCHEDULED JOBS
-
-| Schedule      | Purpose                    |
-| ------------- | -------------------------- |
-| `*/5 * * * *` | FAS attendance data sync   |
-| `0 0 1 * *`   | Monthly points calculation |
-| `0 3 * * 0`   | Sunday cleanup tasks       |
+| File                    | Purpose                                                                |
+| ----------------------- | ---------------------------------------------------------------------- |
+| response.ts             | `success()`, `error()` response helpers                                |
+| jwt.ts                  | JWT sign/verify, token management                                      |
+| crypto.ts (95L)         | HMAC-SHA256→hex, AES-GCM→`iv:ciphertext:authTag` (base64), PII hashing |
+| audit.ts (182L)         | Audit trail logging, 47 action types                                   |
+| fas-mariadb.ts          | External FAS MariaDB connector                                         |
+| fas-sync.ts             | FAS employee data sync, hash/encrypt PII, upsert to D1                 |
+| device-registrations.ts | Device token management                                                |
+| rate-limit.ts           | Rate limiter utilities                                                 |
+| points-engine.ts        | Point calculation engine                                               |
+| state-machine.ts        | Post review: RECEIVED→IN_REVIEW→APPROVED/REJECTED/NEED_INFO            |
+| aceviewer-parser.ts     | AceViewer data parsing                                                 |
+| constants.ts            | Shared constant values                                                 |
+| image-privacy.ts (148L) | EXIF stripping, image privacy processing                               |
+| key-manager.ts (108L)   | Encryption key management and rotation                                 |
+| logger.ts               | Structured logging utilities                                           |
+| observability.ts (111L) | Request/response observability, tracing                                |
+| sync-lock.ts            | Distributed sync locking mechanism                                     |
+| sql-js.d.ts             | sql.js type declarations                                               |
+| piexifjs.d.ts           | piexifjs type declarations                                             |
 
 ## ANTI-PATTERNS
 
