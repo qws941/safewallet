@@ -65,8 +65,17 @@ const nonEmptyStr = z.string().min(1).max(5000);
 
 export const RegisterSchema = z.object({
   name: nonEmptyStr,
-  phone: z.string().min(1),
-  dob: z.string().min(1),
+  phone: z
+    .string()
+    .transform((val) => val.replace(/[^0-9]/g, ""))
+    .refine((val) => val.length === 11, "Phone number must be 11 digits"),
+  dob: z
+    .string()
+    .transform((val) => val.replace(/[^0-9]/g, ""))
+    .refine(
+      (val) => val.length === 6 || val.length === 8,
+      "DOB must be 6 or 8 digits",
+    ),
   deviceId: z.string().optional(),
 });
 

@@ -187,12 +187,26 @@ async function runDataRetention(env: Env): Promise<void> {
 
   const systemUserId = await getOrCreateSystemUser(db);
 
+  const deletedActions = await db
+    .delete(actions)
+    .where(lt(actions.createdAt, cutoffDate))
+    .returning({ id: actions.id });
+
+  const deletedPosts = await db
+    .delete(posts)
+    .where(lt(posts.createdAt, cutoffDate))
+    .returning({ id: posts.id });
+
   const deletedAuditLogs = await db
     .delete(auditLogs)
     .where(lt(auditLogs.createdAt, cutoffDate))
     .returning({ id: auditLogs.id });
 
-  log.info("Deleted audit log entries", { count: deletedAuditLogs.length });
+  log.info("Deleted data retention entries", {
+    actions: deletedActions.length,
+    posts: deletedPosts.length,
+    auditLogs: deletedAuditLogs.length,
+  });
 
   await db.insert(auditLogs).values({
     actorId: systemUserId,
@@ -201,6 +215,8 @@ async function runDataRetention(env: Env): Promise<void> {
     targetId: cutoffDate.toISOString(),
     reason: JSON.stringify({
       cutoffDate: cutoffDate.toISOString(),
+      deletedActions: deletedActions.length,
+      deletedPosts: deletedPosts.length,
       deletedAuditLogs: deletedAuditLogs.length,
     }),
     ip: "SYSTEM",
@@ -665,7 +681,7 @@ export async function scheduled(
       await runMonthEndSnapshot(env);
     }
 
-    if (trigger === "0 3 * * 0") {
+    if (trigger === "0 3 * * 0" || trigger === "0 3 * * SUN") {
       await runDataRetention(env);
     }
 
