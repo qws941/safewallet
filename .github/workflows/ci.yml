@@ -87,7 +87,7 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
         env:
-          API_URL: https://safework2-api.jclee.workers.dev/api/
+          API_URL: https://safework2-api.jclee.workers.dev/api
           WORKER_APP_URL: https://safework2-worker.pages.dev
           ADMIN_APP_URL: https://safework2-admin.pages.dev
 
@@ -98,3 +98,4 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
