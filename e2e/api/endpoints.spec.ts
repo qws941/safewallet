@@ -10,7 +10,11 @@ test.describe("Auth Endpoints", () => {
   test("POST /auth/login with valid credentials returns 200 and tokens", async ({
     request,
   }) => {
-    const loginData = { name: "김선민", phone: "01076015830", dob: "19990308" };
+    const loginData = {
+      name: "테스트유저",
+      phone: "01012345678",
+      dob: "19950101",
+    };
     let response = await request.post("./auth/login", { data: loginData });
 
     if (response.status() === 429) {
@@ -39,7 +43,7 @@ test.describe("Auth Endpoints", () => {
 
   test("POST /auth/login returns user info in response", async () => {
     expect(loginUser).toBeDefined();
-    expect(loginUser.name).toBe("김선민");
+    expect(loginUser.name).toBe("테스트유저");
     expect(loginUser).toHaveProperty("id");
     expect(loginUser).toHaveProperty("role");
   });
@@ -54,7 +58,7 @@ test.describe("Auth Endpoints", () => {
 
     const meBody = await meRes.json();
     expect(meBody.success).toBe(true);
-    expect(meBody.data.user.name).toBe("김선민");
+    expect(meBody.data.user.name).toBe("테스트유저");
   });
 
   test("POST /auth/refresh with valid refresh token returns new tokens", async ({
@@ -115,9 +119,9 @@ test.describe("Auth Endpoints", () => {
   }) => {
     const response = await request.post("./auth/login", {
       data: {
-        name: "김선민",
-        phone: "01012345678",
-        dob: "19990308",
+        name: "테스트유저",
+        phone: "01000000000",
+        dob: "19950101",
       },
     });
     const status = response.status();
