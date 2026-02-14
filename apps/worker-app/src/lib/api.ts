@@ -64,14 +64,14 @@ export async function apiFetch<T>(
 }
 
 async function refreshToken(): Promise<boolean> {
-  const refreshToken = useAuthStore.getState().refreshToken;
-  if (!refreshToken) return false;
+  const storedRefreshToken = useAuthStore.getState().refreshToken;
+  if (!storedRefreshToken) return false;
 
   try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken: storedRefreshToken }),
     });
 
     if (!response.ok) return false;
