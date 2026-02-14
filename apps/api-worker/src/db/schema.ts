@@ -170,6 +170,7 @@ export const sites = sqliteTable("sites", {
   leaderboardEnabled: integer("leaderboard_enabled", { mode: "boolean" })
     .default(true)
     .notNull(),
+  autoNominationTopN: integer("auto_nomination_top_n").default(5).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),

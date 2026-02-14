@@ -1,6 +1,16 @@
 import type { Env } from "../types";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, sql, and, gte, lt, like, inArray, isNull } from "drizzle-orm";
+import {
+  eq,
+  sql,
+  and,
+  gte,
+  lt,
+  like,
+  inArray,
+  isNull,
+  desc,
+} from "drizzle-orm";
 import {
   pointsLedger,
   siteMemberships,
@@ -11,6 +21,7 @@ import {
   actions,
   posts,
   announcements,
+  voteCandidates,
 } from "../db/schema";
 import { dbBatchChunked } from "../db/helpers";
 import {
@@ -173,6 +184,133 @@ async function runMonthEndSnapshot(env: Env): Promise<void> {
   }
 
   log.info("Snapshot complete", { snapshotCount: balances.length });
+}
+
+// Processes PREVIOUS month (unlike runMonthEndSnapshot which processes current month)
+async function runAutoNomination(env: Env): Promise<void> {
+  const db = drizzle(env.DB);
+  const kstNow = getKSTDate();
+
+  const prevMonthDate = new Date(
+    kstNow.getFullYear(),
+    kstNow.getMonth() - 1,
+    1,
+  );
+  const prevMonth = formatSettleMonth(prevMonthDate);
+  const { start: monthStart, end: monthEnd } = getMonthRange(prevMonthDate);
+
+  log.info("Running auto-nomination", { month: prevMonth });
+
+  const systemUserId = await getOrCreateSystemUser(db);
+
+  const activeSites = await db
+    .select({
+      id: sites.id,
+      name: sites.name,
+      topN: sites.autoNominationTopN,
+    })
+    .from(sites)
+    .where(and(eq(sites.active, true), gte(sites.autoNominationTopN, 1)));
+
+  if (activeSites.length === 0) {
+    log.info("No sites with auto-nomination enabled");
+    return;
+  }
+
+  let totalNominated = 0;
+
+  for (const site of activeSites) {
+    const topEarners = await db
+      .select({
+        userId: pointsLedger.userId,
+        totalPoints: sql<number>`SUM(${pointsLedger.amount})`.as("totalPoints"),
+      })
+      .from(pointsLedger)
+      .where(
+        and(
+          eq(pointsLedger.siteId, site.id),
+          gte(pointsLedger.createdAt, monthStart),
+          lt(pointsLedger.createdAt, monthEnd),
+        ),
+      )
+      .groupBy(pointsLedger.userId)
+      .orderBy(desc(sql`SUM(${pointsLedger.amount})`))
+      .limit(site.topN);
+
+    if (topEarners.length === 0) {
+      log.info("No point earners for site", {
+        siteId: site.id,
+        siteName: site.name,
+      });
+      continue;
+    }
+
+    const activeMembers = await db
+      .select({ userId: siteMemberships.userId })
+      .from(siteMemberships)
+      .where(
+        and(
+          eq(siteMemberships.siteId, site.id),
+          eq(siteMemberships.status, "ACTIVE"),
+          inArray(
+            siteMemberships.userId,
+            topEarners.map((e) => e.userId),
+          ),
+        ),
+      );
+
+    const activeMemberIds = new Set(activeMembers.map((m) => m.userId));
+    const eligibleEarners = topEarners.filter((e) =>
+      activeMemberIds.has(e.userId),
+    );
+
+    if (eligibleEarners.length === 0) {
+      log.info("No eligible earners for site", { siteId: site.id });
+      continue;
+    }
+
+    const insertOps = eligibleEarners.map((earner) =>
+      db
+        .insert(voteCandidates)
+        .values({
+          id: crypto.randomUUID(),
+          siteId: site.id,
+          month: prevMonth,
+          userId: earner.userId,
+          source: "AUTO",
+        })
+        .onConflictDoNothing(),
+    );
+
+    await dbBatchChunked(db, insertOps);
+
+    totalNominated += eligibleEarners.length;
+    log.info("Auto-nominated candidates for site", {
+      siteId: site.id,
+      siteName: site.name,
+      count: eligibleEarners.length,
+      topN: site.topN,
+    });
+  }
+
+  await db.insert(auditLogs).values({
+    action: "AUTO_NOMINATE_CANDIDATES",
+    actorId: systemUserId,
+    targetType: "VOTE_CANDIDATE",
+    targetId: prevMonth,
+    reason: JSON.stringify({
+      month: prevMonth,
+      sitesProcessed: activeSites.length,
+      totalNominated,
+    }),
+    ip: "SYSTEM",
+  });
+
+  log.info("Auto-nomination complete", {
+    month: prevMonth,
+    sitesProcessed: activeSites.length,
+    totalNominated,
+  });
 }
 
 async function runDataRetention(env: Env): Promise<void> {
@@ -679,6 +817,7 @@ export async function scheduled(
 
     if (trigger === "0 0 1 * *") {
       await runMonthEndSnapshot(env);
+      await runAutoNomination(env);
     }
 
     if (trigger === "0 3 * * 0" || trigger === "0 3 * * SUN") {
