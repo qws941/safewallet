@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Button,
   Input,
@@ -47,7 +46,6 @@ function parseErrorMessage(err: unknown): string {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const {
     login,
     setCurrentSite,
@@ -63,10 +61,11 @@ export default function LoginPage() {
   const [dob, setDob] = useState("");
 
   useEffect(() => {
-    if (_hasHydrated && isAuthenticated) {
-      router.replace(currentSiteId ? "/home" : "/join");
+    // Skip redirect during active login submission to avoid duplicate navigation
+    if (_hasHydrated && isAuthenticated && !loading) {
+      window.location.replace(currentSiteId ? "/home/" : "/join/");
     }
-  }, [_hasHydrated, isAuthenticated, currentSiteId, router]);
+  }, [_hasHydrated, isAuthenticated, currentSiteId, loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +101,7 @@ export default function LoginPage() {
         siteId = null;
       }
 
-      router.replace(siteId ? "/home" : "/join");
+      window.location.replace(siteId ? "/home/" : "/join/");
     } catch (err) {
       setError(parseErrorMessage(err));
     } finally {

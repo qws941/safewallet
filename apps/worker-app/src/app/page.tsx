@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function RootPage() {
-  const router = useRouter();
   const { isAuthenticated, _hasHydrated } = useAuth();
 
   useEffect(() => {
     if (!_hasHydrated) return;
     if (!isAuthenticated) {
-      router.replace("/login");
+      window.location.replace("/login/");
     } else {
-      router.replace("/home");
+      window.location.replace("/home/");
     }
-  }, [isAuthenticated, _hasHydrated, router]);
+  }, [isAuthenticated, _hasHydrated]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -22,7 +22,6 @@ function isPublicPath(pathname: string) {
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { isAuthenticated, _hasHydrated } = useAuth();
@@ -30,9 +29,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!_hasHydrated) return;
     if (!isAuthenticated && !isPublicPath(pathname)) {
-      router.replace("/login");
+      window.location.replace("/login/");
     }
-  }, [isAuthenticated, _hasHydrated, pathname, router]);
+  }, [isAuthenticated, _hasHydrated, pathname]);
 
   // Clear React Query cache on logout to prevent stale data across sessions
   useEffect(() => {

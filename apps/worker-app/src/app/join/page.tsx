@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { apiFetch } from "@/lib/api";
 import type { ApiResponse } from "@safetywallet/types";
 
 export default function JoinSitePage() {
-  const router = useRouter();
   const { setCurrentSite, isAuthenticated, _hasHydrated } = useAuth();
   const [joinCode, setJoinCode] = useState("");
   const [error, setError] = useState("");
@@ -22,7 +20,7 @@ export default function JoinSitePage() {
   }
 
   if (!isAuthenticated) {
-    router.replace("/login");
+    window.location.replace("/login/");
     return null;
   }
 
@@ -40,7 +38,7 @@ export default function JoinSitePage() {
       });
 
       setCurrentSite(response.data.siteId);
-      router.replace("/home");
+      window.location.replace("/home/");
     } catch (err) {
       if (err && typeof err === "object" && "message" in err) {
         setError((err as { message: string }).message);
