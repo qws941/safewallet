@@ -8,6 +8,7 @@ import { authMiddleware } from "../middleware/auth";
 import { attendanceMiddleware } from "../middleware/attendance";
 import { success, error } from "../lib/response";
 import { logAuditWithContext } from "../lib/audit";
+import { hammingDistance, DUPLICATE_THRESHOLD } from "../lib/phash";
 import { CreatePostSchema } from "../validators/schemas";
 import {
   posts,
@@ -157,6 +158,41 @@ app.post("/", validateJson("json", CreatePostSchema), async (c) => {
         : true
       : false;
 
+  // pHash-based image duplicate detection
+  let imageDuplicate = false;
+  const hashes = Array.isArray(data.imageHashes) ? data.imageHashes : [];
+  if (hashes.some((h: string | null) => h)) {
+    const recentImages = await db
+      .select({ imageHash: postImages.imageHash, postId: postImages.postId })
+      .from(postImages)
+      .innerJoin(posts, eq(posts.id, postImages.postId))
+      .where(
+        and(
+          eq(posts.siteId, data.siteId),
+          sql`${posts.createdAt} >= ${cutoff}`,
+          sql`${postImages.imageHash} IS NOT NULL`,
+        ),
+      )
+      .all();
+
+    for (const hash of hashes) {
+      if (!hash) continue;
+      for (const recent of recentImages) {
+        if (
+          recent.imageHash &&
+          hammingDistance(hash, recent.imageHash) <= DUPLICATE_THRESHOLD
+        ) {
+          imageDuplicate = true;
+          break;
+        }
+      }
+      if (imageDuplicate) break;
+    }
+  }
+
+  // Combine all duplicate signals
+  const finalIsPotentialDuplicate = isPotentialDuplicate || imageDuplicate;
+
   const insertPostQuery = db.insert(posts).values({
     id: postId,
     userId: user.id,
@@ -171,18 +207,19 @@ app.post("/", validateJson("json", CreatePostSchema), async (c) => {
     locationDetail: data.locationDetail,
     isAnonymous: data.isAnonymous,
     metadata: data.metadata,
-    isPotentialDuplicate,
+    isPotentialDuplicate: finalIsPotentialDuplicate,
     duplicateOfPostId,
   });
 
   const imageInsertQueries = Array.isArray(data.imageUrls)
     ? data.imageUrls
         .filter((fileUrl: string) => Boolean(fileUrl))
-        .map((fileUrl: string) =>
+        .map((fileUrl: string, idx: number) =>
           db.insert(postImages).values({
             postId,
             fileUrl,
             thumbnailUrl: null,
+            imageHash: hashes[idx] ?? null,
           }),
         )
     : [];

@@ -113,6 +113,7 @@ export const CreatePostSchema = z.object({
   visibility: z.enum(Visibility).optional(),
   isAnonymous: z.boolean().optional(),
   imageUrls: z.array(z.string()).optional(),
+  imageHashes: z.array(z.string().nullable()).optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
