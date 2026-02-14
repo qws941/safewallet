@@ -3,6 +3,7 @@ import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { success, error } from "../lib/response";
 import { processImageForPrivacy } from "../lib/image-privacy";
+import { computeImageHash } from "../lib/phash";
 import { log, startTimer } from "../lib/observability";
 import { trackEvent } from "../middleware/analytics";
 
@@ -99,6 +100,21 @@ app.post("/upload", async (c) => {
       },
     });
 
+    // Compute perceptual hash for duplicate detection
+    let imageHash: string | null = null;
+    try {
+      imageHash = await computeImageHash(processedBuffer);
+    } catch (hashErr) {
+      log.warn("Failed to compute image hash", {
+        action: "phash_failed",
+        userId: user.id,
+        metadata: {
+          filename,
+          error: hashErr instanceof Error ? hashErr.message : "unknown",
+        },
+      });
+    }
+
     const fileUrl = `/r2/${filename}`;
 
     // Track analytics
@@ -126,6 +142,7 @@ app.post("/upload", async (c) => {
     return success(c, {
       fileUrl,
       filename,
+      imageHash,
       originalSize: file.size,
       processedSize: processedBuffer.byteLength,
       privacyProcessed: privacyMetadata["privacy-processed"] === "true",

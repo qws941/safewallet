@@ -285,12 +285,14 @@ export const postImages = sqliteTable(
       .references(() => posts.id, { onDelete: "cascade" }),
     fileUrl: text("file_url").notNull(),
     thumbnailUrl: text("thumbnail_url"),
+    imageHash: text("image_hash"),
     createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
       () => new Date(),
     ),
   },
   (table) => ({
     postIdIdx: index("post_images_post_id_idx").on(table.postId),
+    imageHashIdx: index("post_images_hash_idx").on(table.imageHash),
   }),
 );
 
