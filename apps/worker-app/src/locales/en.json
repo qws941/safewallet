@@ -1,0 +1,274 @@
+{
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "phoneNumber": "Phone Number",
+    "name": "Name",
+    "dateOfBirth": "Date of Birth",
+    "site": "Site",
+    "selectSite": "Select a site",
+    "noSitesAvailable": "No assigned sites available",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "loginButton": "Login",
+    "registerButton": "Register",
+    "switchToRegister": "Register",
+    "switchToLogin": "Login",
+    "or": "or",
+    "faceIdLogin": "Login with Face ID",
+    "error": {
+      "emptyPhone": "Please enter a phone number",
+      "invalidPhone": "Please enter a valid phone number",
+      "emptyName": "Please enter your name",
+      "emptyDob": "Please enter your date of birth",
+      "emptyPassword": "Please enter a password",
+      "passwordMismatch": "Passwords do not match",
+      "weakPassword": "Password must be at least 6 characters",
+      "accountNotFound": "Account not found",
+      "invalidCredentials": "Invalid phone number or password",
+      "accountLocked": "Account is locked. Please contact support",
+      "tooManyAttempts": "Too many attempts. Please try again later",
+      "networkError": "Network error occurred",
+      "unknown": "An unknown error occurred"
+    },
+    "success": {
+      "loginSuccess": "Login successful",
+      "registerSuccess": "Registration successful"
+    }
+  },
+  "home": {
+    "title": "Home",
+    "welcome": "Welcome",
+    "myPoints": "My Points",
+    "myRank": "My Rank",
+    "recentReports": "Recent Reports",
+    "noReports": "No reports",
+    "viewAll": "View All",
+    "announcements": "Announcements",
+    "noAnnouncements": "No announcements"
+  },
+  "nav": {
+    "home": "Home",
+    "education": "Education",
+    "create": "Create",
+    "actions": "Actions",
+    "profile": "Profile"
+  },
+  "posts": {
+    "title": "Safety Reports",
+    "new": "New Report",
+    "createReport": "Create Report",
+    "selectCategory": "Select a category",
+    "category": {
+      "hazard": "Hazard",
+      "unsafeBehavior": "Unsafe Behavior",
+      "inconvenience": "Inconvenience",
+      "suggestion": "Suggestion",
+      "bestPractice": "Best Practice"
+    },
+    "title_field": "Title",
+    "description": "Description",
+    "location": "Location",
+    "date": "Date",
+    "time": "Time",
+    "addPhoto": "Add Photo",
+    "removePhoto": "Remove Photo",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error": {
+      "emptyTitle": "Please enter a title",
+      "emptyCategory": "Please select a category",
+      "emptyDescription": "Please enter a description",
+      "uploadFailed": "Upload failed",
+      "invalidImage": "Please select a valid image file"
+    },
+    "success": {
+      "submitted": "Report submitted successfully"
+    },
+    "detail": {
+      "status": "Status",
+      "createdBy": "Created By",
+      "createdAt": "Created At",
+      "category": "Category",
+      "approvalStatus": {
+        "pending": "Pending Review",
+        "inReview": "In Review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "needInfo": "Need Information"
+      }
+    },
+    "list": {
+      "myReports": "My Reports",
+      "allReports": "All Reports",
+      "noReports": "No reports",
+      "filter": "Filter",
+      "sort": "Sort"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "name": "Name",
+    "phone": "Phone Number",
+    "dateOfBirth": "Date of Birth",
+    "site": "Site",
+    "joinDate": "Join Date",
+    "logout": "Logout",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "actions": {
+      "editProfile": "Edit Profile",
+      "changePassword": "Change Password",
+      "logOut": "Logout"
+    },
+    "logoutConfirm": "Are you sure you want to logout?"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "noAnnouncements": "No announcements",
+    "type": {
+      "notice": "Notice",
+      "update": "Update",
+      "emergency": "Emergency"
+    },
+    "readMore": "Read More"
+  },
+  "education": {
+    "title": "Education",
+    "contentTypes": {
+      "quiz": "Quiz",
+      "tbm": "TBM",
+      "training": "Training",
+      "video": "Video",
+      "document": "Document"
+    },
+    "myLearning": "My Learning",
+    "completedCourses": "Completed Courses",
+    "availableCourses": "Available Courses",
+    "noCourses": "No courses",
+    "progress": "Progress",
+    "completed": "Completed",
+    "notStarted": "Not Started",
+    "inProgress": "In Progress",
+    "startCourse": "Start Course",
+    "continueCourse": "Continue Learning",
+    "completeCourse": "Complete Course",
+    "score": "Score",
+    "passScore": "Pass Score",
+    "yourScore": "Your Score",
+    "passed": "Passed",
+    "failed": "Failed",
+    "retake": "Retake",
+    "viewCertificate": "View Certificate",
+    "quiz": {
+      "question": "Question",
+      "answer": "Answer",
+      "submit": "Submit",
+      "next": "Next",
+      "previous": "Previous",
+      "finish": "Finish",
+      "results": "Results",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "youAnswered": "Your Answer"
+    },
+    "tbm": {
+      "toolBoxMeeting": "Tool Box Meeting",
+      "date": "Date",
+      "presenter": "Presenter",
+      "topic": "Topic",
+      "attendance": "Attendance"
+    }
+  },
+  "actions": {
+    "title": "Corrective Actions",
+    "correctiveActions": "Corrective Actions",
+    "noActions": "No actions",
+    "status": {
+      "assigned": "Assigned",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "verified": "Verified",
+      "overdue": "Overdue"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "assignedTo": "Assigned To",
+    "dueDate": "Due Date",
+    "completedDate": "Completed Date",
+    "description": "Description",
+    "comment": "Comment",
+    "addComment": "Add Comment",
+    "viewDetails": "View Details",
+    "updateStatus": "Update Status",
+    "markAsComplete": "Mark as Complete",
+    "markAsVerified": "Mark as Verified"
+  },
+  "points": {
+    "title": "Points",
+    "myPoints": "My Points",
+    "ranking": "Ranking",
+    "totalPoints": "Total Points",
+    "monthlyPoints": "Monthly Points",
+    "leaderboard": "Leaderboard",
+    "noHistory": "No point history",
+    "earnedFrom": "Earned From",
+    "date": "Date",
+    "amount": "Points"
+  },
+  "votes": {
+    "title": "Recommendations",
+    "recommendation": "Recommendation",
+    "recommend": "Recommend",
+    "unrecommend": "Unrecommend",
+    "recommendedBy": "Recommended By",
+    "recommendationCount": "Recommendation Count",
+    "noVotes": "No recommendations",
+    "thankYou": "Thank you for your recommendation"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "retry": "Retry",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "select": "Select",
+    "deselect": "Deselect",
+    "all": "All",
+    "none": "None",
+    "empty": "Empty",
+    "noData": "No data",
+    "errorOccurred": "An error occurred",
+    "tryAgain": "Please try again",
+    "networkError": "Network error",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Access denied",
+    "notFound": "Not found",
+    "serverError": "Server error",
+    "unsafeWarning": "Unsafe situation detected",
+    "confirmDelete": "Are you sure you want to delete?",
+    "confirmLogout": "Are you sure you want to logout?"
+  }
+}

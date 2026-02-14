@@ -11,6 +11,7 @@ import {
   CardDescription,
 } from "@safetywallet/ui";
 import { useAuth } from "@/hooks/use-auth";
+import { useTranslation } from "@/hooks/use-translation";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import type {
@@ -19,35 +20,35 @@ import type {
   MeResponseDto,
 } from "@safetywallet/types";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  USER_NOT_FOUND: "등록되지 않은 사용자입니다. 현장 관리자에게 문의하세요.",
-  NAME_MISMATCH: "이름이 일치하지 않습니다. 다시 확인해주세요.",
-  ATTENDANCE_NOT_VERIFIED:
-    "오늘 출근 기록이 없습니다. 출입 후 다시 시도하세요.",
-  ACCOUNT_LOCKED: "계정이 일시 잠금되었습니다. 30분 후 다시 시도하세요.",
-  RATE_LIMIT_EXCEEDED: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+const ERROR_CODES: Record<string, string> = {
+  USER_NOT_FOUND: "auth.error.accountNotFound",
+  NAME_MISMATCH: "auth.error.invalidCredentials",
+  ATTENDANCE_NOT_VERIFIED: "auth.error.accountLocked",
+  ACCOUNT_LOCKED: "auth.error.accountLocked",
+  RATE_LIMIT_EXCEEDED: "auth.error.tooManyAttempts",
 };
 
-function parseErrorMessage(err: unknown): string {
+function parseErrorMessage(err: unknown, t: (key: string) => string): string {
   if (err instanceof Error) {
     try {
       const parsed = JSON.parse(err.message);
       const code = parsed?.error?.code;
-      if (code && ERROR_MESSAGES[code]) {
-        return ERROR_MESSAGES[code];
+      if (code && ERROR_CODES[code]) {
+        return t(ERROR_CODES[code]);
       }
       if (parsed?.error?.message) {
         return parsed.error.message;
       }
     } catch {
-      return err.message || "로그인에 실패했습니다.";
+      return t("auth.error.unknown");
     }
   }
-  return "로그인에 실패했습니다.";
+  return t("auth.error.unknown");
 }
 
 export default function LoginPage() {
   const { login, setCurrentSite, isAuthenticated, _hasHydrated } = useAuth();
+  const t = useTranslation();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -96,7 +97,7 @@ export default function LoginPage() {
 
       window.location.replace("/home/");
     } catch (err) {
-      setError(parseErrorMessage(err));
+      setError(parseErrorMessage(err, t));
     } finally {
       setLoading(false);
     }
@@ -112,14 +113,14 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">안전지갑</CardTitle>
-          <CardDescription>본인 확인을 위해 정보를 입력하세요</CardDescription>
+          <CardTitle className="text-2xl">{t("auth.loginPageTitle")}</CardTitle>
+          <CardDescription>{t("auth.loginPageSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="phone" className="text-sm font-medium">
-                전화번호
+                {t("auth.phoneNumber")}
               </label>
               <Input
                 id="phone"
@@ -134,7 +135,7 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
-                이름
+                {t("auth.name")}
               </label>
               <Input
                 id="name"
@@ -148,7 +149,7 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <label htmlFor="dob" className="text-sm font-medium">
-                생년월일
+                {t("auth.dateOfBirth")}
               </label>
               <Input
                 id="dob"
@@ -171,19 +172,19 @@ export default function LoginPage() {
               className="w-full"
               disabled={loading || !isFormValid}
             >
-              {loading ? "확인 중..." : "로그인"}
+              {loading ? t("common.loading") : t("auth.loginButton")}
             </Button>
 
             <p className="text-xs text-muted-foreground text-center mt-4">
-              등록된 전화번호, 이름, 생년월일로 로그인합니다.
+              {t("auth.loginPageHint")}
               <br />
-              최초 이용 시 출근 기록이 필요할 수 있습니다.
+              {t("auth.loginPageNote")}
             </p>
 
             <p className="text-sm text-muted-foreground text-center">
-              계정이 없으신가요?{" "}
+              {t("auth.noAccount")}{" "}
               <Link href="/register" className="text-primary underline">
-                회원가입
+                {t("auth.switchToRegister")}
               </Link>
             </p>
           </form>

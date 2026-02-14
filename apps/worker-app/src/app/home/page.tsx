@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useTranslation } from "@/hooks/use-translation";
 import { usePosts, usePoints } from "@/hooks/use-api";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
 import { Header } from "@/components/header";
@@ -34,6 +35,7 @@ interface AttendanceStatus {
 
 export default function HomePage() {
   const { currentSiteId } = useAuth();
+  const t = useTranslation();
   const { data: postsData, isLoading: postsLoading } = usePosts(
     currentSiteId || "",
   );
@@ -88,7 +90,7 @@ export default function HomePage() {
         <main className="p-4 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
           <div className="text-4xl">🏗️</div>
           <h2 className="text-lg font-semibold text-gray-700">
-            현장이 배정되지 않았습니다
+            {t("auth.noSitesAvailable")}
           </h2>
           <p className="text-sm text-muted-foreground max-w-xs">
             관리자에게 현장 배정을 요청해 주세요. 배정 후 앱을 다시 열어주시면
@@ -152,7 +154,7 @@ export default function HomePage() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-4 text-center">
                 <div className="text-2xl mb-1">📢</div>
-                <div className="text-sm font-medium">안전제보</div>
+                <div className="text-sm font-medium">{t("posts.title")}</div>
               </CardContent>
             </Card>
           </Link>
@@ -160,7 +162,7 @@ export default function HomePage() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-4 text-center">
                 <div className="text-2xl mb-1">📣</div>
-                <div className="text-sm font-medium">공지사항</div>
+                <div className="text-sm font-medium">{t("announcements.title")}</div>
               </CardContent>
             </Card>
           </Link>
@@ -168,7 +170,7 @@ export default function HomePage() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-4 text-center">
                 <Award className="h-6 w-6 mx-auto mb-1 text-yellow-500" />
-                <div className="text-sm font-medium">우수근로자</div>
+                <div className="text-sm font-medium">{t("votes.title")}</div>
               </CardContent>
             </Card>
           </Link>
@@ -177,9 +179,9 @@ export default function HomePage() {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">최근 내 제보</CardTitle>
+              <CardTitle className="text-base">{t("home.recentReports")}</CardTitle>
               <Link href="/posts" className="text-sm text-primary">
-                전체보기
+                {t("home.viewAll")}
               </Link>
             </div>
           </CardHeader>
@@ -197,7 +199,7 @@ export default function HomePage() {
               </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                아직 제보한 내역이 없습니다.
+                {t("home.noReports")}
               </p>
             )}
           </CardContent>

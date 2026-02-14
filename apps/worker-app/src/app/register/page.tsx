@@ -11,35 +11,37 @@ import {
   CardTitle,
   CardDescription,
 } from "@safetywallet/ui";
+import { useTranslation } from "@/hooks/use-translation";
 import { apiFetch } from "@/lib/api";
 import type { ApiResponse } from "@safetywallet/types";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  USER_EXISTS: "이미 등록된 사용자입니다. 로그인 페이지로 이동해주세요.",
-  DEVICE_LIMIT: "이 기기에서 더 이상 계정을 만들 수 없습니다.",
-  MISSING_FIELDS: "모든 항목을 입력해주세요.",
-  RATE_LIMIT_EXCEEDED: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+const ERROR_CODES: Record<string, string> = {
+  USER_EXISTS: "auth.error.accountNotFound",
+  DEVICE_LIMIT: "auth.error.accountLocked",
+  MISSING_FIELDS: "common.noData",
+  RATE_LIMIT_EXCEEDED: "auth.error.tooManyAttempts",
 };
 
-function parseErrorMessage(err: unknown): string {
+function parseErrorMessage(err: unknown, t: (key: string) => string): string {
   if (err instanceof Error) {
     try {
       const parsed = JSON.parse(err.message);
       const code = parsed?.error?.code;
-      if (code && ERROR_MESSAGES[code]) {
-        return ERROR_MESSAGES[code];
+      if (code && ERROR_CODES[code]) {
+        return t(ERROR_CODES[code]);
       }
       if (parsed?.error?.message) {
         return parsed.error.message;
       }
     } catch {
-      return err.message || "회원가입에 실패했습니다.";
+      return t("auth.error.unknown");
     }
   }
-  return "회원가입에 실패했습니다.";
+  return t("auth.error.unknown");
 }
 
 export default function RegisterPage() {
+  const t = useTranslation();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -66,7 +68,7 @@ export default function RegisterPage() {
 
       setSuccess(true);
     } catch (err) {
-      setError(parseErrorMessage(err));
+      setError(parseErrorMessage(err, t));
     } finally {
       setLoading(false);
     }
@@ -80,14 +82,14 @@ export default function RegisterPage() {
       <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50">
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">가입 완료</CardTitle>
+            <CardTitle className="text-2xl">{t("auth.success.registerSuccess")}</CardTitle>
             <CardDescription>
-              회원가입이 완료되었습니다. 로그인해주세요.
+              {t("common.ok")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/login">
-              <Button className="w-full">로그인하기</Button>
+              <Button className="w-full">{t("auth.loginButton")}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -99,14 +101,14 @@ export default function RegisterPage() {
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">회원가입</CardTitle>
-          <CardDescription>신규 사용자 등록</CardDescription>
+          <CardTitle className="text-2xl">{t("auth.register")}</CardTitle>
+          <CardDescription>{t("auth.register")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
-                이름
+                {t("auth.name")}
               </label>
               <Input
                 id="name"
@@ -120,7 +122,7 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-2">
               <label htmlFor="phone" className="text-sm font-medium">
-                전화번호
+                {t("auth.phoneNumber")}
               </label>
               <Input
                 id="phone"
@@ -135,7 +137,7 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-2">
               <label htmlFor="dob" className="text-sm font-medium">
-                생년월일
+                {t("auth.dateOfBirth")}
               </label>
               <Input
                 id="dob"
@@ -158,13 +160,13 @@ export default function RegisterPage() {
               className="w-full"
               disabled={loading || !isFormValid}
             >
-              {loading ? "처리 중..." : "가입하기"}
+              {loading ? t("common.loading") : t("auth.registerButton")}
             </Button>
 
             <p className="text-sm text-muted-foreground text-center mt-4">
-              이미 계정이 있으신가요?{" "}
+              {t("common.ok")}{" "}
               <Link href="/login" className="text-primary underline">
-                로그인
+                {t("auth.switchToLogin")}
               </Link>
             </p>
           </form>

@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
 import { BookOpen } from "lucide-react";
 
-const navItems = [
-  { href: "/home", label: "홈", icon: HomeIcon },
-  { href: "/education", label: "교육", icon: BookOpen },
-  { href: "/posts/new", label: "", icon: PlusIcon, isCenter: true },
-  { href: "/actions", label: "시정조치", icon: ClipboardCheckIcon },
-  { href: "/profile", label: "프로필", icon: UserIcon },
-];
-
 export function BottomNav() {
   const pathname = usePathname();
+  const t = useTranslation();
+
+  const navItems = [
+    { href: "/home", label: "nav.home", icon: HomeIcon },
+    { href: "/education", label: "nav.education", icon: BookOpen },
+    { href: "/posts/new", label: "", icon: PlusIcon, isCenter: true },
+    { href: "/actions", label: "nav.actions", icon: ClipboardCheckIcon },
+    { href: "/profile", label: "nav.profile", icon: UserIcon },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-bottom">
@@ -45,7 +47,7 @@ export function BottomNav() {
               )}
             >
               <Icon className="w-5 h-5 mb-1" />
-              <span>{item.label}</span>
+              <span>{item.label ? t(item.label) : ''}</span>
             </Link>
           );
         })}
