@@ -35,6 +35,7 @@ const navItems = [
   { href: "/actions", label: "조치 현황", icon: ClipboardList },
   { href: "/announcements", label: "공지사항", icon: Megaphone },
   { href: "/education", label: "안전교육", icon: GraduationCap },
+  { href: "/rewards", label: "포상 관리", icon: Trophy },
   { href: "/votes/candidates", label: "투표 후보 관리", icon: Trophy },
   { href: "/settings", label: "설정", icon: Settings },
   { href: "/monitoring", label: "운영 모니터링", icon: Activity },

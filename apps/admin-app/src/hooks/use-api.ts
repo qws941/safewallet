@@ -12,3 +12,4 @@ export * from "./use-points-api";
 export * from "./use-education-api";
 export * from "./use-sites-api";
 export * from "./use-monitoring-api";
+export * from "./use-rewards";
