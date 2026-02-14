@@ -161,6 +161,68 @@ app.get("/:id/members", async (c) => {
   });
 });
 
+app.post("/join", async (c) => {
+  const db = drizzle(c.env.DB);
+  const { user } = c.get("auth");
+  const { joinCode } = await c.req.json<{ joinCode: string }>();
+
+  if (!joinCode || typeof joinCode !== "string") {
+    return error(c, "INVALID_JOIN_CODE", "참여 코드를 입력해주세요", 400);
+  }
+
+  const code = joinCode.trim().toUpperCase();
+
+  const site = await db
+    .select()
+    .from(sites)
+    .where(and(eq(sites.joinCode, code), eq(sites.active, true)))
+    .get();
+
+  if (!site) {
+    return error(c, "SITE_NOT_FOUND", "유효하지 않은 참여 코드입니다", 404);
+  }
+
+  const existing = await db
+    .select()
+    .from(siteMemberships)
+    .where(
+      and(
+        eq(siteMemberships.userId, user.id),
+        eq(siteMemberships.siteId, site.id),
+      ),
+    )
+    .get();
+
+  if (existing) {
+    if (existing.status === "ACTIVE") {
+      return error(
+        c,
+        "ALREADY_MEMBER",
+        "이미 해당 현장에 소속되어 있습니다",
+        409,
+      );
+    }
+
+    await db
+      .update(siteMemberships)
+      .set({ status: "ACTIVE", leftAt: null, leftReason: null })
+      .where(eq(siteMemberships.id, existing.id))
+      .run();
+
+    return success(c, { siteId: site.id, siteName: site.name });
+  }
+
+  await db.insert(siteMemberships).values({
+    id: crypto.randomUUID(),
+    userId: user.id,
+    siteId: site.id,
+    role: "WORKER",
+    status: "ACTIVE",
+  });
+
+  return success(c, { siteId: site.id, siteName: site.name });
+});
+
 app.post("/", zValidator("json", CreateSiteSchema as never), async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");

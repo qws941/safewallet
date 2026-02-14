@@ -48,7 +48,13 @@ function parseErrorMessage(err: unknown): string {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, setCurrentSite, isAuthenticated, _hasHydrated } = useAuth();
+  const {
+    login,
+    setCurrentSite,
+    currentSiteId,
+    isAuthenticated,
+    _hasHydrated,
+  } = useAuth();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -58,9 +64,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (_hasHydrated && isAuthenticated) {
-      router.replace("/home");
+      router.replace(currentSiteId ? "/home" : "/join");
     }
-  }, [_hasHydrated, isAuthenticated, router]);
+  }, [_hasHydrated, isAuthenticated, currentSiteId, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,18 +89,20 @@ export default function LoginPage() {
       const data = response.data;
 
       login(data.user, data.accessToken, data.refreshToken);
+      let siteId: string | null = null;
 
       try {
         const meResponse =
           await apiFetch<ApiResponse<MeResponseDto>>("/auth/me");
         if (meResponse.data.siteId) {
           setCurrentSite(meResponse.data.siteId);
+          siteId = meResponse.data.siteId;
         }
       } catch {
-        // Non-blocking: site can be set later, proceed to home
+        siteId = null;
       }
 
-      router.replace("/home");
+      router.replace(siteId ? "/home" : "/join");
     } catch (err) {
       setError(parseErrorMessage(err));
     } finally {

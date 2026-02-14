@@ -12,7 +12,13 @@ function normalizePath(p: string) {
 
 function isPublicPath(pathname: string) {
   const p = normalizePath(pathname);
-  return p === "/" || p === "/login" || p.startsWith("/login/");
+  return (
+    p === "/" ||
+    p === "/login" ||
+    p.startsWith("/login/") ||
+    p === "/join" ||
+    p.startsWith("/join/")
+  );
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
