@@ -14,6 +14,7 @@ import { hmac, decrypt, encrypt, verifyPassword } from "../lib/crypto";
 import { signJwt } from "../lib/jwt";
 import { logAuditWithContext } from "../lib/audit";
 import { success, error } from "../lib/response";
+import { createLogger } from "../lib/logger";
 import {
   fasSearchEmployeeByPhone,
   fasGetEmployeeInfo,
@@ -190,6 +191,8 @@ function resolveDeviceId(c: Context, bodyDeviceId?: string): string | null {
     c.req.header("deviceId");
   return normalizeDeviceId(bodyDeviceId ?? headerDeviceId);
 }
+
+const logger = createLogger("auth");
 
 const auth = new Hono<{ Bindings: Env; Variables: { auth: AuthContext } }>();
 

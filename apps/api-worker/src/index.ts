@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { logger as honoLogger } from "hono/logger";
 import { drizzle } from "drizzle-orm/d1";
 import { fasGetAllEmployeesPaginated } from "./lib/fas-mariadb";
 import {
@@ -34,11 +34,13 @@ import { analyticsMiddleware } from "./middleware/analytics";
 
 import { createLogger } from "./lib/logger";
 
+
+const logger = createLogger("index");
 const app = new Hono<{ Bindings: Env }>();
 
 app.use("*", securityHeaders);
 app.use("*", analyticsMiddleware);
-app.use("*", logger());
+app.use("*", honoLogger());
 app.use(
   "*",
   cors({

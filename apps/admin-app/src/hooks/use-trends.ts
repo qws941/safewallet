@@ -2,24 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-
-interface TrendDataPointDto {
-  date: string;
-  count: number;
-  category?: string;
-}
-
-interface TrendFilterDto {
-  startDate: string;
-  endDate: string;
-  siteId?: string;
-}
-
-interface PointsDistributionDto {
-  reasonCode: string;
-  totalAmount: number;
-  count: number;
-}
+import type {
+  TrendDataPointDto,
+  TrendFilterDto,
+  PointsDistributionDto,
+} from "@safetywallet/types";
 
 function buildTrendParams(filter: TrendFilterDto): string {
   const params = new URLSearchParams();

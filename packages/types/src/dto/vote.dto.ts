@@ -1,10 +1,12 @@
+import type { VoteCandidateSource } from "../enums";
+
 export interface VoteCandidateDto {
   id: string;
   siteId: string;
   month: string; // YYYY-MM
   userId: string;
   userName?: string;
-  source: "ADMIN" | "AUTO";
+  source: VoteCandidateSource;
   nominatedAt: string;
   voteCount?: number;
 }
@@ -13,7 +15,7 @@ export interface CreateVoteCandidateDto {
   userId: string;
   siteId: string;
   month: string; // YYYY-MM
-  source?: "ADMIN" | "AUTO";
+  source?: VoteCandidateSource;
 }
 
 export interface VoteResultDto {

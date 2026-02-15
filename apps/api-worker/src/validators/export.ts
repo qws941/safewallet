@@ -21,12 +21,14 @@ const DateStringSchema = z
  */
 export const ExportPostsQuerySchema = z.object({
   format: z.enum(["csv"]).default("csv"),
-  siteId: z.string().uuid().optional(),
+  site: z.string().uuid().optional(),
+  category: z.string().optional(),
   status: z
-    .enum(["RECEIVED", "IN_REVIEW", "APPROVED", "REJECTED", "NEED_INFO"])
+    .enum(["PENDING", "RECEIVED", "IN_REVIEW", "APPROVED", "REJECTED", "NEED_INFO"])
     .optional(),
-  from: DateStringSchema.optional(),
-  to: DateStringSchema.optional(),
+  startDate: DateStringSchema.optional(),
+  endDate: DateStringSchema.optional(),
+  withContent: z.boolean().optional().default(false),
   page: z
     .string()
     .optional()
@@ -42,10 +44,11 @@ export const ExportPostsQuerySchema = z.object({
  */
 export const ExportUsersQuerySchema = z.object({
   format: z.enum(["csv"]).default("csv"),
-  siteId: z.string().uuid().optional(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-  from: DateStringSchema.optional(),
-  to: DateStringSchema.optional(),
+  search: z.string().optional(),
+  site: z.string().uuid().optional(),
+  role: z.string().optional(),
+  startDate: DateStringSchema.optional(),
+  endDate: DateStringSchema.optional(),
   page: z
     .string()
     .optional()
@@ -61,9 +64,10 @@ export const ExportUsersQuerySchema = z.object({
  */
 export const ExportAttendanceQuerySchema = z.object({
   format: z.enum(["csv"]).default("csv"),
-  siteId: z.string().uuid().optional(),
-  from: DateStringSchema.optional(),
-  to: DateStringSchema.optional(),
+  site: z.string().uuid().optional(),
+  userId: z.string().optional(),
+  startDate: DateStringSchema.optional(),
+  endDate: DateStringSchema.optional(),
   page: z
     .string()
     .optional()

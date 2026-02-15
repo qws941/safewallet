@@ -18,6 +18,7 @@ import {
   reviewStatusEnum,
 } from "../../db/schema";
 import { success, error } from "../../lib/response";
+import { createLogger } from "../../lib/logger";
 import {
   AdminReviewPostSchema,
   AdminManualApprovalSchema,
@@ -25,6 +26,8 @@ import {
 } from "../../validators/schemas";
 import { AppContext, requireManagerOrAdmin, getTodayRange } from "./helpers";
 import { dbBatchChunked } from "../../db/helpers";
+
+const logger = createLogger("admin/posts");
 
 const app = new Hono<{
   Bindings: Env;

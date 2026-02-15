@@ -6,16 +6,114 @@ const API_BASE_URL =
 
 interface FetchOptions extends RequestInit {
   skipAuth?: boolean;
+  /** If true, queue the request when offline instead of throwing */
+  offlineQueue?: boolean;
 }
 
 // Mutex for concurrent token refresh (prevents race conditions)
 let refreshPromise: Promise<boolean> | null = null;
 
+// ─── Offline Submission Queue ───────────────────────────────
+
+export interface QueuedRequest {
+  id: string;
+  endpoint: string;
+  options: { method?: string; body?: string; headers?: Record<string, string> };
+  createdAt: string;
+  retryCount: number;
+}
+
+const QUEUE_KEY = "safework2_offline_queue";
+
+function getQueue(): QueuedRequest[] {
+  try {
+    const raw = localStorage.getItem(QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveQueue(queue: QueuedRequest[]): void {
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+}
+
+function enqueue(endpoint: string, options: FetchOptions): void {
+  const queue = getQueue();
+  queue.push({
+    id: crypto.randomUUID(),
+    endpoint,
+    options: {
+      method: options.method,
+      body: typeof options.body === "string" ? options.body : undefined,
+      headers: options.headers as Record<string, string> | undefined,
+    },
+    createdAt: new Date().toISOString(),
+    retryCount: 0,
+  });
+  saveQueue(queue);
+}
+
+/** Replay all queued requests. Call when coming back online. */
+export async function flushOfflineQueue(): Promise<{
+  succeeded: number;
+  failed: number;
+}> {
+  const queue = getQueue();
+  if (queue.length === 0) return { succeeded: 0, failed: 0 };
+
+  let succeeded = 0;
+  let failed = 0;
+  const remaining: QueuedRequest[] = [];
+
+  for (const item of queue) {
+    try {
+      await apiFetch(item.endpoint, {
+        method: item.options.method,
+        body: item.options.body,
+        headers: item.options.headers,
+      });
+      succeeded++;
+    } catch {
+      item.retryCount++;
+      if (item.retryCount < 5) {
+        remaining.push(item);
+      }
+      failed++;
+    }
+  }
+
+  saveQueue(remaining);
+  return { succeeded, failed };
+}
+
+/** Get current queue length for UI indicators */
+export function getOfflineQueueLength(): number {
+  return getQueue().length;
+}
+
+// Auto-flush when coming back online
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    flushOfflineQueue();
+  });
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: FetchOptions = {},
 ): Promise<T> {
-  const { skipAuth = false, headers: customHeaders, ...rest } = options;
+  const {
+    skipAuth = false,
+    offlineQueue = false,
+    headers: customHeaders,
+    ...rest
+  } = options;
+
+  if (offlineQueue && typeof navigator !== "undefined" && !navigator.onLine) {
+    enqueue(endpoint, options);
+    return { success: true, data: null, queued: true } as unknown as T;
+  }
 
   const isFormData = rest.body instanceof FormData;
   const baseHeaders: Record<string, string> = {

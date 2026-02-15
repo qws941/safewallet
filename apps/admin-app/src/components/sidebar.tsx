@@ -25,6 +25,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Button } from "@safetywallet/ui";
 import { useAuthStore } from "@/stores/auth";
+import { useMySites } from "@/hooks/use-admin-api";
+import { Building2, ChevronDown } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
@@ -46,12 +48,27 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
   const logout = useAuthStore((s) => s.logout);
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
+  const setSiteId = useAuthStore((s) => s.setSiteId);
   const queryClient = useQueryClient();
+  const { data: sitesData } = useMySites();
+
+  const sites = sitesData ?? [];
+  const currentSite = sites.find(
+    (s: { siteId: string }) => s.siteId === currentSiteId,
+  );
 
   const handleLogout = () => {
     queryClient.clear();
     logout();
+  };
+
+  const handleSiteSwitch = (siteId: string) => {
+    setSiteId(siteId);
+    setSiteDropdownOpen(false);
+    queryClient.invalidateQueries();
   };
 
   return (
@@ -74,6 +91,52 @@ export function Sidebar() {
           {collapsed ? <Menu size={20} /> : <X size={20} />}
         </Button>
       </div>
+
+      {/* Site Switcher */}
+      {!collapsed && sites.length > 0 && (
+        <div className="border-b border-slate-700 px-3 py-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setSiteDropdownOpen(!siteDropdownOpen)}
+              className="flex w-full items-center justify-between rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Building2 size={16} />
+                <span className="truncate">
+                  {currentSite?.siteName ?? "현장 선택"}
+                </span>
+              </div>
+              <ChevronDown
+                size={14}
+                className={cn(
+                  "shrink-0 transition-transform",
+                  siteDropdownOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {siteDropdownOpen && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-md bg-slate-800 py-1 shadow-lg">
+                {sites.map((site: { siteId: string; siteName: string }) => (
+                  <button
+                    type="button"
+                    key={site.siteId}
+                    onClick={() => handleSiteSwitch(site.siteId)}
+                    className={cn(
+                      "flex w-full items-center px-3 py-2 text-left text-sm transition-colors",
+                      site.siteId === currentSiteId
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-300 hover:bg-slate-700 hover:text-white",
+                    )}
+                  >
+                    <span className="truncate">{site.siteName}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <nav className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {

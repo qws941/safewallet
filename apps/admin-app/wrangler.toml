@@ -4,4 +4,4 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
 
 [vars]
-NEXT_PUBLIC_API_URL = "https://safework2.jclee.me/api"
+NEXT_PUBLIC_API_URL = "https://safework2-api.jclee.workers.dev/api"

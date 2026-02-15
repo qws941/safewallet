@@ -27,7 +27,9 @@ import { dbBatchChunked } from "../db/helpers";
 import {
   fasGetUpdatedEmployees,
   fasGetEmployeeInfo,
+  fasGetEmployeesBatch,
   testConnection as testFasConnection,
+  type FasEmployee,
 } from "../lib/fas-mariadb";
 import {
   syncFasEmployeesToD1,
@@ -38,6 +40,7 @@ import { hmac } from "../lib/crypto";
 import { maskName } from "../utils/common";
 import { createLogger } from "../lib/logger";
 import { acquireSyncLock, releaseSyncLock } from "../lib/sync-lock";
+import { AceViewerEmployeesPayloadSchema } from "../validators/fas-sync";
 import { CROSS_MATCH_CRON_BATCH } from "../lib/constants";
 
 const log = createLogger("scheduled");
@@ -374,6 +377,7 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
   }
 
   const db = drizzle(env.DB);
+  const systemUserId = await getOrCreateSystemUser(db);
   const kstNow = getKSTDate();
   const fiveMinutesAgo = new Date(kstNow.getTime() - 5 * 60 * 1000);
 
@@ -423,7 +427,7 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
     });
 
     await db.insert(auditLogs).values({
-      actorId: "SYSTEM",
+      actorId: systemUserId,
       action: "FAS_SYNC_COMPLETED",
       targetType: "FAS_SYNC",
       targetId: "cron",
@@ -468,7 +472,7 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
     });
 
     await db.insert(auditLogs).values({
-      actorId: "SYSTEM",
+      actorId: systemUserId,
       action: "FAS_SYNC_FAILED",
       targetType: "FAS_SYNC",
       targetId: "cron",
@@ -483,6 +487,7 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
 
 async function runOverdueActionCheck(env: Env): Promise<void> {
   const db = drizzle(env.DB);
+  const systemUserId = await getOrCreateSystemUser(db);
   const now = new Date();
 
   const overdueActions = await db
@@ -517,7 +522,7 @@ async function runOverdueActionCheck(env: Env): Promise<void> {
 
       ops.push(
         db.insert(auditLogs).values({
-          actorId: "SYSTEM",
+          actorId: systemUserId,
           action: "ACTION_STATUS_CHANGE",
           targetType: "ACTION",
           targetId: action.id,
@@ -624,7 +629,7 @@ async function runAcetimeSyncFromR2(env: Env): Promise<void> {
     }
 
     // Validate R2 payload with strict schema
-    let validatedData;
+    let validatedData: ReturnType<typeof AceViewerEmployeesPayloadSchema.parse>;
     try {
       const rawData = await object.json();
       validatedData = AceViewerEmployeesPayloadSchema.parse(rawData);
@@ -772,7 +777,10 @@ async function runAcetimeSyncFromR2(env: Env): Promise<void> {
 
       let fasEmployeeMap = new Map<string, FasEmployee>();
       try {
-        fasEmployeeMap = await fasGetEmployeesBatch(env.FAS_HYPERDRIVE, emplCds);
+        fasEmployeeMap = await fasGetEmployeesBatch(
+          env.FAS_HYPERDRIVE,
+          emplCds,
+        );
       } catch (err) {
         log.error("FAS batch query failed", {
           batchSize: emplCds.length,
@@ -835,8 +843,8 @@ export async function scheduled(
       try {
         await withRetry(
           () => runFasSyncIncremental(env),
-          3,       // maxAttempts
-          5000     // baseDelayMs (5s initial delay, exponential backoff)
+          3, // maxAttempts
+          5000, // baseDelayMs (5s initial delay, exponential backoff)
         );
       } catch (err) {
         log.error("FAS sync failed after 3 retries", {
@@ -847,14 +855,10 @@ export async function scheduled(
       }
 
       await publishScheduledAnnouncements(env);
-      
+
       // AceTime sync with exponential backoff retry
       try {
-        await withRetry(
-          () => runAcetimeSyncFromR2(env),
-          3,
-          5000
-        );
+        await withRetry(() => runAcetimeSyncFromR2(env), 3, 5000);
       } catch (err) {
         log.error("AceTime sync failed after 3 retries", {
           error: err instanceof Error ? err.message : String(err),
@@ -868,8 +872,8 @@ export async function scheduled(
       try {
         await withRetry(
           () => runMonthEndSnapshot(env),
-          2,       // Fewer retries for batch operations
-          3000
+          2, // Fewer retries for batch operations
+          3000,
         );
       } catch (err) {
         log.error("Month-end snapshot failed after 2 retries", {

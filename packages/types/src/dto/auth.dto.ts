@@ -45,18 +45,3 @@ export interface MeResponseDto {
     checkInAt: string;
   } | null;
 }
-
-export interface MeResponseDto {
-  id: string;
-  name: string;
-  nameMasked: string | null;
-  phone: string;
-  role: string;
-  siteId: string | null;
-  siteName: string | null;
-  permissions: string[];
-  todayAttendance: {
-    status: string;
-    checkInAt: string;
-  } | null;
-}

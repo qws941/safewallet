@@ -271,6 +271,9 @@ export const posts = sqliteTable(
       table.userId,
       table.createdAt,
     ),
+    duplicateOfPostIdIdx: index("posts_duplicate_of_post_id_idx").on(
+      table.duplicateOfPostId,
+    ),
   }),
 );
 
@@ -364,6 +367,9 @@ export const pointsLedger = sqliteTable(
     siteMonthIdx: index("points_ledger_site_month_idx").on(
       table.siteId,
       table.settleMonth,
+    ),
+    refLedgerIdIdx: index("points_ledger_ref_ledger_id_idx").on(
+      table.refLedgerId,
     ),
   }),
 );

@@ -7,7 +7,7 @@ export * from "./use-api-base";
 export * from "./use-admin-api";
 export * from "./use-posts-api";
 export * from "./use-actions-api";
-export * from "./use-attendance-api";
+export * from "./use-attendance";
 export * from "./use-points-api";
 export * from "./use-education-api";
 export * from "./use-sites-api";

@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth";
 import type {
   ApiResponse,
   PaginatedResponse,
@@ -93,7 +94,9 @@ export function useAnnouncements(siteId: string) {
   return useQuery({
     queryKey: ["announcements", siteId],
     queryFn: () =>
-      apiFetch<PaginatedResponse<AnnouncementDto>>(`/announcements?siteId=${siteId}`),
+      apiFetch<PaginatedResponse<AnnouncementDto>>(
+        `/announcements?siteId=${siteId}`,
+      ),
     enabled: !!siteId,
   });
 }
@@ -397,6 +400,59 @@ export function useLeaveSite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["site"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+// ─── Recommendations ───────────────────────────────────────
+
+export function useTodayRecommendation() {
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
+  return useQuery<
+    ApiResponse<{
+      hasRecommendedToday: boolean;
+      recommendation: unknown | null;
+    }>
+  >({
+    queryKey: ["recommendations", "today", currentSiteId],
+    queryFn: () =>
+      apiFetch<
+        ApiResponse<{
+          hasRecommendedToday: boolean;
+          recommendation: unknown | null;
+        }>
+      >(`/recommendations/today?siteId=${currentSiteId}`),
+    enabled: !!currentSiteId,
+  });
+}
+
+export function useRecommendationHistory() {
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
+  return useQuery<ApiResponse<{ items: unknown[] }>>({
+    queryKey: ["recommendations", "history", currentSiteId],
+    queryFn: () =>
+      apiFetch<ApiResponse<{ items: unknown[] }>>(
+        `/recommendations/history?siteId=${currentSiteId}`,
+      ),
+    enabled: !!currentSiteId,
+  });
+}
+
+export function useSubmitRecommendation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      recommendedName: string;
+      tradeType: string;
+      reason: string;
+      siteId: string;
+    }) =>
+      apiFetch<ApiResponse<{ id: string }>>("/recommendations", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
     },
   });
 }
