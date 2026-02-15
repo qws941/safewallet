@@ -3,6 +3,9 @@ import type { Env } from "../types";
 import { drizzle } from "drizzle-orm/d1";
 import { sql } from "drizzle-orm";
 import { apiMetrics } from "../db/schema";
+import { createLogger } from "../lib/logger";
+
+const logger = createLogger("analytics");
 
 /**
  * Compute 5-minute bucket key for metrics aggregation.
@@ -103,14 +106,24 @@ export async function analyticsMiddleware(
               status5xx: sql`${apiMetrics.status5xx} + ${is5xx}`,
             },
           })
-          .catch(() => {}); // Silently ignore — monitoring must not break the API
+          .catch((err) => {
+            // MAJOR-2 FIX: Log D1 write errors instead of silently ignoring
+            logger.error("Failed to write API metrics to D1", {
+              endpoint,
+              method,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
 
         // Non-blocking: continue response delivery while D1 write completes
         if (c.executionCtx?.waitUntil) {
           c.executionCtx.waitUntil(writePromise);
         }
-      } catch {
-        // D1 write setup failure — silently ignore
+      } catch (err) {
+        // D1 write setup failure — log it
+        logger.error("Failed to set up D1 metrics write", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   }

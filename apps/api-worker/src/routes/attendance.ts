@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, gte, lt } from "drizzle-orm";
+import { eq, and, gte, lt, inArray, or } from "drizzle-orm";
 import { attendance, users } from "../db/schema";
 import { authMiddleware } from "../middleware/auth";
 import { fasAuthMiddleware } from "../middleware/fas-auth";
@@ -10,6 +10,8 @@ import { success, error } from "../lib/response";
 import type { Env, AuthContext } from "../types";
 import { getTodayRange } from "../utils/common";
 import { ManualCheckinSchema } from "../validators/schemas";
+import { createLogger } from "../lib/logger";
+import { dbBatchChunked } from "../db/helpers";
 
 interface SyncEvent {
   fasEventId: string;
@@ -36,6 +38,7 @@ attendanceRoute.post(
   fasAuthMiddleware,
   zValidator("json", ManualCheckinSchema as never),
   async (c) => {
+    const logger = createLogger("attendance");
     const idempotencyKey = c.req.header("Idempotency-Key");
     if (idempotencyKey) {
       const cached = await c.env.KV.get(
@@ -61,21 +64,70 @@ attendanceRoute.post(
     let skipped = 0;
     let failed = 0;
 
-    for (const event of events) {
-      // Validate user exists
-      const userResults = await db
+    // BATCH FIX: Load all users at once instead of per-event
+    const uniqueWorkerIds = [...new Set(events.map((e) => e.fasUserId))];
+    const userMap = new Map<string, typeof users.$inferSelect>();
+
+    if (uniqueWorkerIds.length > 0) {
+      const userRecords = await db
         .select()
         .from(users)
-        .where(eq(users.externalWorkerId, event.fasUserId))
-        .limit(1);
+        .where(inArray(users.externalWorkerId, uniqueWorkerIds));
 
-      if (userResults.length === 0) {
+      for (const user of userRecords) {
+        if (user.externalWorkerId) {
+          userMap.set(user.externalWorkerId, user);
+        }
+      }
+    }
+
+    // BATCH FIX: Check all existing attendance at once
+    const attendanceKeys = events.map((e) => ({
+      workerId: e.fasUserId,
+      siteId: e.siteId,
+      checkinTime: new Date(e.checkinAt),
+    }));
+
+    const existingSet = new Set<string>();
+    if (attendanceKeys.length > 0) {
+      const existing = await db
+        .select({
+          workerId: attendance.externalWorkerId,
+          siteId: attendance.siteId,
+          checkinAt: attendance.checkinAt,
+        })
+        .from(attendance)
+        .where(
+          or(
+            ...attendanceKeys.map((key) =>
+              and(
+                eq(attendance.externalWorkerId, key.workerId),
+                eq(attendance.siteId, key.siteId),
+                eq(attendance.checkinAt, key.checkinTime),
+              ),
+            ),
+          ),
+        );
+
+      for (const record of existing) {
+        if (record.workerId && record.siteId && record.checkinAt) {
+          existingSet.add(
+            `${record.workerId}|${record.siteId}|${record.checkinAt.getTime()}`,
+          );
+        }
+      }
+    }
+
+    // BATCH FIX: Prepare batch insert instead of individual inserts
+    const insertBatch: Parameters<typeof db.insert>[0][] = [];
+    for (const event of events) {
+      const user = userMap.get(event.fasUserId);
+      if (!user) {
         results.push({ fasEventId: event.fasEventId, result: "NOT_FOUND" });
         failed++;
         continue;
       }
 
-      // Validate siteId
       if (!event.siteId) {
         results.push({ fasEventId: event.fasEventId, result: "MISSING_SITE" });
         failed++;
@@ -83,58 +135,47 @@ attendanceRoute.post(
       }
 
       const checkinTime = new Date(event.checkinAt);
+      const key = `${event.fasUserId}|${event.siteId}|${checkinTime.getTime()}`;
 
-      try {
-        // Check if record already exists before insert
-        const existingBefore = await db
-          .select()
-          .from(attendance)
-          .where(
-            and(
-              eq(attendance.externalWorkerId, event.fasUserId),
-              eq(attendance.siteId, event.siteId as string),
-              eq(attendance.checkinAt, checkinTime),
-            ),
-          )
-          .limit(1);
-
-        if (existingBefore.length > 0) {
-          // Duplicate - record already existed
-          results.push({ fasEventId: event.fasEventId, result: "DUPLICATE" });
-          skipped++;
-          console.debug(
-            `[Attendance] Duplicate skipped: ${event.fasUserId} @ ${event.siteId} @ ${checkinTime.toISOString()}`,
-          );
-        } else {
-          // Idempotent insert: onConflictDoNothing silently skips if race condition occurs
-          await db
-            .insert(attendance)
-            .values({
-              siteId: event.siteId as string,
-              userId: userResults[0].id,
-              externalWorkerId: event.fasUserId,
-              result: "SUCCESS",
-              source: "FAS",
-              checkinAt: checkinTime,
-            })
-            .onConflictDoNothing({
-              target: [
-                attendance.externalWorkerId,
-                attendance.siteId,
-                attendance.checkinAt,
-              ],
-            });
-
-          results.push({ fasEventId: event.fasEventId, result: "SUCCESS" });
-          inserted++;
-        }
-      } catch (err) {
-        results.push({ fasEventId: event.fasEventId, result: "ERROR" });
-        failed++;
-        console.error(
-          `[Attendance] Insert error for ${event.fasEventId}:`,
-          err,
+      if (existingSet.has(key)) {
+        results.push({ fasEventId: event.fasEventId, result: "DUPLICATE" });
+        skipped++;
+        logger.debug(
+          `[Attendance] Duplicate skipped: ${event.fasUserId} @ ${event.siteId} @ ${checkinTime.toISOString()}`,
         );
+      } else {
+        insertBatch.push({
+          siteId: event.siteId,
+          userId: user.id,
+          externalWorkerId: event.fasUserId,
+          result: "SUCCESS",
+          source: "FAS",
+          checkinAt: checkinTime,
+        });
+        results.push({ fasEventId: event.fasEventId, result: "SUCCESS" });
+        inserted++;
+      }
+    }
+
+    // Batch insert all at once
+    if (insertBatch.length > 0) {
+      try {
+        const ops = insertBatch.map((values) =>
+          db.insert(attendance).values(values).onConflictDoNothing({
+            target: [
+              attendance.externalWorkerId,
+              attendance.siteId,
+              attendance.checkinAt,
+            ],
+          }),
+        );
+        await dbBatchChunked(db, ops);
+      } catch (err) {
+        logger.error("Batch insert failed", {
+          count: insertBatch.length,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        failed += insertBatch.length;
       }
     }
 

@@ -168,7 +168,7 @@ export async function syncSingleFasEmployee(
       );
     }
   } catch (e) {
-    console.error(`syncSingleFasEmployee failed for ${employee.emplCd}:`, e);
+    // Error tracked in result errors array
     return null;
   }
 }

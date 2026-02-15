@@ -25,6 +25,35 @@ interface InMemoryRateLimitState {
 }
 
 const inMemoryFallback = new Map<string, InMemoryRateLimitState>();
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let lastCleanupTime = Date.now();
+
+/**
+ * Cleanup expired entries from in-memory fallback map.
+ * Runs periodically to prevent unbounded memory growth.
+ * Should be called before checking limits to ensure stale entries are removed.
+ */
+function cleanupExpiredEntries(): void {
+  const now = Date.now();
+  if (now - lastCleanupTime < CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastCleanupTime = now;
+  const expiredKeys: string[] = [];
+
+  // Identify expired entries
+  for (const [key, state] of inMemoryFallback.entries()) {
+    if (state.resetAt <= now) {
+      expiredKeys.push(key);
+    }
+  }
+
+  // Delete expired entries
+  for (const key of expiredKeys) {
+    inMemoryFallback.delete(key);
+  }
+}
 
 async function callDurableObject<T>(
   env: Env,
@@ -59,6 +88,7 @@ function checkInMemoryLimit(
   limit: number,
   windowMs: number,
 ): RateLimitResult {
+  cleanupExpiredEntries();  // Clean up before checking
   const now = Date.now();
   const record = inMemoryFallback.get(key);
 

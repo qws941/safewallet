@@ -508,7 +508,7 @@ app.delete(
       try {
         await c.env.R2.delete(image.fileUrl);
       } catch (e) {
-        console.error(`Failed to delete R2 image ${image.fileUrl}:`, e);
+        logger.error('Failed to delete R2 image', { fileUrl: image.fileUrl, error: e instanceof Error ? e.message : String(e) });
       }
     }
 

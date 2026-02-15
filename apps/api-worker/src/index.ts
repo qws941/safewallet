@@ -229,7 +229,7 @@ app.get("*", async (c) => {
 
     return c.json({ error: "Not Found", path: c.req.path }, 404);
   } catch (err) {
-    console.error("Static serve error:", err);
+    logger.error("Static serve error", { error: err instanceof Error ? err.message : String(err) });
     return c.json({ error: "Internal Server Error" }, 500);
   }
 });

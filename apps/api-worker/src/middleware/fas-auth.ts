@@ -1,6 +1,9 @@
 import { Context, Next } from "hono";
 import type { Env } from "../types";
 import { error } from "../lib/response";
+import { createLogger } from "../lib/logger";
+
+const logger = createLogger("fas-auth");
 
 export async function fasAuthMiddleware(
   c: Context<{ Bindings: Env }>,
@@ -10,7 +13,7 @@ export async function fasAuthMiddleware(
   const expectedKey = c.env.FAS_API_KEY;
 
   if (!expectedKey) {
-    console.error("FAS_API_KEY not configured");
+    logger.error("FAS_API_KEY not configured");
     return error(c, "SERVER_ERROR", "API key not configured", 500);
   }
 

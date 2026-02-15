@@ -434,7 +434,7 @@ auth.post(
           }
         }
       } catch (fasError) {
-        console.error("FAS MariaDB lookup failed:", fasError);
+        logger.error("FAS MariaDB lookup failed", { error: fasError instanceof Error ? fasError.message : String(fasError) });
       }
     }
 

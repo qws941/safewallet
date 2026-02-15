@@ -1,5 +1,8 @@
 import type { Context, Next } from "hono";
 import type { Env } from "../types";
+import { createLogger } from "../lib/logger";
+
+const logger = createLogger("rate-limit");
 
 interface RateLimitOptions {
   maxRequests?: number;
@@ -21,7 +24,7 @@ export function rateLimitMiddleware(options: RateLimitOptions = {}) {
     const rateLimiter = c.env.RATE_LIMITER;
 
     if (!rateLimiter) {
-      console.warn("Rate limiter DO not configured, skipping rate limit");
+      logger.warn("Rate limiter DO not configured, skipping rate limit");
       return next();
     }
 
@@ -39,6 +42,23 @@ export function rateLimitMiddleware(options: RateLimitOptions = {}) {
           windowMs,
         }),
       });
+
+      if (!response.ok) {
+        logger.warn("Rate limiter DO unavailable", { 
+          key,
+          status: response.status,
+        });
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: "SERVICE_UNAVAILABLE",
+              message: "Rate limiting service temporarily unavailable",
+            },
+          },
+          503,
+        );
+      }
 
       const result = await response.json<{
         allowed: boolean;
@@ -66,8 +86,20 @@ export function rateLimitMiddleware(options: RateLimitOptions = {}) {
 
       return next();
     } catch (err) {
-      console.error("Rate limiter error:", err);
-      return next();
+      logger.error("Rate limiter error", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Fail securely on rate limiter error - don't bypass rate limiting
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: "RATE_LIMIT_ERROR",
+            message: "Rate limiting check failed",
+          },
+        },
+        503,
+      );
     }
   };
 }
@@ -77,7 +109,6 @@ function defaultKeyGenerator(c: Context): string {
   if (auth?.user?.id) {
     return `user:${auth.user.id}`;
   }
-
   const ip =
     c.req.header("CF-Connecting-IP") ||
     c.req.header("X-Forwarded-For") ||

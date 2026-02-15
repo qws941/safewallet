@@ -623,18 +623,24 @@ async function runAcetimeSyncFromR2(env: Env): Promise<void> {
       return;
     }
 
-    const data = (await object.json()) as {
-      employees: Array<{
-        externalWorkerId: string;
-        name: string;
-        companyName: string | null;
-        position: string | null;
-        trade: string | null;
-        lastSeen: string | null;
-      }>;
-      total: number;
-    };
-    const aceViewerEmployees = data.employees;
+    // Validate R2 payload with strict schema
+    let validatedData;
+    try {
+      const rawData = await object.json();
+      validatedData = AceViewerEmployeesPayloadSchema.parse(rawData);
+    } catch (err) {
+      if (err instanceof Error) {
+        log.error("Invalid aceviewer-employees.json payload", {
+          error: err.message,
+        });
+      } else {
+        log.error("Invalid aceviewer-employees.json payload", {
+          error: String(err),
+        });
+      }
+      return;
+    }
+    const aceViewerEmployees = validatedData.employees;
 
     const db = drizzle(env.DB);
 
@@ -759,30 +765,45 @@ async function runAcetimeSyncFromR2(env: Env): Promise<void> {
       // Batch limit to stay within CF Workers CPU time
       const batch = placeholderUsers.slice(0, CROSS_MATCH_CRON_BATCH);
 
+      // BATCH FIX: Load all employees at once instead of per-user
+      const emplCds = batch
+        .filter((pu) => pu.externalWorkerId)
+        .map((pu) => pu.externalWorkerId!);
+
+      let fasEmployeeMap = new Map<string, FasEmployee>();
+      try {
+        fasEmployeeMap = await fasGetEmployeesBatch(env.FAS_HYPERDRIVE, emplCds);
+      } catch (err) {
+        log.error("FAS batch query failed", {
+          batchSize: emplCds.length,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        fasCrossSkipped += batch.length;
+      }
+
+      // Process batch with pre-loaded data
       for (const pu of batch) {
         if (!pu.externalWorkerId) {
           fasCrossSkipped++;
           continue;
         }
-        try {
-          const fasEmployee = await fasGetEmployeeInfo(
-            env.FAS_HYPERDRIVE,
-            pu.externalWorkerId,
-          );
-          if (fasEmployee && fasEmployee.phone) {
+
+        const fasEmployee = fasEmployeeMap.get(pu.externalWorkerId);
+        if (fasEmployee && fasEmployee.phone) {
+          try {
             await syncSingleFasEmployee(fasEmployee, db, {
               HMAC_SECRET: env.HMAC_SECRET,
               ENCRYPTION_KEY: env.ENCRYPTION_KEY,
             });
             fasCrossMatched++;
-          } else {
+          } catch (err) {
+            log.error("FAS cross-match sync failed", {
+              externalWorkerId: pu.externalWorkerId,
+              error: err instanceof Error ? err.message : String(err),
+            });
             fasCrossSkipped++;
           }
-        } catch (err) {
-          log.error("FAS cross-match failed", {
-            externalWorkerId: pu.externalWorkerId,
-            error: err instanceof Error ? err.message : String(err),
-          });
+        } else {
           fasCrossSkipped++;
         }
       }
