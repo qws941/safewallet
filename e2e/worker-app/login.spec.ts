@@ -113,11 +113,18 @@ test.describe("Login - Form Submission", () => {
 
     await page.getByRole("textbox", { name: /생년월일/ }).press("Enter");
 
-    await expect(
+    const submitted = await Promise.race([
       page
-        .getByRole("button", { name: /확인 중|로그인/ })
-        .or(page.locator(".text-destructive")),
-    ).toBeVisible({ timeout: 10_000 });
+        .locator(".text-destructive")
+        .first()
+        .waitFor({ timeout: 10_000 })
+        .then(() => true),
+      page
+        .getByRole("button", { name: /확인 중/ })
+        .waitFor({ timeout: 10_000 })
+        .then(() => true),
+    ]);
+    expect(submitted).toBe(true);
   });
 
   test("button click submits the form", async ({ page }) => {
@@ -129,11 +136,18 @@ test.describe("Login - Form Submission", () => {
 
     await page.getByRole("button", { name: "로그인" }).click();
 
-    await expect(
+    const submitted = await Promise.race([
       page
-        .getByRole("button", { name: /확인 중|로그인/ })
-        .or(page.locator(".text-destructive")),
-    ).toBeVisible({ timeout: 10_000 });
+        .locator(".text-destructive")
+        .first()
+        .waitFor({ timeout: 10_000 })
+        .then(() => true),
+      page
+        .getByRole("button", { name: /확인 중/ })
+        .waitFor({ timeout: 10_000 })
+        .then(() => true),
+    ]);
+    expect(submitted).toBe(true);
   });
 });
 
