@@ -117,7 +117,7 @@ async function getConnection(
     waitForConnections: true,
     connectionLimit: 1,  // Single connection per isolate
     enableKeepAlive: true,
-    keepAliveInitialDelayMs: 0,
+    keepAliveInitialDelay: 0,
   });
 
   connectionCache.set(cacheKey, { connection: conn, lastUsed: now });
