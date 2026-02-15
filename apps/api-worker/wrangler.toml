@@ -14,7 +14,7 @@ workers_dev = true
 ENVIRONMENT = "production"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
-ELASTICSEARCH_URL = "https://es.jclee.me"
+ELASTICSEARCH_URL = "https://sunny-institution-depend-belongs.trycloudflare.com"
 
 # Security secrets: use .dev.vars for local dev, Cloudflare Secrets for production
 # See: wrangler secret put JWT_SECRET / HMAC_SECRET / ENCRYPTION_KEY
