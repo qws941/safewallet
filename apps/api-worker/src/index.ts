@@ -34,7 +34,6 @@ import { analyticsMiddleware } from "./middleware/analytics";
 
 import { createLogger } from "./lib/logger";
 
-
 const logger = createLogger("index");
 const app = new Hono<{ Bindings: Env }>();
 
@@ -231,7 +230,9 @@ app.get("*", async (c) => {
 
     return c.json({ error: "Not Found", path: c.req.path }, 404);
   } catch (err) {
-    logger.error("Static serve error", { error: err instanceof Error ? err.message : String(err) });
+    logger.error("Static serve error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return c.json({ error: "Internal Server Error" }, 500);
   }
 });
@@ -239,11 +240,11 @@ app.get("*", async (c) => {
 app.onError((err, c) => {
   const log = createLogger("onError", {
     elasticsearchUrl: c.env.ELASTICSEARCH_URL,
+    waitUntil: (p) => c.executionCtx.waitUntil(p),
   });
 
-  log.error(err.message, {
-    stack: err.stack,
-    path: c.req.path,
+  log.error(err.message, err, {
+    endpoint: c.req.path,
     method: c.req.method,
   });
 
