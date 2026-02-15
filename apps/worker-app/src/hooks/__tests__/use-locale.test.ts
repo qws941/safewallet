@@ -6,8 +6,8 @@ import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n/config";
 
 function createI18nWrapper(setLocale: (locale: Locale) => void) {
-  return ({ children }: { children: React.ReactNode }) =>
-    createElement(
+  function I18nWrapper({ children }: { children: React.ReactNode }) {
+    return createElement(
       I18nContext.Provider,
       {
         value: {
@@ -19,6 +19,8 @@ function createI18nWrapper(setLocale: (locale: Locale) => void) {
       },
       children,
     );
+  }
+  return I18nWrapper;
 }
 
 describe("useLocale", () => {
