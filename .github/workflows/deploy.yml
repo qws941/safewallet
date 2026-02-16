@@ -235,7 +235,7 @@ jobs:
       actions: write
     steps:
       - name: Delete artifacts
-        uses: geekyeggo/delete-artifact@v5
+        uses: geekyeggo/delete-artifact@v4
         with:
           name: |
             worker-app-pages
