@@ -1,10 +1,24 @@
 name: Deploy SafeWork2
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [master]
+    types: [completed]
   workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "20"
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
-      - run: echo "Deploy workflow bisect - step 1 minimal"
+      - run: echo "Deploy workflow bisect - step 2 triggers+concurrency+env+if"
