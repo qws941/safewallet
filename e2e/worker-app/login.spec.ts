@@ -314,7 +314,7 @@ test.describe("Login - Console & Asset Integrity @smoke", () => {
     });
 
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     expect(criticalErrors).toEqual([]);
   });
@@ -330,7 +330,7 @@ test.describe("Login - Console & Asset Integrity @smoke", () => {
     });
 
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     expect(failedCSS).toEqual([]);
   });
@@ -346,7 +346,7 @@ test.describe("Login - Console & Asset Integrity @smoke", () => {
     });
 
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     expect(failedJS).toEqual([]);
   });

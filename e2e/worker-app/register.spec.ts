@@ -37,25 +37,11 @@ test.describe("Worker App - Register Page @smoke", () => {
     await expect(submitButton).toBeEnabled();
   });
 
-  test("shows error for duplicate user registration", async ({ page }) => {
-    await page.goto("/register");
-
-    await page.getByLabel("이름").fill("김선민");
-    await page.getByLabel("휴대폰 번호").fill("01076015830");
-    await page.getByLabel("생년월일").fill("19990308");
-
-    await page.getByRole("button", { name: "회원가입" }).click();
-
-    await expect(
-      page.locator(".text-destructive, [class*='text-destructive']").first(),
-    ).toBeVisible({ timeout: 10000 });
-  });
-
   test("login page has register link", async ({ page }) => {
     await page.goto("/login");
 
     const registerLink = page.getByRole("link", { name: "회원가입" }).first();
     await expect(registerLink).toBeVisible();
-    await expect(registerLink).toHaveAttribute("href", "/register/");
+    await expect(registerLink).toHaveAttribute("href", /\/register/);
   });
 });

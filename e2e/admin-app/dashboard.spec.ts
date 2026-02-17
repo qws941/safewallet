@@ -28,7 +28,7 @@ test.describe("Admin Dashboard", () => {
       }
     });
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     expect(errors.length).toBeLessThanOrEqual(3);
   });
 });

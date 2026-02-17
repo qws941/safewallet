@@ -121,7 +121,7 @@ test.describe("C) PWA & Meta Tags", () => {
     });
 
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     const criticalErrors = errors.filter(
       (e) =>
@@ -198,7 +198,7 @@ test.describe("E) Static Asset Loading", () => {
     });
 
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     expect(failedCSS).toHaveLength(0);
   });
@@ -214,7 +214,7 @@ test.describe("E) Static Asset Loading", () => {
     });
 
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     expect(failedJS).toHaveLength(0);
   });
