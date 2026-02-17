@@ -1,0 +1,20 @@
+# Auto-generated files
+apps/worker-app/public/sw.js
+apps/worker-app/public/sw-push.js
+apps/worker-app/public/workbox-*.js
+
+# Build outputs
+**/out/
+**/.next/
+**/.vercel/
+**/.wrangler/
+**/dist/
+
+# Dependencies
+node_modules/
+
+# Misc
+*.lock
+coverage/
+playwright-report/
+AceTime/

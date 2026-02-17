@@ -51,7 +51,7 @@ jobs:
             echo "api_url=https://safework2-api-dev.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           else
             echo "worker_url=https://safework2.jclee.me" >> "$GITHUB_OUTPUT"
-            echo "admin_url=https://safework2-admin.pages.dev" >> "$GITHUB_OUTPUT"
+            echo "admin_url=https://admin.safework2.jclee.me" >> "$GITHUB_OUTPUT"
             echo "api_url=https://safework2-api.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           fi
 
