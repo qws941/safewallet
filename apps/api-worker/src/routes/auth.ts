@@ -890,8 +890,34 @@ auth.post(
       }
     }
 
+    let syncedUser = user;
+    const needsFasSync = !user.phone || user.phoneHash?.startsWith("acetime-");
+    if (needsFasSync && c.env.FAS_HYPERDRIVE) {
+      try {
+        const fasEmployee = await fasGetEmployeeInfo(
+          c.env.FAS_HYPERDRIVE,
+          body.employeeCode,
+        );
+        if (fasEmployee?.phone) {
+          const synced = await syncSingleFasEmployee(fasEmployee, db, {
+            HMAC_SECRET: c.env.HMAC_SECRET,
+            ENCRYPTION_KEY: c.env.ENCRYPTION_KEY,
+          });
+          if (synced) {
+            syncedUser = synced;
+          }
+        }
+      } catch {
+        // noop — FAS unavailability must not block login
+      }
+    }
+
     const accessToken = await signJwt(
-      { sub: user.id, phone: "", role: user.role },
+      {
+        sub: syncedUser.id,
+        phone: syncedUser.phone || "",
+        role: syncedUser.role,
+      },
       c.env.JWT_SECRET,
     );
     const refreshToken = crypto.randomUUID();
@@ -902,7 +928,7 @@ auth.post(
     await db
       .update(users)
       .set({ refreshToken, refreshTokenExpiresAt, updatedAt: new Date() })
-      .where(eq(users.id, user.id));
+      .where(eq(users.id, syncedUser.id));
 
     const loginDeviceId = resolveDeviceId(c);
     if (loginDeviceId) {
@@ -911,7 +937,7 @@ auth.post(
         .from(deviceRegistrations)
         .where(
           and(
-            eq(deviceRegistrations.userId, user.id),
+            eq(deviceRegistrations.userId, syncedUser.id),
             eq(deviceRegistrations.deviceId, loginDeviceId),
           ),
         )
@@ -924,7 +950,7 @@ auth.post(
           .where(eq(deviceRegistrations.id, existingDevice.id));
       } else {
         await db.insert(deviceRegistrations).values({
-          userId: user.id,
+          userId: syncedUser.id,
           deviceId: loginDeviceId,
           deviceInfo: c.req.header("User-Agent") || null,
           firstSeenAt: new Date(),
@@ -942,12 +968,13 @@ auth.post(
         c,
         db,
         "LOGIN_SUCCESS",
-        user.id,
+        syncedUser.id,
         "USER",
-        user.id,
+        syncedUser.id,
         {
           method: "ACETIME",
           employeeCode: body.employeeCode,
+          fasSynced: syncedUser !== user,
         },
       );
     } catch {
