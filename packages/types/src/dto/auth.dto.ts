@@ -20,6 +20,8 @@ export interface AuthResponseDto {
     phone: string;
     nameMasked: string | null;
     role: string;
+    companyName?: string | null;
+    tradeType?: string | null;
   };
 }
 

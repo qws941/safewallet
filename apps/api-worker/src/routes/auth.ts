@@ -33,6 +33,7 @@ import { getTodayRange, maskName } from "../utils/common";
 import {
   RegisterSchema,
   LoginSchema,
+  AcetimeLoginSchema,
   RefreshTokenSchema,
   AdminLoginSchema,
 } from "../validators/schemas";
@@ -691,7 +692,290 @@ auth.post(
   },
 );
 
-// AceTime login removed — using phone+DOB login only
+// ─── AceTime Login ───────────────────────────────────────────────────────────
+
+auth.post(
+  "/acetime-login",
+  authRateLimitMiddleware(),
+  zValidator("json", AcetimeLoginSchema),
+  async (c) => {
+    const startedAt = Date.now();
+    const respondWithDelay = async (response: Response) => {
+      await enforceMinimumResponseTime(startedAt);
+      return response;
+    };
+
+    const body = (() => {
+      try {
+        return c.req.valid("json");
+      } catch {
+        return null;
+      }
+    })();
+    if (!body) {
+      return respondWithDelay(error(c, "INVALID_JSON", "Invalid JSON", 400));
+    }
+
+    if (!body.employeeCode || !body.name) {
+      return respondWithDelay(
+        error(c, "MISSING_FIELDS", "employeeCode and name are required", 400),
+      );
+    }
+
+    const clientIp = c.req.header("CF-Connecting-IP") || "unknown";
+
+    const rateLimitKey = `auth:acetime-login:ip:${clientIp}`;
+    const rateLimit = await checkRateLimit(c.env, rateLimitKey, 5, 60 * 1000);
+
+    if (!rateLimit.allowed) {
+      return respondWithDelay(
+        error(
+          c,
+          "RATE_LIMIT_EXCEEDED",
+          "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+          429,
+        ),
+      );
+    }
+
+    const db = drizzle(c.env.DB);
+
+    const attemptKey = `${LOGIN_LOCKOUT_KEY_PREFIX}acetime:${body.employeeCode}`;
+    const nowMs = Date.now();
+    const existingAttempt = parseLoginLockoutRecord(
+      await c.env.KV.get(attemptKey),
+    );
+    if (isExpiredLock(existingAttempt, nowMs)) {
+      await c.env.KV.delete(attemptKey);
+    }
+    const currentAttempt = isExpiredLock(existingAttempt, nowMs)
+      ? null
+      : existingAttempt;
+
+    if (
+      typeof currentAttempt?.lockedUntil === "number" &&
+      currentAttempt.lockedUntil > nowMs
+    ) {
+      return respondWithDelay(
+        accountLockedResponse(c, currentAttempt.lockedUntil, nowMs),
+      );
+    }
+
+    const userResults = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.externalSystem, "FAS"),
+          eq(users.externalWorkerId, body.employeeCode),
+        ),
+      )
+      .limit(1);
+
+    if (userResults.length === 0) {
+      const updatedAttempt = await recordFailedLoginAttempt(
+        c.env.KV,
+        attemptKey,
+        currentAttempt,
+        Date.now(),
+      );
+      try {
+        await logAuditWithContext(
+          c,
+          db,
+          "LOGIN_FAILED",
+          body.employeeCode,
+          "LOGIN_LOCKOUT",
+          attemptKey,
+          {
+            reason: "USER_NOT_FOUND",
+            method: "ACETIME",
+            attempts: updatedAttempt.attempts,
+          },
+        );
+      } catch {
+        // Do not block failed login response on audit failure.
+      }
+
+      if (typeof updatedAttempt.lockedUntil === "number") {
+        return respondWithDelay(
+          accountLockedResponse(c, updatedAttempt.lockedUntil, Date.now()),
+        );
+      }
+
+      return respondWithDelay(
+        error(
+          c,
+          "USER_NOT_FOUND",
+          "등록되지 않은 사용자입니다. 현장 관리자에게 문의하세요.",
+          401,
+        ),
+      );
+    }
+
+    const user = userResults[0];
+
+    const normalizedInputName = body.name.trim().toLowerCase();
+    const normalizedUserName = (user.name || "").trim().toLowerCase();
+
+    if (normalizedUserName !== normalizedInputName) {
+      const updatedAttempt = await recordFailedLoginAttempt(
+        c.env.KV,
+        attemptKey,
+        currentAttempt,
+        Date.now(),
+      );
+      try {
+        await logAuditWithContext(
+          c,
+          db,
+          "LOGIN_FAILED",
+          user.id,
+          "USER",
+          user.id,
+          {
+            reason: "NAME_MISMATCH",
+            method: "ACETIME",
+            attempts: updatedAttempt.attempts,
+          },
+        );
+      } catch {
+        // Do not block failed login response on audit failure.
+      }
+
+      if (typeof updatedAttempt.lockedUntil === "number") {
+        await logLoginLockoutEvent(
+          db,
+          c,
+          user.id,
+          `acetime:${body.employeeCode}`,
+          updatedAttempt.attempts,
+          updatedAttempt.lockedUntil,
+        );
+        return respondWithDelay(
+          accountLockedResponse(c, updatedAttempt.lockedUntil, Date.now()),
+        );
+      }
+
+      return respondWithDelay(
+        error(c, "NAME_MISMATCH", "이름이 일치하지 않습니다.", 401),
+      );
+    }
+
+    const requireAttendance = c.env.REQUIRE_ATTENDANCE_FOR_LOGIN !== "false";
+    if (requireAttendance) {
+      const { start, end } = getTodayRange();
+      const attendanceRecords = await db
+        .select()
+        .from(attendance)
+        .where(
+          and(eq(attendance.userId, user.id), eq(attendance.result, "SUCCESS")),
+        )
+        .limit(100);
+
+      const attended = attendanceRecords.some((record) => {
+        const checkinTime = record.checkinAt;
+        return checkinTime && checkinTime >= start && checkinTime < end;
+      });
+
+      if (!attended) {
+        return respondWithDelay(
+          error(
+            c,
+            "ATTENDANCE_NOT_VERIFIED",
+            "오늘 출근 인증이 확인되지 않습니다. 게이트 안면인식 출근 후 이용 가능합니다.",
+            403,
+          ),
+        );
+      }
+    }
+
+    const accessToken = await signJwt(
+      { sub: user.id, phone: "", role: user.role },
+      c.env.JWT_SECRET,
+    );
+    const refreshToken = crypto.randomUUID();
+    const refreshTokenExpiresAt = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000,
+    );
+
+    await db
+      .update(users)
+      .set({ refreshToken, refreshTokenExpiresAt, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+
+    const loginDeviceId = resolveDeviceId(c);
+    if (loginDeviceId) {
+      const existingDevice = await db
+        .select()
+        .from(deviceRegistrations)
+        .where(
+          and(
+            eq(deviceRegistrations.userId, user.id),
+            eq(deviceRegistrations.deviceId, loginDeviceId),
+          ),
+        )
+        .get();
+
+      if (existingDevice) {
+        await db
+          .update(deviceRegistrations)
+          .set({ lastSeenAt: new Date() })
+          .where(eq(deviceRegistrations.id, existingDevice.id));
+      } else {
+        await db.insert(deviceRegistrations).values({
+          userId: user.id,
+          deviceId: loginDeviceId,
+          deviceInfo: c.req.header("User-Agent") || null,
+          firstSeenAt: new Date(),
+          lastSeenAt: new Date(),
+          isTrusted: true,
+          isBanned: false,
+        });
+      }
+    }
+
+    await c.env.KV.delete(attemptKey);
+
+    try {
+      await logAuditWithContext(
+        c,
+        db,
+        "LOGIN_SUCCESS",
+        user.id,
+        "USER",
+        user.id,
+        {
+          method: "ACETIME",
+          employeeCode: body.employeeCode,
+        },
+      );
+    } catch {
+      // Do not block successful login response on audit failure.
+    }
+
+    return respondWithDelay(
+      success(
+        c,
+        {
+          accessToken,
+          refreshToken,
+          expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
+          user: {
+            id: user.id,
+            phone: "",
+            role: user.role,
+            name: user.name,
+            nameMasked: user.nameMasked,
+            companyName: user.companyName,
+            tradeType: user.tradeType,
+          },
+        },
+        200,
+      ),
+    );
+  },
+);
 
 auth.post("/refresh", zValidator("json", RefreshTokenSchema), async (c) => {
   const body = (() => {

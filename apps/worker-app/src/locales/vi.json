@@ -56,7 +56,13 @@
     "loginPageSubtitle": "Đăng nhập bằng số điện thoại, họ tên và ngày sinh",
     "loginPageHint": "Đăng nhập bằng số điện thoại, họ tên và ngày sinh đã đăng ký.",
     "loginPageNote": "Có thể cần bản ghi chấm công khi sử dụng lần đầu.",
-    "noAccount": "Chưa có tài khoản?"
+    "noAccount": "Chưa có tài khoản?",
+    "tabPhone": "Đăng nhập SĐT",
+    "tabAcetime": "Đăng nhập AceTime",
+    "employeeCode": "Mã nhân viên",
+    "employeeCodePlaceholder": "25000002",
+    "acetimeLoginHint": "Đăng nhập bằng mã nhân viên và họ tên đã đăng ký trên AceTime.",
+    "acetimeLoginNote": "Cần xác nhận chấm công trước khi đăng nhập."
   },
   "home": {
     "title": "Trang chủ",
@@ -240,7 +246,11 @@
     "leaveSuccess": "Đã rời công trường.",
     "leaveFailed": "Rời công trường thất bại. Vui lòng thử lại.",
     "loading": "Đang tải...",
-    "processing": "Đang xử lý..."
+    "processing": "Đang xử lý...",
+    "companyName": "Công ty",
+    "tradeType": "Ngành nghề",
+    "workerInfo": "Thông tin công nhân",
+    "noName": "Không có tên"
   },
   "announcements": {
     "title": "Thông báo",

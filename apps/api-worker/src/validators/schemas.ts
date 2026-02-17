@@ -85,6 +85,19 @@ export const LoginSchema = z.object({
   dob: z.string().min(1),
 });
 
+export const AcetimeLoginSchema = z.object({
+  employeeCode: z
+    .string()
+    .min(1, "Employee code is required")
+    .max(50, "Employee code too long")
+    .transform((val) => val.trim()),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name too long")
+    .transform((val) => val.trim()),
+});
+
 export const RefreshTokenSchema = z.object({
   refreshToken: z.string().min(1),
 });

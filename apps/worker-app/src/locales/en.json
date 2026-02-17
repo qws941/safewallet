@@ -56,7 +56,13 @@
     "loginPageSubtitle": "Login with phone, name, and date of birth",
     "loginPageHint": "Login with your registered phone number, name, and date of birth.",
     "loginPageNote": "Attendance check-in may be required for first-time use.",
-    "noAccount": "Don't have an account?"
+    "noAccount": "Don't have an account?",
+    "tabPhone": "Phone Login",
+    "tabAcetime": "AceTime Login",
+    "employeeCode": "Employee Code",
+    "employeeCodePlaceholder": "25000002",
+    "acetimeLoginHint": "Login with your AceTime employee code and name.",
+    "acetimeLoginNote": "Attendance check-in is required before login."
   },
   "home": {
     "title": "Home",
@@ -240,7 +246,11 @@
     "leaveSuccess": "You have left the site.",
     "leaveFailed": "Failed to leave. Please try again.",
     "loading": "Loading...",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "companyName": "Company",
+    "tradeType": "Trade",
+    "workerInfo": "Worker Info",
+    "noName": "No Name"
   },
   "announcements": {
     "title": "Announcements",

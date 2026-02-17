@@ -21,6 +21,10 @@ const fixtures: Record<string, Fixture> = {
     valid: { name: "Kim", phone: "01012345678", dob: "900101" },
     invalid: { name: "", phone: "01012345678", dob: "900101" },
   },
+  AcetimeLoginSchema: {
+    valid: { employeeCode: "25000002", name: "김선민" },
+    invalid: { employeeCode: "", name: "김선민" },
+  },
   RefreshTokenSchema: {
     valid: { refreshToken: "token-value" },
     invalid: { refreshToken: "" },

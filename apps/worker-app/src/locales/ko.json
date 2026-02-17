@@ -56,7 +56,13 @@
     "loginPageSubtitle": "휴대폰, 이름, 생년월일로 로그인",
     "loginPageHint": "등록된 전화번호, 이름, 생년월일로 로그인합니다.",
     "loginPageNote": "최초 이용 시 출근 기록이 필요할 수 있습니다.",
-    "noAccount": "계정이 없으신가요?"
+    "noAccount": "계정이 없으신가요?",
+    "tabPhone": "휴대폰 로그인",
+    "tabAcetime": "AceTime 로그인",
+    "employeeCode": "사원번호",
+    "employeeCodePlaceholder": "25000002",
+    "acetimeLoginHint": "AceTime에 등록된 사원번호와 이름으로 로그인합니다.",
+    "acetimeLoginNote": "출근 기록이 확인되어야 로그인이 가능합니다."
   },
   "home": {
     "title": "홈",
@@ -240,7 +246,11 @@
     "leaveSuccess": "현장에서 탈퇴했습니다.",
     "leaveFailed": "탈퇴에 실패했습니다. 다시 시도해주세요.",
     "loading": "로딩 중...",
-    "processing": "처리 중..."
+    "processing": "처리 중...",
+    "companyName": "소속업체",
+    "tradeType": "공종",
+    "workerInfo": "근로자 정보",
+    "noName": "이름 없음"
   },
   "announcements": {
     "title": "공지사항",

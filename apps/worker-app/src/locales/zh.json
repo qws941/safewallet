@@ -56,7 +56,13 @@
     "loginPageSubtitle": "使用手机号、姓名和出生日期登录",
     "loginPageHint": "使用已注册的电话号码、姓名和出生日期登录。",
     "loginPageNote": "首次使用时可能需要考勤记录。",
-    "noAccount": "没有账户？"
+    "noAccount": "没有账户？",
+    "tabPhone": "手机登录",
+    "tabAcetime": "AceTime登录",
+    "employeeCode": "员工编号",
+    "employeeCodePlaceholder": "25000002",
+    "acetimeLoginHint": "使用AceTime注册的员工编号和姓名登录。",
+    "acetimeLoginNote": "需要考勤记录才能登录。"
   },
   "home": {
     "title": "首页",
@@ -240,7 +246,11 @@
     "leaveSuccess": "已离开工地。",
     "leaveFailed": "离开工地失败。请重试。",
     "loading": "加载中...",
-    "processing": "处理中..."
+    "processing": "处理中...",
+    "companyName": "所属公司",
+    "tradeType": "工种",
+    "workerInfo": "工人信息",
+    "noName": "无姓名"
   },
   "announcements": {
     "title": "公告",
