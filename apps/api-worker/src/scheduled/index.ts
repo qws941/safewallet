@@ -536,7 +536,16 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
 
     log.info("Found updated employees", { count: updatedEmployees.length });
 
-    if (updatedEmployees.length === 0) return;
+    if (updatedEmployees.length === 0) {
+      if (env.KV) {
+        try {
+          await env.KV.delete("fas-status");
+        } catch {
+          /* non-critical */
+        }
+      }
+      return;
+    }
 
     const syncResult = await syncFasEmployeesToD1(updatedEmployees, db, {
       HMAC_SECRET: env.HMAC_SECRET,
