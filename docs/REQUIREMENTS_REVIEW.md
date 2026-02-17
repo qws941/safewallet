@@ -5,16 +5,19 @@
 ### 🔴 High Priority Issues
 
 #### [ISSUE-001] Authentication 강도 부족
+
 - **Description**: `name + phone + DOB`는 비밀정보가 아님. 추측/도용 위험
 - **Impact**: High
 - **Recommendation**: rate limiting, lockout, device fingerprint, OTP/SMS 검토
 
 #### [ISSUE-002] Identity 매칭 모호
+
 - **Description**: `worker_code`가 전사 unique인지 site별 unique인지 불명
 - **Impact**: High
 - **Recommendation**: `(external_system, site_id, external_worker_id)` 복합키 사용
 
 #### [ISSUE-003] PII 저장/검색 설계 갭
+
 - **Description**: `encrypted phone/dob`만으로는 로그인 시 검색 불가
 - **Impact**: High
 - **Recommendation**: `phone_hash`, `dob_hash` (HMAC) 인덱스 추가
@@ -22,31 +25,37 @@
 ### 🟡 Medium Priority Issues
 
 #### [ISSUE-004] Auto-create 트리거 불명확
+
 - **Description**: worker master sync 시점 vs attendance event 수신 시점 불명
 - **Impact**: Medium
 - **Recommendation**: master sync 먼저, attendance는 master 존재 시에만 처리
 
 #### [ISSUE-005] Attendance result 의미 불명확
+
 - **Description**: `result`가 fail도 포함하면 "Valid" 조건에 fail 포함 여부 결정 필요
 - **Impact**: Medium
 - **Recommendation**: success만 valid로 처리 (명시적 정책)
 
 #### [ISSUE-006] Day boundary/Timezone 모호
+
 - **Description**: "00:00–23:59" vs "night shift 06:00 cutoff" 기준 불명
 - **Impact**: Medium
 - **Recommendation**: site별 `day_cutoff_hour` + timezone 설정
 
 #### [ISSUE-007] Login gating 타이밍
+
 - **Description**: 로그인 시 1회 검사 vs 세션 중 재검증 필요 여부 불명
 - **Impact**: Medium
 - **Recommendation**: JWT TTL 24시간, 자정 통과 시 재로그인 요구
 
 #### [ISSUE-008] Multi-site 규칙 불완전
+
 - **Description**: `Users.site_id` 단일 값이면 현장 이동/겸직 처리 불가
 - **Impact**: Medium
 - **Recommendation**: `UserSiteMembership` 테이블 또는 site 선택 UI
 
 #### [ISSUE-009] Voting 규칙 모호
+
 - **Description**: "checked-in만 투표" 기준 시점, 사이트/전사 범위 불명
 - **Impact**: Medium
 - **Recommendation**: 투표 시점 당일 출석, 사이트별 투표로 명시
@@ -54,6 +63,7 @@
 ### 🟢 Low Priority Issues
 
 #### [ISSUE-010] Admin override 악용 가능
+
 - **Description**: 장비 고장 시 override 필요하나 권한 통제/감사 필요
 - **Impact**: Medium (Low likelihood)
 - **Recommendation**: RBAC, 사유 필수, audit log
@@ -62,17 +72,17 @@
 
 ## 2. 기술 결정 필요 사항 (Technical Decisions Required)
 
-| # | 결정 사항 | 옵션 | 권장 |
-|---|----------|------|------|
-| 1 | **FAS 연동 방식** | A) API/Webhook B) DB Polling C) CSV | A 우선, 불가시 B |
-| 2 | **Identity Key** | worker_code 단독 vs worker_code+site_id | site_id 포함 권장 |
-| 3 | **Login 보안 강화** | 현행유지 vs OTP/SMS 추가 | Phase 2에서 OTP 추가 |
-| 4 | **PII 검색** | 평문 vs HMAC hash index | HMAC index 필수 |
-| 5 | **출석 유효 조건** | 모든 로그 vs success만 | success만 |
-| 6 | **Day Cutoff** | 00:00 고정 vs site별 설정 | site별 설정 |
-| 7 | **세션 정책** | 무제한 vs TTL+자정 재검증 | 24h TTL + 자정 재검증 |
-| 8 | **투표 범위** | 전사 vs site별 | site별 |
-| 9 | **투표 자격** | 해당월 1회 출석 vs 투표 당일 출석 | 투표 당일 출석 |
+| #   | 결정 사항           | 옵션                                    | 권장                  |
+| --- | ------------------- | --------------------------------------- | --------------------- |
+| 1   | **FAS 연동 방식**   | A) API/Webhook B) DB Polling C) CSV     | A 우선, 불가시 B      |
+| 2   | **Identity Key**    | worker_code 단독 vs worker_code+site_id | site_id 포함 권장     |
+| 3   | **Login 보안 강화** | 현행유지 vs OTP/SMS 추가                | Phase 2에서 OTP 추가  |
+| 4   | **PII 검색**        | 평문 vs HMAC hash index                 | HMAC index 필수       |
+| 5   | **출석 유효 조건**  | 모든 로그 vs success만                  | success만             |
+| 6   | **Day Cutoff**      | 00:00 고정 vs site별 설정               | site별 설정           |
+| 7   | **세션 정책**       | 무제한 vs TTL+자정 재검증               | 24h TTL + 자정 재검증 |
+| 8   | **투표 범위**       | 전사 vs site별                          | site별                |
+| 9   | **투표 자격**       | 해당월 1회 출석 vs 투표 당일 출석       | 투표 당일 출석        |
 
 ---
 
@@ -213,10 +223,10 @@
   - [ ] 암호화 키 로테이션 계획
 - [ ] PII 접근 로깅
 - [ ] 데이터 보관 정책 (retention)
-- [ ] 장애 대응
-  - [ ] FAS 다운 시 admin override만 허용
-  - [ ] 장애 공지 UX
-- [ ] 모니터링/알림 설정
+- [x] 장애 대응 ✅
+  - [x] FAS 다운 시 admin override만 허용 ✅ attendanceMiddleware graceful bypass + manualApprovals
+  - [x] 장애 공지 UX ✅ GET /system/status + SystemBanner + admin maintenance endpoints
+- [x] 모니터링/알림 설정 ✅ alerting.ts + admin config endpoints + CRON metrics alert check
 
 ### Phase 8: 테스트 및 배포 (2-3일)
 
@@ -235,33 +245,33 @@
 
 ## 4. 리스크 매트릭스 (Risk Matrix)
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| 약한 로그인으로 계정 도용 | High | High | rate limiting, lockout, OTP 검토 |
-| 동일 phone/DOB/이름 오인매칭 | Medium | High | external_worker_id 중심, site scope |
-| FAS 연동 지연/다운 | Medium | High | lag 모니터링, admin override, 장애 UX |
-| Polling/CSV 누락/중복 | Medium | Medium | watermark+dedupe, 정합성 리포트 |
-| Day boundary 오적용 | Medium | Medium | site별 설정, 테스트 케이스 |
-| Admin override 남용 | Low | High | RBAC, audit log, 사유 필수 |
-| PII 유출 | Low | High | encryption, HMAC, 접근 통제 |
-| Voting 조작/강요 | Medium | Medium | 익명성, 마스킹, audit log |
-| Multi-site 이동 혼선 | Medium | Medium | site 선택 UX, 정책 안내 |
+| Risk                         | Probability | Impact | Mitigation                            |
+| ---------------------------- | ----------- | ------ | ------------------------------------- |
+| 약한 로그인으로 계정 도용    | High        | High   | rate limiting, lockout, OTP 검토      |
+| 동일 phone/DOB/이름 오인매칭 | Medium      | High   | external_worker_id 중심, site scope   |
+| FAS 연동 지연/다운           | Medium      | High   | lag 모니터링, admin override, 장애 UX |
+| Polling/CSV 누락/중복        | Medium      | Medium | watermark+dedupe, 정합성 리포트       |
+| Day boundary 오적용          | Medium      | Medium | site별 설정, 테스트 케이스            |
+| Admin override 남용          | Low         | High   | RBAC, audit log, 사유 필수            |
+| PII 유출                     | Low         | High   | encryption, HMAC, 접근 통제           |
+| Voting 조작/강요             | Medium      | Medium | 익명성, 마스킹, audit log             |
+| Multi-site 이동 혼선         | Medium      | Medium | site 선택 UX, 정책 안내               |
 
 ---
 
 ## 5. 예상 일정
 
-| Phase | 기간 | 누적 |
-|-------|------|------|
-| Phase 0: 요구사항 확정 | 1-2일 | 2일 |
-| Phase 1: 데이터 모델 | 2-3일 | 5일 |
-| Phase 2: FAS 연동 | 3-5일 | 10일 |
-| Phase 3: 인증/인가 | 3-4일 | 14일 |
-| Phase 4: UI 변경 | 2-3일 | 17일 |
-| Phase 5: 투표 기능 | 3-4일 | 21일 |
-| Phase 6: 관리자 기능 | 2-3일 | 24일 |
-| Phase 7: 보안/운영 | 2-3일 | 27일 |
-| Phase 8: 테스트/배포 | 2-3일 | **30일 (6주)** |
+| Phase                  | 기간  | 누적           |
+| ---------------------- | ----- | -------------- |
+| Phase 0: 요구사항 확정 | 1-2일 | 2일            |
+| Phase 1: 데이터 모델   | 2-3일 | 5일            |
+| Phase 2: FAS 연동      | 3-5일 | 10일           |
+| Phase 3: 인증/인가     | 3-4일 | 14일           |
+| Phase 4: UI 변경       | 2-3일 | 17일           |
+| Phase 5: 투표 기능     | 3-4일 | 21일           |
+| Phase 6: 관리자 기능   | 2-3일 | 24일           |
+| Phase 7: 보안/운영     | 2-3일 | 27일           |
+| Phase 8: 테스트/배포   | 2-3일 | **30일 (6주)** |
 
 ---
 

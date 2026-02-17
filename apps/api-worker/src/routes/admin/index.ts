@@ -15,6 +15,7 @@ import syncErrorsApp from "./sync-errors";
 import recommendationsApp from "./recommendations";
 import monitoringApp from "./monitoring";
 import imagesApp from "./images";
+import alertingApp from "./alerting";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -36,5 +37,6 @@ app.route("/", syncErrorsApp);
 app.route("/", recommendationsApp);
 app.route("/", monitoringApp);
 app.route("/", imagesApp);
+app.route("/", alertingApp);
 
 export default app;

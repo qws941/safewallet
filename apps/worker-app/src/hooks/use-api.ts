@@ -16,6 +16,28 @@ import type {
   AnnouncementDto,
 } from "@safetywallet/types";
 
+// System Status
+interface SystemNotice {
+  type: "fas_down" | "maintenance" | "info";
+  message: string;
+  severity: "warning" | "critical" | "info";
+}
+
+interface SystemStatusResponse {
+  success: boolean;
+  data: { notices: SystemNotice[]; hasIssues: boolean };
+}
+
+export function useSystemStatus() {
+  return useQuery({
+    queryKey: ["system-status"],
+    queryFn: () =>
+      apiFetch<SystemStatusResponse>("/system/status", { skipAuth: true }),
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
+  });
+}
+
 // Posts
 export function usePosts(siteId: string) {
   return useQuery({

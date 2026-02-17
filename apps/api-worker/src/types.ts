@@ -48,6 +48,9 @@ export interface Env {
   // Analytics Engine for observability
   ANALYTICS?: AnalyticsEngineDataset;
   ELASTICSEARCH_URL?: string;
+  ALERT_WEBHOOK_URL?: string;
+  NOTIFICATION_QUEUE?: Queue;
+  AI?: Ai;
 }
 
 export interface User {

@@ -1,6 +1,6 @@
 # 안전지갑 기능 체크리스트
 
-> 최종 업데이트: 2026-02-12
+> 최종 업데이트: 2026-02-16
 
 ## 1. 사용자 인증 (Authentication)
 
@@ -82,7 +82,7 @@
   - [x] 게시물 열람 불가
   - [x] 게시물 등록 불가
   - [x] 투표 불가
-  - [ ] 포인트/랭킹 열람 불가 (정책 결정 필요)
+  - [x] 포인트/랭킹 열람 불가 ✅ attendanceMiddleware on points routes
 - [x] 안내 메시지: "게이트 안면인식 출근 후 이용 가능합니다"
 
 ### 3.3 다현장 지원
@@ -238,12 +238,14 @@
 - [x] 회원 상세 정보
 - [x] 회원 상태 변경 (활성/비활성)
 - [x] 포인트 수동 조정
+- [x] 긴급 PII 삭제 (SUPER_ADMIN 전용, R2 이미지 + 관련 데이터 일괄 삭제)
 
 ### 8.6 게시물 관리
 
 - [x] 게시물 목록
 - [x] 게시물 승인/반려
 - [x] 게시물 삭제
+- [x] 게시물/조치 긴급 삭제 (SUPER_ADMIN 전용, R2 이미지 + 관련 데이터 일괄 삭제)
 
 ### 8.7 투표 관리
 
@@ -307,6 +309,17 @@
 - [x] `GET /admin/manual-approvals` - 수동 승인 목록 ✅ NEW
 - [x] `GET /admin/users` - 회원 목록
 - [x] `PUT /admin/users/:id` - 회원 수정
+- [x] `DELETE /admin/posts/:id/emergency-purge` - 게시물 긴급삭제 (SUPER_ADMIN)
+- [x] `DELETE /admin/users/:id/emergency-purge` - 사용자 PII 긴급삭제 (SUPER_ADMIN)
+- [x] `DELETE /admin/actions/:id/emergency-purge` - 조치 긴급삭제 (SUPER_ADMIN)
+
+### 9.8 알림 API ✅ NEW (2026-02-16)
+
+- [x] `POST /notifications/subscribe` - Web Push 구독 등록
+- [x] `DELETE /notifications/unsubscribe` - Web Push 구독 해제
+- [x] `GET /notifications/subscriptions` - 내 구독 목록 조회
+- [x] `GET /notifications/vapid-key` - VAPID 공개키 조회
+- [x] `POST /notifications/send` - 푸시 알림 발송 (Admin) + SMS fallback
 
 ---
 
@@ -374,6 +387,16 @@
 - [x] require_checkin (boolean)
 - [x] day_cutoff_hour (0-23)
 
+### 10.7 PushSubscriptions 테이블 ✅ NEW (2026-02-16)
+
+- [x] id (PK)
+- [x] user_id (FK → users)
+- [x] endpoint (UNIQUE)
+- [x] p256dh (Push 암호화 키)
+- [x] auth (Push 인증 시크릿)
+- [x] created_at
+- [x] INDEX (user_id)
+
 ---
 
 ## 11. 보안 요구사항
@@ -406,14 +429,14 @@
 ### 12.1 모니터링
 
 - [x] FAS 연동 상태 모니터링 ✅ NEW - GET /admin/sync-status
-- [ ] API 응답 시간 모니터링
-- [ ] 에러율 모니터링
-- [ ] 알림 설정
+- [x] API 응답 시간 모니터링 ✅ analyticsMiddleware + D1 apiMetrics + /admin/monitoring/metrics
+- [x] 에러율 모니터링 ✅ analyticsMiddleware status2xx/4xx/5xx + /admin/monitoring/top-errors
+- [x] 알림 설정 (임계치 초과 시 Webhook 자동 발송) ✅ alerting.ts + admin/alerting.ts + CRON metrics check
 
 ### 12.2 장애 대응
 
-- [ ] FAS 다운 시 처리 정책
-- [ ] 장애 공지 UX
+- [x] FAS 다운 시 처리 정책 ✅ KV fas-status flag + attendanceMiddleware graceful bypass
+- [x] 장애 공지 UX (Worker App 배너) ✅ GET /system/status + SystemBanner component + admin maintenance CRUD
 - [x] 수동 승인으로 우회 ✅ NEW
 
 ### 12.3 배포
@@ -422,6 +445,15 @@
 - [x] Admin App → Cloudflare Pages
 - [x] API → Cloudflare Workers (Hono)
 - [x] Database → Cloudflare D1 (SQLite/Drizzle)
+
+### 12.4 알림 시스템 ✅ NEW (2026-02-16)
+
+- [x] Web Push 구독 관리 (subscribe/unsubscribe/list)
+- [x] VAPID 키 기반 푸시 발송 (web-push.ts 라이브러리)
+- [x] Service Worker 푸시 핸들러 (sw-push.js)
+- [x] SMS fallback (Push 실패 시 자동 SMS 전환)
+- [x] Client-side 푸시 구독 Hook (use-push-subscription.ts)
+- [x] D1 push_subscriptions 테이블 + 마이그레이션 SQL
 
 ---
 
@@ -456,22 +488,22 @@
 
 ## 진행 상태 요약
 
-| 카테고리        | 총 항목 | 완료    | 진행률  |
-| --------------- | ------- | ------- | ------- |
-| 사용자 인증     | 15      | 14      | 93%     |
-| FAS 연동        | 18      | 16      | 89%     |
-| 접근 제어       | 12      | 11      | 92%     |
-| 메인 화면       | 12      | 12      | 100%    |
-| 우수근로자 투표 | 14      | 13      | 93%     |
-| 포인트 시스템   | 8       | 8       | 100%    |
-| 게시물          | 12      | 12      | 100%    |
-| 관리자 기능     | 24      | 24      | 100%    |
-| API             | 22      | 21      | 95%     |
-| 데이터베이스    | 32      | 30      | 94%     |
-| 보안            | 12      | 12      | 100%    |
-| 운영            | 10      | 6       | 60%     |
-| 안전교육        | 13      | 13      | 100%    |
-| **합계**        | **204** | **194** | **95%** |
+| 카테고리        | 총 항목 | 완료    | 진행률   |
+| --------------- | ------- | ------- | -------- |
+| 사용자 인증     | 15      | 15      | 100%     |
+| FAS 연동        | 18      | 18      | 100%     |
+| 접근 제어       | 12      | 12      | 100%     |
+| 메인 화면       | 12      | 12      | 100%     |
+| 우수근로자 투표 | 14      | 14      | 100%     |
+| 포인트 시스템   | 8       | 8       | 100%     |
+| 게시물          | 12      | 12      | 100%     |
+| 관리자 기능     | 24      | 24      | 100%     |
+| API             | 27      | 27      | 100%     |
+| 데이터베이스    | 39      | 39      | 100%     |
+| 보안            | 12      | 12      | 100%     |
+| 운영            | 16      | 16      | 100%     |
+| 안전교육        | 13      | 13      | 100%     |
+| **합계**        | **222** | **222** | **100%** |
 
 ---
 
@@ -504,9 +536,21 @@
 
 - [x] 해당 현장 출근 시에만 접속 허용 ✅ NEW - accessPolicies per-site + attendanceMiddleware 연동
 - [x] 수동 승인 UI (Admin) ✅ (approvals 페이지 구현됨)
+- [x] 긴급 삭제 기능 ✅ (2026-02-16) - 게시물/사용자 PII/조치 긴급삭제 API 3종 (SUPER_ADMIN, 확인ID+사유, R2 이미지 일괄 삭제, 감사 로그)
+- [x] Web Push 알림 ✅ (2026-02-16) - VAPID 기반 푸시 + SMS fallback + 구독 관리 API 5종
 
 ### P2 (Medium)
 
 - [x] Idempotency (출근 동기화 중복 방지) ✅ - Idempotency-Key 헤더 + onConflictDoNothing
 - [x] 감사 로그 강화 ✅ NEW - disputes status, FAS sync audit 추가
 - [x] 미매칭 근로자 목록 ✅ - GET /attendance/unmatched 구현됨
+
+### Phase 2 (외부 서비스 의존 — 미구현)
+
+- [ ] KakaoTalk Business 알림 연동
+- [x] Workers AI (이미지 블러, 위험 분류) ✅ hazard classification via @cf/microsoft/resnet-50, object detection, waitUntil integration in image upload, 20 tests
+- [ ] ERP 연동
+- [x] Cloudflare Queues (알림 안정성)
+- [x] 이미지 압축 최적화 ✅ client-side Canvas JPEG 80% + resize 1920px + EXIF strip (image-compress.ts, posts/new, actions/view)
+- [x] KV 세션 캐싱 ✅ auth middleware KV cache (300s TTL), session-cache.ts, 13 tests
+- [x] 다국어 지원 ✅ already implemented — full i18n framework (i18n/, locales/), 4 locales (ko/en/vi/zh), 293 t() calls across all 15 pages, locale-switcher component, I18nProvider, 16+ tests

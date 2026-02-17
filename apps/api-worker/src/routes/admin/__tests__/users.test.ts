@@ -74,10 +74,21 @@ function makeUpdateChain() {
   return chain;
 }
 
+function makeDeleteChain() {
+  const chain: Record<string, unknown> = {};
+  const self = (): Record<string, unknown> => chain;
+  chain.where = mockDeleteWhere.mockReturnValue(chain);
+  chain.returning = vi.fn(self);
+  chain.get = mockGet;
+  chain.run = mockRun;
+  return chain;
+}
+
 const mockDb = {
   select: vi.fn(() => makeSelectChain()),
   insert: vi.fn(() => makeInsertChain()),
   update: vi.fn(() => makeUpdateChain()),
+  delete: vi.fn(() => makeDeleteChain()),
 };
 
 vi.mock("drizzle-orm/d1", () => ({
@@ -106,6 +117,7 @@ vi.mock("../../../db/schema", () => ({
     piiViewFull: "piiViewFull",
     createdAt: "createdAt",
     updatedAt: "updatedAt",
+    deletedAt: "deletedAt",
   },
   auditLogs: {
     id: "id",
@@ -116,6 +128,11 @@ vi.mock("../../../db/schema", () => ({
     reason: "reason",
   },
   userRoleEnum: ["WORKER", "ADMIN", "SUPER_ADMIN"],
+  posts: { id: "id", userId: "userId" },
+  postImages: { postId: "postId", fileUrl: "fileUrl" },
+  reviews: { postId: "postId" },
+  pointsLedger: { postId: "postId" },
+  siteMemberships: { id: "id", userId: "userId" },
 }));
 
 vi.mock("../../../lib/crypto", () => ({
@@ -132,6 +149,15 @@ vi.mock("../../../lib/response", async () => {
 
 vi.mock("../../../lib/audit", () => ({
   logAuditWithContext: vi.fn(),
+}));
+
+vi.mock("../../../lib/logger", () => ({
+  createLogger: vi.fn(() => ({
+    debug: vi.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  })),
 }));
 
 interface AuthContext {
@@ -169,6 +195,7 @@ async function createApp(auth?: AuthContext) {
   const env = {
     DB: {},
     KV: { delete: vi.fn() },
+    R2: { delete: vi.fn() },
     HMAC_SECRET: "secret",
     ENCRYPTION_KEY: "enc-key",
     RATE_LIMITER: null,
@@ -183,6 +210,7 @@ describe("admin/users", () => {
     mockDb.select.mockImplementation(() => makeSelectChain());
     mockDb.insert.mockImplementation(() => makeInsertChain());
     mockDb.update.mockImplementation(() => makeUpdateChain());
+    mockDb.delete.mockImplementation(() => makeDeleteChain());
   });
 
   describe("GET /unlock-user/:phoneHash", () => {
@@ -343,6 +371,173 @@ describe("admin/users", () => {
         env,
       );
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe("DELETE /users/:id/emergency-purge", () => {
+    it("purges user with posts, images, and memberships", async () => {
+      mockGet.mockResolvedValueOnce({
+        id: "u-target",
+        name: "Kim",
+        deletedAt: null,
+      });
+      mockAll.mockResolvedValueOnce([{ id: "p1" }]);
+      mockAll.mockResolvedValueOnce([
+        { fileUrl: "img1.jpg" },
+        { fileUrl: "img2.jpg" },
+      ]);
+
+      const membershipResult = [{ id: "m1" }, { id: "m2" }];
+      mockDb.delete.mockImplementation(() => {
+        const chain = makeDeleteChain();
+        chain.returning = vi.fn().mockReturnValue(membershipResult);
+        return chain;
+      });
+
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/users/u-target/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Legal compliance",
+            confirmUserId: "u-target",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        data: {
+          purged: boolean;
+          purgedPosts: number;
+          purgedImages: number;
+          purgedMemberships: number;
+        };
+      };
+      expect(body.data.purged).toBe(true);
+      expect(body.data.purgedPosts).toBe(1);
+      expect(body.data.purgedImages).toBe(2);
+      expect(body.data.purgedMemberships).toBe(2);
+    });
+
+    it("purges user with no posts", async () => {
+      mockGet.mockResolvedValueOnce({
+        id: "u-empty",
+        name: "Lee",
+        deletedAt: null,
+      });
+      mockAll.mockResolvedValueOnce([]);
+
+      const membershipResult: unknown[] = [];
+      mockDb.delete.mockImplementation(() => {
+        const chain = makeDeleteChain();
+        chain.returning = vi.fn().mockReturnValue(membershipResult);
+        return chain;
+      });
+
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/users/u-empty/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "User requested deletion",
+            confirmUserId: "u-empty",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        data: { purged: boolean; purgedPosts: number };
+      };
+      expect(body.data.purged).toBe(true);
+      expect(body.data.purgedPosts).toBe(0);
+    });
+
+    it("returns 403 for non-SUPER_ADMIN", async () => {
+      const { app, env } = await createApp(makeAuth("ADMIN"));
+      const res = await app.request(
+        "/users/u-target/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Test",
+            confirmUserId: "u-target",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 400 when confirmUserId does not match", async () => {
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/users/u-target/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Test",
+            confirmUserId: "WRONG_ID",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 when user not found", async () => {
+      mockGet.mockResolvedValueOnce(undefined);
+
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/users/nonexistent/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Test",
+            confirmUserId: "nonexistent",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 410 when user already purged", async () => {
+      mockGet.mockResolvedValueOnce({
+        id: "u-purged",
+        name: "[긴급삭제]",
+        deletedAt: new Date("2025-01-01"),
+      });
+
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/users/u-purged/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Test",
+            confirmUserId: "u-purged",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(410);
     });
   });
 });

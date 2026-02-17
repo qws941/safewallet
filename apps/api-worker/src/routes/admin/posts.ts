@@ -16,6 +16,8 @@ import {
   categoryEnum,
   riskLevelEnum,
   reviewStatusEnum,
+  actions,
+  actionImages,
 } from "../../db/schema";
 import { success, error } from "../../lib/response";
 import { createLogger } from "../../lib/logger";
@@ -23,6 +25,7 @@ import {
   AdminReviewPostSchema,
   AdminManualApprovalSchema,
   AdminEmergencyDeleteSchema,
+  AdminEmergencyActionPurgeSchema,
 } from "../../validators/schemas";
 import { AppContext, requireManagerOrAdmin, getTodayRange } from "./helpers";
 import { dbBatchChunked } from "../../db/helpers";
@@ -511,7 +514,10 @@ app.delete(
       try {
         await c.env.R2.delete(image.fileUrl);
       } catch (e) {
-        logger.error('Failed to delete R2 image', { fileUrl: image.fileUrl, error: e instanceof Error ? e.message : String(e) });
+        logger.error("Failed to delete R2 image", {
+          fileUrl: image.fileUrl,
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
 
@@ -537,6 +543,79 @@ app.delete(
       purgedImages: images.length,
       purgedReviews: reviewsList.length,
       purgedPoints: points.length,
+    });
+  },
+);
+
+app.delete(
+  "/actions/:id/emergency-purge",
+  zValidator("json", AdminEmergencyActionPurgeSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user } = c.get("auth");
+    const actionId = c.req.param("id");
+    const body: z.infer<typeof AdminEmergencyActionPurgeSchema> =
+      c.req.valid("json");
+
+    if (user.role !== "SUPER_ADMIN") {
+      return error(
+        c,
+        "FORBIDDEN",
+        "Only SUPER_ADMIN can perform emergency action purge",
+        403,
+      );
+    }
+
+    if (body.confirmActionId !== actionId) {
+      return error(
+        c,
+        "CONFIRMATION_FAILED",
+        "Confirmation action ID mismatch",
+        400,
+      );
+    }
+
+    const action = await db
+      .select({ id: actions.id, postId: actions.postId })
+      .from(actions)
+      .where(eq(actions.id, actionId))
+      .get();
+
+    if (!action) {
+      return error(c, "ACTION_NOT_FOUND", "Action not found", 404);
+    }
+
+    const images = await db
+      .select({ fileUrl: actionImages.fileUrl })
+      .from(actionImages)
+      .where(eq(actionImages.actionId, actionId))
+      .all();
+
+    for (const image of images) {
+      try {
+        await c.env.R2.delete(image.fileUrl);
+      } catch (e) {
+        logger.error("Failed to delete R2 action image", {
+          fileUrl: image.fileUrl,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    await db.delete(actionImages).where(eq(actionImages.actionId, actionId));
+    await db.delete(actions).where(eq(actions.id, actionId));
+
+    await db.insert(auditLogs).values({
+      action: "EMERGENCY_DELETE",
+      actorId: user.id,
+      targetType: "ACTION",
+      targetId: actionId,
+      reason: body.reason,
+    });
+
+    return success(c, {
+      deleted: true,
+      purgedImages: images.length,
     });
   },
 );

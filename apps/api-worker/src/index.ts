@@ -29,6 +29,7 @@ import educationRoute from "./routes/education";
 import acetimeRoute from "./routes/acetime";
 import recommendationsRoute from "./routes/recommendations";
 import imagesRoute from "./routes/images";
+import notificationsRoute from "./routes/notifications";
 import { securityHeaders } from "./middleware/security-headers";
 import { analyticsMiddleware } from "./middleware/analytics";
 import { requestLoggerMiddleware } from "./middleware/request-logger";
@@ -71,6 +72,59 @@ const api = new Hono<{ Bindings: Env }>();
 
 api.get("/health", (c) => {
   return c.json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
+// Public system status endpoint for Worker App outage/maintenance banner
+api.get("/system/status", async (c) => {
+  const notices: Array<{
+    type: "fas_down" | "maintenance" | "info";
+    message: string;
+    severity: "warning" | "critical" | "info";
+  }> = [];
+
+  try {
+    const [fasStatus, maintenanceMessage] = await Promise.all([
+      c.env.KV.get("fas-status"),
+      c.env.KV.get("maintenance-message"),
+    ]);
+
+    if (fasStatus === "down") {
+      notices.push({
+        type: "fas_down",
+        message:
+          "출퇴근 시스템(FAS)에 일시적인 장애가 발생했습니다. 출근 확인 없이 일부 기능을 이용하실 수 있습니다.",
+        severity: "warning",
+      });
+    }
+
+    if (maintenanceMessage) {
+      try {
+        const parsed = JSON.parse(maintenanceMessage) as {
+          message: string;
+          severity?: "warning" | "critical" | "info";
+        };
+        notices.push({
+          type: "maintenance",
+          message: parsed.message,
+          severity: parsed.severity ?? "info",
+        });
+      } catch {
+        notices.push({
+          type: "maintenance",
+          message: maintenanceMessage,
+          severity: "info",
+        });
+      }
+    }
+  } catch {
+    // KV read failure — return empty notices rather than error
+  }
+
+  return c.json({
+    success: true,
+    data: { notices, hasIssues: notices.length > 0 },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Admin-only: Bulk sync FAS employees to D1 (paginated to avoid Workers CPU limit)
@@ -153,6 +207,7 @@ api.route("/approvals", approvalsRoute);
 api.route("/education", educationRoute);
 api.route("/acetime", acetimeRoute);
 api.route("/images", imagesRoute);
+api.route("/notifications", notificationsRoute);
 
 // Catch-all for unmatched API routes — return 404 JSON instead of SPA HTML
 api.all("*", (c) => {
@@ -288,7 +343,22 @@ app.onError((err, c) => {
   );
 });
 
-export { RateLimiter } from "./durable-objects/RateLimiter";
-export { scheduled } from "./scheduled";
+import { scheduled } from "./scheduled";
+import {
+  processNotificationBatch,
+  type NotificationQueueMessage,
+} from "./lib/notification-queue";
 
-export default app;
+export { RateLimiter } from "./durable-objects/RateLimiter";
+export { app };
+
+export default {
+  fetch: app.fetch,
+  scheduled,
+  async queue(
+    batch: MessageBatch<NotificationQueueMessage>,
+    env: Env,
+  ): Promise<void> {
+    await processNotificationBatch(batch, env);
+  },
+};

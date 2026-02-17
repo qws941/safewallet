@@ -55,7 +55,9 @@ export type AuditAction =
   | "ACCESS_POLICY_UPDATED"
   | "USER_DELETION_REQUEST"
   | "USER_DELETION_CANCEL"
-  | "USER_DATA_EXPORT";
+  | "USER_DATA_EXPORT"
+  | "EMERGENCY_DELETE"
+  | "EMERGENCY_PII_PURGE";
 
 /**
  * Target types for audit logging

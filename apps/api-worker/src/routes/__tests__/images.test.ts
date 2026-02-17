@@ -33,6 +33,14 @@ vi.mock("../../lib/observability", () => ({
   },
   startTimer: vi.fn(() => ({ end: vi.fn(() => 50), elapsed: () => 50 })),
 }));
+// Mock workers-ai
+vi.mock("../../lib/workers-ai", () => ({
+  classifyHazard: vi.fn(async () => ({
+    hazardType: "fall_hazard",
+    confidence: 0.85,
+    rawLabel: "ladder",
+  })),
+}));
 
 import type { Env, AuthContext } from "../../types";
 import imageRoutes from "../images";
@@ -185,6 +193,75 @@ describe("routes/images", () => {
       expect(res.status).toBe(200);
       const body = (await res.json()) as { data: { filename: string } };
       expect(body.data.filename).toBe("photo.jpg");
+    });
+  });
+
+  describe("AI hazard classification", () => {
+    it("triggers AI classification when AI binding is present", async () => {
+      const waitUntilFn = vi.fn<(p: Promise<unknown>) => void>();
+      const headResult = {
+        customMetadata: { "privacy-processed": "true" },
+      };
+      const putFn = vi.fn().mockResolvedValue(undefined);
+      const headFn = vi.fn().mockResolvedValue(headResult);
+
+      const { app: baseApp, env } = createApp(makeAuth(), {
+        put: putFn,
+        head: headFn,
+      });
+
+      (env as Record<string, unknown>).AI = {
+        run: vi.fn().mockResolvedValue([{ label: "ladder", score: 0.85 }]),
+      };
+
+      const wrappedApp = new Hono<AppEnv>();
+      wrappedApp.use("*", async (c, next) => {
+        Object.defineProperty(c, "executionCtx", {
+          value: { waitUntil: waitUntilFn },
+          writable: true,
+        });
+        await next();
+      });
+      wrappedApp.route("/", baseApp);
+
+      const form = new FormData();
+      form.append(
+        "file",
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], {
+          type: "image/jpeg",
+        }),
+        "test.jpg",
+      );
+
+      const res = await wrappedApp.request(
+        "http://localhost/images/upload",
+        { method: "POST", body: form },
+        env,
+      );
+      expect(res.status).toBe(200);
+      expect(waitUntilFn).toHaveBeenCalledOnce();
+    });
+
+    it("skips AI when AI binding is not present", async () => {
+      const putFn = vi.fn().mockResolvedValue(undefined);
+      const { app, env } = createApp(makeAuth(), { put: putFn });
+
+      const form = new FormData();
+      form.append(
+        "file",
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], {
+          type: "image/jpeg",
+        }),
+        "test.jpg",
+      );
+
+      const res = await app.request(
+        "http://localhost/images/upload",
+        { method: "POST", body: form },
+        env,
+      );
+      expect(res.status).toBe(200);
+      expect(putFn).toHaveBeenCalledTimes(1);
     });
   });
 });

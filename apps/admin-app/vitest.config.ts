@@ -25,7 +25,20 @@ export default defineConfig({
       "@/": path.resolve(__dirname, "./src") + "/",
     },
     coverage: {
-      exclude: ["**/lib/utils.ts"],
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "**/lib/utils.ts",
+        "src/**/*.test.{ts,tsx}",
+        "src/__tests__/**",
+        "src/app/**",
+      ],
+      thresholds: {
+        lines: 50,
+        functions: 50,
+        branches: 40,
+        statements: 50,
+      },
     },
   },
 });

@@ -6,6 +6,7 @@ import { processImageForPrivacy } from "../lib/image-privacy";
 import { computeImageHash } from "../lib/phash";
 import { log, startTimer } from "../lib/observability";
 import { trackEvent } from "../middleware/analytics";
+import { classifyHazard } from "../lib/workers-ai";
 
 const app = new Hono<{
   Bindings: Env;
@@ -117,7 +118,30 @@ app.post("/upload", async (c) => {
 
     const fileUrl = `/r2/${filename}`;
 
-    // Track analytics
+    if (c.env.AI) {
+      const aiPromise = classifyHazard(c.env.AI, processedBuffer).then(
+        async (result) => {
+          if (result) {
+            const obj = await c.env.R2.head(filename);
+            if (obj) {
+              await c.env.R2.put(filename, processedBuffer, {
+                httpMetadata: { contentType: file.type },
+                customMetadata: {
+                  ...obj.customMetadata,
+                  "ai-hazard-type": result.hazardType,
+                  "ai-confidence": String(result.confidence),
+                  "ai-raw-label": result.rawLabel,
+                },
+              });
+            }
+          }
+        },
+      );
+      if (c.executionCtx?.waitUntil) {
+        c.executionCtx.waitUntil(aiPromise);
+      }
+    }
+
     trackEvent(c, "image_uploaded", {
       userId: user.id,
       category: context || "unknown",

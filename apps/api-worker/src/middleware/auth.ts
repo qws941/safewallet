@@ -6,6 +6,7 @@ import { verifyJwt, checkSameDay } from "../lib/jwt";
 import { users } from "../db/schema";
 import type { Env, AuthContext } from "../types";
 import { createLogger } from "../lib/logger";
+import { getCachedUser, setCachedUser } from "../lib/session-cache";
 
 const logger = createLogger("auth");
 
@@ -31,6 +32,23 @@ export async function authMiddleware(
     });
   }
 
+  const cached = c.env.KV ? await getCachedUser(c.env.KV, payload.sub) : null;
+
+  if (cached) {
+    c.set("auth", {
+      user: {
+        id: payload.sub,
+        phone: payload.phone,
+        role: payload.role,
+        name: cached.name,
+        nameMasked: cached.nameMasked,
+      },
+      loginDate: payload.loginDate,
+    });
+    await next();
+    return;
+  }
+
   const db = drizzle(c.env.DB);
   const [user] = await db
     .select({ name: users.name, nameMasked: users.nameMasked })
@@ -38,7 +56,6 @@ export async function authMiddleware(
     .where(eq(users.id, payload.sub))
     .limit(1);
 
-  // MAJOR-3 FIX: Check if user exists; log if not found
   if (!user) {
     logger.warn("User record not found after successful JWT verification", {
       userId: payload.sub,
@@ -49,13 +66,21 @@ export async function authMiddleware(
     });
   }
 
+  const userData = {
+    name: user.name ?? "",
+    nameMasked: user.nameMasked ?? "",
+  };
+
+  if (c.env.KV) {
+    await setCachedUser(c.env.KV, payload.sub, userData);
+  }
+
   c.set("auth", {
     user: {
       id: payload.sub,
       phone: payload.phone,
       role: payload.role,
-      name: user.name ?? "",
-      nameMasked: user.nameMasked ?? "",
+      ...userData,
     },
     loginDate: payload.loginDate,
   });

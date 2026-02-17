@@ -4,12 +4,27 @@ import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, desc, sql, gte } from "drizzle-orm";
 import type { Env, AuthContext } from "../../types";
-import { users, auditLogs, userRoleEnum } from "../../db/schema";
+import {
+  users,
+  auditLogs,
+  userRoleEnum,
+  posts,
+  postImages,
+  reviews,
+  pointsLedger,
+  siteMemberships,
+} from "../../db/schema";
 import { decrypt, hmac } from "../../lib/crypto";
 import { success, error } from "../../lib/response";
 import { logAuditWithContext } from "../../lib/audit";
-import { AdminChangeRoleSchema } from "../../validators/schemas";
+import {
+  AdminChangeRoleSchema,
+  AdminEmergencyUserPurgeSchema,
+} from "../../validators/schemas";
 import { requireAdmin } from "./helpers";
+import { createLogger } from "../../lib/logger";
+
+const logger = createLogger("admin/users");
 
 const app = new Hono<{
   Bindings: Env;
@@ -305,6 +320,145 @@ app.patch(
     );
 
     return success(c, { user: updated });
+  },
+);
+
+// ─── Emergency PII Purge ─────────────────────────────────────────────────────
+app.delete(
+  "/users/:id/emergency-purge",
+  zValidator("json", AdminEmergencyUserPurgeSchema),
+  async (c) => {
+    const db = drizzle(c.env.DB);
+    const { user: currentUser } = c.get("auth");
+    const userId = c.req.param("id");
+    const body: z.infer<typeof AdminEmergencyUserPurgeSchema> =
+      c.req.valid("json");
+
+    if (currentUser.role !== "SUPER_ADMIN") {
+      return error(
+        c,
+        "FORBIDDEN",
+        "Only SUPER_ADMIN can perform emergency PII purge",
+        403,
+      );
+    }
+
+    if (body.confirmUserId !== userId) {
+      return error(
+        c,
+        "CONFIRMATION_FAILED",
+        "Confirmation user ID mismatch",
+        400,
+      );
+    }
+
+    const targetUser = await db
+      .select({ id: users.id, name: users.name, deletedAt: users.deletedAt })
+      .from(users)
+      .where(eq(users.id, userId))
+      .get();
+
+    if (!targetUser) {
+      return error(c, "USER_NOT_FOUND", "User not found", 404);
+    }
+
+    if (targetUser.deletedAt) {
+      return error(c, "ALREADY_PURGED", "User PII already purged", 410);
+    }
+
+    const userPosts = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.userId, userId))
+      .all();
+
+    let purgedImages = 0;
+
+    if (userPosts.length > 0) {
+      const postIds = userPosts.map((p) => p.id);
+      for (const postId of postIds) {
+        const images = await db
+          .select({ fileUrl: postImages.fileUrl })
+          .from(postImages)
+          .where(eq(postImages.postId, postId))
+          .all();
+
+        for (const image of images) {
+          try {
+            await c.env.R2.delete(image.fileUrl);
+            purgedImages++;
+          } catch (e) {
+            logger.error("Failed to delete R2 image during user purge", {
+              fileUrl: image.fileUrl,
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
+        }
+
+        await db.delete(postImages).where(eq(postImages.postId, postId));
+        await db.delete(reviews).where(eq(reviews.postId, postId));
+        await db.delete(pointsLedger).where(eq(pointsLedger.postId, postId));
+      }
+
+      await db.delete(posts).where(eq(posts.userId, userId));
+    }
+
+    const deletedMemberships = await db
+      .delete(siteMemberships)
+      .where(eq(siteMemberships.userId, userId))
+      .returning({ id: siteMemberships.id });
+
+    const now = new Date();
+    await db
+      .update(users)
+      .set({
+        phone: "",
+        phoneEncrypted: "",
+        phoneHash: "",
+        name: "[긴급삭제]",
+        nameMasked: "[긴급삭제]",
+        dob: null,
+        dobEncrypted: "",
+        dobHash: "",
+        companyName: null,
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+        otpCode: null,
+        otpExpiresAt: null,
+        deletedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(users.id, userId));
+
+    try {
+      await c.env.KV.delete(`user:${userId}`);
+      await c.env.KV.delete(`session:${userId}`);
+    } catch {
+      // non-blocking: KV cleanup is best-effort
+    }
+
+    await logAuditWithContext(
+      c,
+      db,
+      "EMERGENCY_PII_PURGE",
+      currentUser.id,
+      "USER",
+      userId,
+      {
+        reason: body.reason,
+        purgedPosts: userPosts.length,
+        purgedImages,
+        purgedMemberships: deletedMemberships.length,
+        previousName: targetUser.name,
+      },
+    );
+
+    return success(c, {
+      purged: true,
+      purgedPosts: userPosts.length,
+      purgedImages,
+      purgedMemberships: deletedMemberships.length,
+    });
   },
 );
 

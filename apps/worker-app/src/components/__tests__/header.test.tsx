@@ -10,6 +10,9 @@ vi.mock("@/hooks/use-translation", () => ({
 vi.mock("@/components/locale-switcher", () => ({
   LocaleSwitcher: () => <div>locale-switcher</div>,
 }));
+vi.mock("@/components/system-banner", () => ({
+  SystemBanner: () => null,
+}));
 
 describe("Header", () => {
   it("shows app title and locale switcher", () => {

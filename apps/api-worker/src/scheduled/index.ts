@@ -42,6 +42,15 @@ import { createLogger } from "../lib/logger";
 import { acquireSyncLock, releaseSyncLock } from "../lib/sync-lock";
 import { AceViewerEmployeesPayloadSchema } from "../validators/fas-sync";
 import { CROSS_MATCH_CRON_BATCH } from "../lib/constants";
+import {
+  fireAlert,
+  getAlertConfig,
+  buildFasDownAlert,
+  buildCronFailureAlert,
+  buildHighErrorRateAlert,
+  buildHighLatencyAlert,
+} from "../lib/alerting";
+import { apiMetrics } from "../db/schema";
 
 const log = createLogger("scheduled");
 
@@ -834,6 +843,56 @@ async function runAcetimeSyncFromR2(env: Env): Promise<void> {
   }
 }
 
+async function runMetricsAlertCheck(env: Env): Promise<void> {
+  if (!env.KV) return;
+
+  const config = await getAlertConfig(env.KV);
+  if (!config.enabled || !config.webhookUrl) return;
+
+  const db = drizzle(env.DB);
+  const now = new Date();
+  const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+  const fromBucket = fiveMinAgo.toISOString().slice(0, 16);
+
+  const [summary] = await db
+    .select({
+      totalRequests: sql<number>`coalesce(sum(${apiMetrics.requestCount}), 0)`,
+      total5xx: sql<number>`coalesce(sum(${apiMetrics.status5xx}), 0)`,
+      avgDurationMs: sql<number>`coalesce(cast(sum(${apiMetrics.totalDurationMs}) as real) / nullif(sum(${apiMetrics.requestCount}), 0), 0)`,
+      maxDurationMs: sql<number>`coalesce(max(${apiMetrics.maxDurationMs}), 0)`,
+    })
+    .from(apiMetrics)
+    .where(gte(apiMetrics.bucket, fromBucket));
+
+  if (!summary || summary.totalRequests === 0) return;
+
+  const errorRate = (summary.total5xx / summary.totalRequests) * 100;
+  if (errorRate > config.errorRateThresholdPercent) {
+    await fireAlert(
+      env.KV,
+      buildHighErrorRateAlert(
+        errorRate,
+        config.errorRateThresholdPercent,
+        summary.total5xx,
+        summary.totalRequests,
+      ),
+      env.ALERT_WEBHOOK_URL,
+    );
+  }
+
+  if (summary.avgDurationMs > config.latencyThresholdMs) {
+    await fireAlert(
+      env.KV,
+      buildHighLatencyAlert(
+        summary.avgDurationMs,
+        config.latencyThresholdMs,
+        summary.maxDurationMs,
+      ),
+      env.ALERT_WEBHOOK_URL,
+    );
+  }
+}
+
 export async function scheduled(
   controller: ScheduledController,
   env: Env,
@@ -845,17 +904,20 @@ export async function scheduled(
     if (trigger.startsWith("*/5 ") || trigger === "*/5 * * * *") {
       // FAS sync with exponential backoff retry (3 attempts: 5s, 10s, 20s)
       try {
-        await withRetry(
-          () => runFasSyncIncremental(env),
-          3, // maxAttempts
-          5000, // baseDelayMs (5s initial delay, exponential backoff)
-        );
+        await withRetry(() => runFasSyncIncremental(env), 3, 5000);
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
         log.error("FAS sync failed after 3 retries", {
-          error: err instanceof Error ? err.message : String(err),
+          error: errorMsg,
           trigger,
         });
-        // Don't rethrow — continue with other cron tasks
+        if (env.KV) {
+          await fireAlert(
+            env.KV,
+            buildFasDownAlert(errorMsg),
+            env.ALERT_WEBHOOK_URL,
+          ).catch(() => {});
+        }
       }
 
       await publishScheduledAnnouncements(env);
@@ -864,9 +926,25 @@ export async function scheduled(
       try {
         await withRetry(() => runAcetimeSyncFromR2(env), 3, 5000);
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
         log.error("AceTime sync failed after 3 retries", {
-          error: err instanceof Error ? err.message : String(err),
+          error: errorMsg,
           trigger,
+        });
+        if (env.KV) {
+          await fireAlert(
+            env.KV,
+            buildCronFailureAlert("AceTime R2 Sync", errorMsg),
+            env.ALERT_WEBHOOK_URL,
+          ).catch(() => {});
+        }
+      }
+
+      try {
+        await runMetricsAlertCheck(env);
+      } catch (err) {
+        log.error("Metrics alert check failed", {
+          error: err instanceof Error ? err.message : String(err),
         });
       }
     }

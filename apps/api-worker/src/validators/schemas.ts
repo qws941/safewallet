@@ -298,6 +298,16 @@ export const AdminEmergencyDeleteSchema = z.object({
   confirmPostId: z.string().min(1),
 });
 
+export const AdminEmergencyUserPurgeSchema = z.object({
+  reason: z.string().min(10, "Reason must be at least 10 characters"),
+  confirmUserId: z.string().min(1),
+});
+
+export const AdminEmergencyActionPurgeSchema = z.object({
+  reason: z.string().min(10, "Reason must be at least 10 characters"),
+  confirmActionId: z.string().min(1),
+});
+
 // ─── Education Schemas ───────────────────────────────────────────────────────
 
 export const CreateCourseSchema = z.object({

@@ -54,6 +54,22 @@ id = "57ab28dca9dd4193a8f59f93e57122d8"
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
 
+# Cloudflare Queue for reliable notification delivery
+[[queues.producers]]
+queue = "safework2-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+[[queues.consumers]]
+queue = "safework2-notifications"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "safework2-notifications-dlq"
+
+# Workers AI for hazard classification and privacy features
+[ai]
+binding = "AI"
+
 # Workers Logs observability
 [observability]
 enabled = true
@@ -114,6 +130,9 @@ id = "57ab28dca9dd4193a8f59f93e57122d8"
 
 [[env.dev.analytics_engine_datasets]]
 binding = "ANALYTICS"
+
+[env.dev.ai]
+binding = "AI"
 
 [env.dev.observability]
 enabled = true

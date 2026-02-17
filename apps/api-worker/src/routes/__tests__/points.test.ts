@@ -12,6 +12,10 @@ vi.mock("../../middleware/auth", () => ({
   ),
 }));
 
+vi.mock("../../middleware/attendance", () => ({
+  attendanceMiddleware: vi.fn(async () => {}),
+}));
+
 vi.mock("../../lib/audit", () => ({
   logAuditWithContext: vi.fn(),
 }));

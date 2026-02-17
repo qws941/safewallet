@@ -172,6 +172,8 @@ vi.mock("../../../db/schema", () => ({
     amount: "amount",
     occurredAt: "occurredAt",
   },
+  actions: { id: "id", postId: "postId" },
+  actionImages: { actionId: "actionId", fileUrl: "fileUrl" },
   manualApprovals: { id: "id" },
   auditLogs: {},
   categoryEnum: ["HAZARD", "UNSAFE_BEHAVIOR"],
@@ -660,6 +662,93 @@ describe("routes/admin/posts", () => {
           body: JSON.stringify({
             reason: "Emergency deletion for compliance reasons",
             confirmPostId: "nonexistent",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("DELETE /admin/actions/:id/emergency-purge", () => {
+    it("purges an action with images", async () => {
+      mockGetQueue.push({ id: "a1", postId: "p1" });
+      mockAllQueue.push([
+        { fileUrl: "action-img1.jpg" },
+        { fileUrl: "action-img2.jpg" },
+      ]);
+
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/admin/actions/a1/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Compliance requirement",
+            confirmActionId: "a1",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        data: { deleted: boolean; purgedImages: number };
+      };
+      expect(body.data.deleted).toBe(true);
+      expect(body.data.purgedImages).toBe(2);
+    });
+
+    it("returns 403 for non-SUPER_ADMIN", async () => {
+      const { app, env } = await createApp(makeAuth("ADMIN"));
+      const res = await app.request(
+        "/admin/actions/a1/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Test",
+            confirmActionId: "a1",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 400 when confirmActionId does not match", async () => {
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/admin/actions/a1/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Test",
+            confirmActionId: "WRONG_ID",
+          }),
+        },
+        env,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 when action not found", async () => {
+      mockGetQueue.push(undefined);
+
+      const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
+      const res = await app.request(
+        "/admin/actions/nonexistent/emergency-purge",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reason: "Test",
+            confirmActionId: "nonexistent",
           }),
         },
         env,

@@ -187,6 +187,20 @@ const fixtures: Record<string, Fixture> = {
     valid: { reason: "Duplicate and malicious post", confirmPostId: "post-1" },
     invalid: { reason: "too short", confirmPostId: "post-1" },
   },
+  AdminEmergencyUserPurgeSchema: {
+    valid: {
+      reason: "Legal compliance PII purge request",
+      confirmUserId: "user-1",
+    },
+    invalid: { reason: "short", confirmUserId: "user-1" },
+  },
+  AdminEmergencyActionPurgeSchema: {
+    valid: {
+      reason: "Compliance requirement action purge",
+      confirmActionId: "action-1",
+    },
+    invalid: { reason: "short", confirmActionId: "action-1" },
+  },
   CreateCourseSchema: {
     valid: {
       siteId: "site-1",

@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { attendanceMiddleware } from "../middleware/attendance";
 import {
   pointsLedger,
   pointPolicies,
@@ -159,6 +160,8 @@ app.get("/balance", async (c) => {
     );
   }
 
+  await attendanceMiddleware(c, async () => {}, siteId);
+
   const membership = await db
     .select()
     .from(siteMemberships)
@@ -199,12 +202,14 @@ app.get("/history", async (c) => {
     offset: c.req.query("offset"),
   };
 
+  if (query.siteId) {
+    await attendanceMiddleware(c, async () => {}, query.siteId);
+  }
+
   const limit = Math.min(parseInt(query.limit || "20"), 100);
   const offset = parseInt(query.offset || "0");
 
   const targetUserId = query.userId || user.id;
-
-  // Security: viewing another user's history requires admin privileges
   if (targetUserId !== user.id) {
     if (user.role !== "SUPER_ADMIN") {
       if (!query.siteId) {
@@ -286,6 +291,9 @@ app.get("/leaderboard/:siteId", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const siteId = c.req.param("siteId");
+
+  await attendanceMiddleware(c, async () => {}, siteId);
+
   const limitParam = c.req.query("limit");
   const limit = Math.min(parseInt(limitParam || "10"), 50);
   const type = c.req.query("type");

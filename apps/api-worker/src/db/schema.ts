@@ -154,6 +154,32 @@ export const users = sqliteTable(
   }),
 );
 
+export const pushSubscriptions = sqliteTable(
+  "push_subscriptions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    expiresAt: integer("expires_at", { mode: "timestamp" }),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+    failCount: integer("fail_count").notNull().default(0),
+    userAgent: text("user_agent"),
+  },
+  (table) => ({
+    userIdx: index("push_sub_user_idx").on(table.userId),
+    endpointUnique: uniqueIndex("push_sub_endpoint_idx").on(table.endpoint),
+  }),
+);
+
 export const sites = sqliteTable("sites", {
   id: text("id")
     .primaryKey()

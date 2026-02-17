@@ -16,6 +16,7 @@ import {
 import { logAuditWithContext } from "../lib/audit";
 import { success, error } from "../lib/response";
 import { decrypt } from "../lib/crypto";
+import { invalidateCachedUser } from "../lib/session-cache";
 import { UpdateProfileSchema } from "../validators/schemas";
 
 const app = new Hono<{
@@ -145,6 +146,10 @@ app.patch("/me", zValidator("json", UpdateProfileSchema), async (c) => {
       : null;
 
   if (updated) {
+    if (c.env.KV) {
+      await invalidateCachedUser(c.env.KV, user.id);
+    }
+
     try {
       await logAuditWithContext(
         c,

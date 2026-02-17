@@ -15,7 +15,21 @@ export default defineConfig({
       "@/": new URL("./src/", import.meta.url).pathname,
     },
     coverage: {
-      exclude: ["**/*.json", "src/__tests__/**", "**/lib/utils.ts"],
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "**/*.json",
+        "src/__tests__/**",
+        "src/**/*.test.{ts,tsx}",
+        "**/lib/utils.ts",
+        "src/app/**",
+      ],
+      thresholds: {
+        lines: 50,
+        functions: 50,
+        branches: 40,
+        statements: 50,
+      },
     },
   },
 });
