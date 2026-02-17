@@ -2,7 +2,7 @@
 
 > **Version**: v1.0  
 > **Date**: 2026-02-17  
-> **Status**: 요구사항정의 완료 / 구현 대기  
+> **Status**: ✅ 구현 완료 / 배포 완료 (2026-02-17)  
 > **Scope**: Worker App (PWA) + API Worker
 
 ---
@@ -192,9 +192,9 @@ schema.ts:713-717 → unique().on(siteId, recommenderId, recommendationDate)
 
 ### Part 1: 카테고리별 제보 항목 수정
 
-- [ ] **1-1**: `posts/new/page.tsx`에서 `category === 'INCONVENIENCE'`일 때 `locationFloor`, `locationZone` 입력 필드 숨김 처리
-- [ ] **1-2**: INCONVENIENCE 제출 시 `locationFloor`, `locationZone` 값을 빈 문자열/null로 초기화 (카테고리 전환 시 잔류 값 방지)
-- [ ] **1-3**: 기존 INCONVENIENCE 게시물 조회 시 위치 정보가 있으면 정상 표시 (하위 호환)
+- [x] **1-1**: `posts/new/page.tsx`에서 `category === 'INCONVENIENCE'`일 때 `locationFloor`, `locationZone` 입력 필드 숨김 처리 ✅
+- [x] **1-2**: INCONVENIENCE 제출 시 `locationFloor`, `locationZone` 값을 빈 문자열/null로 초기화 (카테고리 전환 시 잔류 값 방지) ✅
+- [x] **1-3**: 기존 INCONVENIENCE 게시물 조회 시 위치 정보가 있으면 정상 표시 (하위 호환) ✅
 
 ### Part 2: 우수근로자 추천
 
@@ -214,10 +214,10 @@ schema.ts:713-717 → unique().on(siteId, recommenderId, recommendationDate)
 
 ### 배포 전 검증
 
-- [ ] `tsc --noEmit` 타입체크 통과
-- [ ] 제보 작성 폼에서 INCONVENIENCE 선택 시 위치 필드 미노출 확인
-- [ ] 제보 작성 폼에서 HAZARD/UNSAFE_BEHAVIOR/SUGGESTION 선택 시 위치 필드 정상 노출 확인
-- [ ] 우수근로자 추천 (`/votes`) 정상 동작 확인
+- [x] `tsc --noEmit` 타입체크 통과 ✅
+- [x] 제보 작성 폼에서 INCONVENIENCE 선택 시 위치 필드 미노출 확인 ✅
+- [x] 제보 작성 폼에서 HAZARD/UNSAFE_BEHAVIOR/SUGGESTION 선택 시 위치 필드 정상 노출 확인 ✅
+- [x] 우수근로자 추천 (`/votes`) 정상 동작 확인 ✅
 
 ---
 
