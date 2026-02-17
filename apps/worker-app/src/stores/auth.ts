@@ -6,6 +6,8 @@ interface User {
   phone: string;
   nameMasked: string | null;
   role: string;
+  companyName?: string | null;
+  tradeType?: string | null;
 }
 
 interface AuthState {

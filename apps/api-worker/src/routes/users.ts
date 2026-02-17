@@ -39,6 +39,10 @@ app.get("/me", async (c) => {
       piiViewFull: users.piiViewFull,
       role: users.role,
       createdAt: users.createdAt,
+      companyName: users.companyName,
+      tradeType: users.tradeType,
+      externalWorkerId: users.externalWorkerId,
+      externalSystem: users.externalSystem,
     })
     .from(users)
     .where(eq(users.id, user.id))
@@ -91,6 +95,10 @@ app.get("/me", async (c) => {
       createdAt: fullUser.createdAt,
       memberships,
       totalPoints: pointsResult?.total || 0,
+      companyName: fullUser.companyName,
+      tradeType: fullUser.tradeType,
+      externalWorkerId: fullUser.externalWorkerId,
+      externalSystem: fullUser.externalSystem,
     },
   });
 });

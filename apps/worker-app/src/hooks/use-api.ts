@@ -95,7 +95,7 @@ export function useSiteInfo(siteId: string | null) {
 export function useProfile() {
   return useQuery({
     queryKey: ["profile"],
-    queryFn: () => apiFetch<ApiResponse<UserProfileDto>>("/users/me"),
+    queryFn: () => apiFetch<ApiResponse<{ user: UserProfileDto }>>("/users/me"),
   });
 }
 

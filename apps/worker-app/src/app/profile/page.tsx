@@ -36,7 +36,7 @@ export default function ProfilePage() {
   const { data: siteData } = useSiteInfo(currentSiteId);
   const leaveSite = useLeaveSite();
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const user = data?.data;
+  const user = data?.data?.user;
 
   const site = siteData?.data?.site;
 
@@ -97,7 +97,17 @@ export default function ProfilePage() {
                   <h2 className="text-xl font-bold">
                     {user?.nameMasked || t("profile.noName")}
                   </h2>
-                  <p className="text-sm text-muted-foreground">{user?.phone}</p>
+                  {user?.phone ? (
+                    <p className="text-sm text-muted-foreground">
+                      {user.phone}
+                    </p>
+                  ) : null}
+                  {user?.companyName ? (
+                    <p className="text-sm text-muted-foreground">
+                      {user.companyName}
+                      {user.tradeType ? ` · ${user.tradeType}` : ""}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             )}

@@ -18,6 +18,10 @@ export interface UserProfileDto {
   canManageUsers: boolean;
   createdAt: string;
   updatedAt: string;
+  companyName?: string | null;
+  tradeType?: string | null;
+  externalWorkerId?: string | null;
+  externalSystem?: string | null;
 }
 
 export interface UpdateProfileDto {
