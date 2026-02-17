@@ -24,7 +24,9 @@ import {
   AlertTriangle,
   AlertCircle,
   Clock,
+  Database,
 } from "lucide-react";
+import Link from "next/link";
 
 type AnomalyType = "EARLY" | "LATE" | "NO_CHECKOUT" | "DUPLICATE";
 
@@ -358,6 +360,12 @@ export default function AttendancePage() {
               </Badge>
             )}
           </Button>
+          <Link href="/attendance/sync">
+            <Button variant="ghost" className="rounded-full" size="sm">
+              <Database className="h-4 w-4 mr-1" />
+              연동 현황
+            </Button>
+          </Link>
         </div>
 
         {activeTab === "logs" && (

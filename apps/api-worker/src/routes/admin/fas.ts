@@ -1,9 +1,15 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, or, inArray } from "drizzle-orm";
+import { eq, and, or, inArray, sql, desc } from "drizzle-orm";
 import type { Env, AuthContext } from "../../types";
-import { users, sites, siteMemberships, auditLogs } from "../../db/schema";
+import {
+  users,
+  sites,
+  siteMemberships,
+  auditLogs,
+  syncErrors,
+} from "../../db/schema";
 import { hmac, encrypt } from "../../lib/crypto";
 import { success, error } from "../../lib/response";
 import { AdminSyncWorkersSchema } from "../../validators/schemas";
@@ -316,6 +322,78 @@ app.get("/fas/search-mariadb", requireAdmin, async (c) => {
   } catch (err) {
     return error(c, "INTERNAL_ERROR", String(err));
   }
+});
+
+app.get("/fas/sync-status", requireAdmin, async (c) => {
+  const db = drizzle(c.env.DB);
+
+  const [fasStatus, lastFullSync] = await Promise.all([
+    c.env.KV.get("fas-status"),
+    c.env.KV.get("fas-last-full-sync"),
+  ]);
+
+  const userStatsRow = await db
+    .select({
+      total: sql<number>`count(*)`,
+      fasLinked: sql<number>`sum(case when ${users.externalSystem} = 'FAS' then 1 else 0 end)`,
+      missingPhone: sql<number>`sum(case when ${users.phoneHash} is null then 1 else 0 end)`,
+      deleted: sql<number>`sum(case when ${users.deletedAt} is not null then 1 else 0 end)`,
+    })
+    .from(users)
+    .get();
+
+  const userStats = {
+    total: userStatsRow?.total ?? 0,
+    fasLinked: userStatsRow?.fasLinked ?? 0,
+    missingPhone: userStatsRow?.missingPhone ?? 0,
+    deleted: userStatsRow?.deleted ?? 0,
+  };
+
+  const syncErrorRows = await db
+    .select({
+      status: syncErrors.status,
+      count: sql<number>`count(*)`,
+    })
+    .from(syncErrors)
+    .groupBy(syncErrors.status)
+    .all();
+
+  const syncErrorCounts = { open: 0, resolved: 0, ignored: 0 };
+  for (const row of syncErrorRows) {
+    if (row.status === "OPEN") syncErrorCounts.open = row.count;
+    else if (row.status === "RESOLVED") syncErrorCounts.resolved = row.count;
+    else if (row.status === "IGNORED") syncErrorCounts.ignored = row.count;
+  }
+
+  const recentSyncLogs = await db
+    .select({
+      id: auditLogs.id,
+      action: auditLogs.action,
+      reason: auditLogs.reason,
+      createdAt: auditLogs.createdAt,
+    })
+    .from(auditLogs)
+    .where(
+      inArray(auditLogs.action, [
+        "FAS_SYNC_COMPLETED",
+        "FAS_SYNC_FAILED",
+        "FAS_WORKERS_SYNCED",
+      ]),
+    )
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(20)
+    .all();
+
+  return success(c, {
+    fasStatus,
+    lastFullSync,
+    userStats,
+    syncErrorCounts,
+    recentSyncLogs: recentSyncLogs.map((log) => ({
+      ...log,
+      createdAt: log.createdAt?.toISOString() ?? null,
+    })),
+  });
 });
 
 export default app;

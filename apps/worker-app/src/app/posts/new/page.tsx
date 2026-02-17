@@ -274,6 +274,10 @@ export default function NewPostPage() {
                     type="button"
                     onClick={() => {
                       setCategory(opt.value);
+                      if (opt.value === Category.INCONVENIENCE) {
+                        setLocationFloor("");
+                        setLocationZone("");
+                      }
                     }}
                     className={`p-3 rounded-lg border text-center transition-colors ${
                       category === opt.value
@@ -341,23 +345,27 @@ export default function NewPostPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{t("posts.location")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Input
-                placeholder={t("posts.location")}
-                value={locationFloor}
-                onChange={(e) => setLocationFloor(e.target.value)}
-              />
-              <Input
-                placeholder={t("posts.new.zone")}
-                value={locationZone}
-                onChange={(e) => setLocationZone(e.target.value)}
-              />
-            </CardContent>
-          </Card>
+          {category !== Category.INCONVENIENCE && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">
+                  {t("posts.location")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Input
+                  placeholder={t("posts.location")}
+                  value={locationFloor}
+                  onChange={(e) => setLocationFloor(e.target.value)}
+                />
+                <Input
+                  placeholder={t("posts.new.zone")}
+                  value={locationZone}
+                  onChange={(e) => setLocationZone(e.target.value)}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-2">
