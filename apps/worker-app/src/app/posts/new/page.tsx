@@ -43,9 +43,21 @@ export default function NewPostPage() {
 
   const categoryOptions = [
     { value: Category.HAZARD, label: "posts.category.hazard", icon: "⚠️" },
-    { value: Category.UNSAFE_BEHAVIOR, label: "posts.category.unsafeBehavior", icon: "🚨" },
-    { value: Category.INCONVENIENCE, label: "posts.category.inconvenience", icon: "🛠️" },
-    { value: Category.SUGGESTION, label: "posts.category.suggestion", icon: "💡" },
+    {
+      value: Category.UNSAFE_BEHAVIOR,
+      label: "posts.category.unsafeBehavior",
+      icon: "🚨",
+    },
+    {
+      value: Category.INCONVENIENCE,
+      label: "posts.category.inconvenience",
+      icon: "🛠️",
+    },
+    {
+      value: Category.SUGGESTION,
+      label: "posts.category.suggestion",
+      icon: "💡",
+    },
   ];
 
   const riskOptions = [
@@ -250,7 +262,9 @@ export default function NewPostPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">{t("posts.selectCategory")}</CardTitle>
+              <CardTitle className="text-base">
+                {t("posts.selectCategory")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-2">
@@ -277,10 +291,10 @@ export default function NewPostPage() {
 
           {category === Category.UNSAFE_BEHAVIOR && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-              <p className="font-medium">⚠️ {t("posts.category.unsafeBehavior")} {t("common.info")}</p>
-              <p>
-                {t("posts.new.unsafeBehaviorWarning")}
+              <p className="font-medium">
+                ⚠️ {t("posts.category.unsafeBehavior")} {t("common.info")}
               </p>
+              <p>{t("posts.new.unsafeBehaviorWarning")}</p>
             </div>
           )}
 
@@ -298,7 +312,9 @@ export default function NewPostPage() {
                       type="button"
                       onClick={() => setRiskLevel(opt.value)}
                       className={`flex-1 py-2 px-4 rounded-lg border-2 text-center transition-colors ${
-                        riskLevel === opt.value ? "border-current" : "border-gray-200"
+                        riskLevel === opt.value
+                          ? "border-current"
+                          : "border-gray-200"
                       } ${opt.color}`}
                     >
                       {t(opt.label)}
@@ -311,7 +327,9 @@ export default function NewPostPage() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">{t("posts.description")}</CardTitle>
+              <CardTitle className="text-base">
+                {t("posts.description")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <textarea

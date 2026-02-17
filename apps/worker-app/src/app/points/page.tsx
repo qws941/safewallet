@@ -55,7 +55,9 @@ export default function PointsPage() {
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 border-b border-amber-100">
             <div className="flex items-center gap-2 mb-3">
               <Trophy className="w-5 h-5 text-amber-600" />
-              <h3 className="font-bold text-amber-900">{t("points.ranking")}</h3>
+              <h3 className="font-bold text-amber-900">
+                {t("points.ranking")}
+              </h3>
             </div>
             <div className="flex gap-1 bg-amber-100/50 rounded-lg p-1">
               <button

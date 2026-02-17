@@ -213,7 +213,9 @@ function ActionDetailContent() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("actions.view.description")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("actions.view.description")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="whitespace-pre-wrap">{action.description}</p>
@@ -230,13 +232,18 @@ function ActionDetailContent() {
               </div>
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4" />
-                <span>{t("actions.view.assignee")}: {action.assignee?.nameMasked || t("actions.view.notSet")}</span>
+                <span>
+                  {t("actions.view.assignee")}:{" "}
+                  {action.assignee?.nameMasked || t("actions.view.notSet")}
+                </span>
               </div>
             </div>
 
             {action.post && (
               <div className="bg-gray-50 p-3 rounded-lg text-sm">
-                <span className="font-medium text-gray-700">{t("actions.view.relatedReport")}:</span>{" "}
+                <span className="font-medium text-gray-700">
+                  {t("actions.view.relatedReport")}:
+                </span>{" "}
                 <span className="text-gray-600">{action.post.title}</span>
               </div>
             )}
@@ -245,7 +252,9 @@ function ActionDetailContent() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("actions.view.progressStatus")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("actions.view.progressStatus")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {action.actionStatus === ActionStatus.ASSIGNED && (
@@ -291,13 +300,17 @@ function ActionDetailContent() {
             {action.actionStatus === ActionStatus.COMPLETED && (
               <div className="bg-green-50 p-4 rounded-lg text-center space-y-2">
                 <CheckCircle className="w-8 h-8 text-green-600 mx-auto" />
-                <p className="font-medium text-green-900">{t("actions.view.completionMessage")}</p>
+                <p className="font-medium text-green-900">
+                  {t("actions.view.completionMessage")}
+                </p>
                 <p className="text-sm text-green-700">
                   {t("actions.view.awaitingReview")}
                 </p>
                 {action.completionNote && (
                   <div className="mt-4 text-left bg-white p-3 rounded border border-green-100">
-                    <p className="text-xs text-green-600 mb-1">{t("actions.view.completionContent")}</p>
+                    <p className="text-xs text-green-600 mb-1">
+                      {t("actions.view.completionContent")}
+                    </p>
                     <p className="text-sm text-gray-700">
                       {action.completionNote}
                     </p>
@@ -309,7 +322,9 @@ function ActionDetailContent() {
             {action.actionStatus === ActionStatus.VERIFIED && (
               <div className="bg-emerald-50 p-4 rounded-lg text-center space-y-2">
                 <CheckCircle className="w-8 h-8 text-emerald-600 mx-auto" />
-                <p className="font-medium text-emerald-900">{t("actions.view.verificationComplete")}</p>
+                <p className="font-medium text-emerald-900">
+                  {t("actions.view.verificationComplete")}
+                </p>
                 <p className="text-sm text-emerald-700">
                   {t("actions.view.allCompleted")}
                 </p>
@@ -319,7 +334,9 @@ function ActionDetailContent() {
             {action.actionStatus === ActionStatus.OVERDUE && (
               <div className="bg-red-50 p-4 rounded-lg text-center space-y-2">
                 <AlertTriangle className="w-8 h-8 text-red-600 mx-auto" />
-                <p className="font-medium text-red-900">{t("actions.view.overdue")}</p>
+                <p className="font-medium text-red-900">
+                  {t("actions.view.overdue")}
+                </p>
                 <p className="text-sm text-red-700">
                   {t("actions.view.overdueMessage")}
                 </p>
@@ -338,7 +355,9 @@ function ActionDetailContent() {
 
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{t("actions.view.beforePhotos")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("actions.view.beforePhotos")}
+            </CardTitle>
             <Button
               variant="outline"
               size="sm"
@@ -367,13 +386,17 @@ function ActionDetailContent() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>{t("actions.view.deletePhoto")}</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            {t("actions.view.deletePhoto")}
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
                             {t("actions.view.confirmDelete")}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>{t("actions.view.cancel")}</AlertDialogCancel>
+                          <AlertDialogCancel>
+                            {t("actions.view.cancel")}
+                          </AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleDeleteImage(img.id)}
                           >
@@ -395,7 +418,9 @@ function ActionDetailContent() {
 
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{t("actions.view.afterPhotos")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("actions.view.afterPhotos")}
+            </CardTitle>
             <Button
               variant="outline"
               size="sm"
@@ -424,13 +449,17 @@ function ActionDetailContent() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>{t("actions.view.deletePhoto")}</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            {t("actions.view.deletePhoto")}
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
                             {t("actions.view.confirmDelete")}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>{t("actions.view.cancel")}</AlertDialogCancel>
+                          <AlertDialogCancel>
+                            {t("actions.view.cancel")}
+                          </AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleDeleteImage(img.id)}
                           >

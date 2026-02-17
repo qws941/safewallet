@@ -76,7 +76,9 @@ function QuizTakeContent() {
         <Header />
         <main className="p-4 text-center py-12">
           <p className="text-4xl mb-4">❌</p>
-          <p className="text-muted-foreground">{t("education.quiz.quizNotFound")}</p>
+          <p className="text-muted-foreground">
+            {t("education.quiz.quizNotFound")}
+          </p>
           <Button className="mt-4" onClick={() => router.back()}>
             {t("common.back")}
           </Button>
@@ -115,7 +117,10 @@ function QuizTakeContent() {
             title: data.attempt.passed
               ? t("education.quiz.congratulations")
               : t("education.quiz.failedMessage"),
-            description: t("education.quiz.scoreDisplay").replace("${score}", String(data.attempt.score)),
+            description: t("education.quiz.scoreDisplay").replace(
+              "${score}",
+              String(data.attempt.score),
+            ),
             variant: data.attempt.passed ? "default" : "destructive",
           });
         },
@@ -143,14 +148,18 @@ function QuizTakeContent() {
           <div className="text-6xl mb-2">{lastResult.passed ? "🎉" : "😢"}</div>
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold">
-              {lastResult.passed ? t("education.quiz.passedMessage") : t("education.quiz.failedMessage")}
+              {lastResult.passed
+                ? t("education.quiz.passedMessage")
+                : t("education.quiz.failedMessage")}
             </h2>
             <p className="text-muted-foreground">
               {t("common.score")}{" "}
               <span className="font-bold text-primary text-xl">
                 {lastResult.score}
               </span>
-              {t("education.quiz.scorePoints")} ({t("education.quiz.passingScoreLabel")} {quiz.passingScore}{t("education.quiz.scorePoints")})
+              {t("education.quiz.scorePoints")} (
+              {t("education.quiz.passingScoreLabel")} {quiz.passingScore}
+              {t("education.quiz.scorePoints")})
             </p>
           </div>
 
@@ -185,16 +194,19 @@ function QuizTakeContent() {
           <div className="flex gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="gap-1">
               <CheckCircle2 className="w-3 h-3" />
-              {t("education.quiz.passingScore")} {quiz.passingScore}{t("education.quiz.scorePoints")}
+              {t("education.quiz.passingScore")} {quiz.passingScore}
+              {t("education.quiz.scorePoints")}
             </Badge>
             <Badge variant="outline" className="gap-1">
               <AlertCircle className="w-3 h-3" />
-              {t("education.quiz.maximumLabel")} {quiz.maxAttempts}{t("education.attempts")}
+              {t("education.quiz.maximumLabel")} {quiz.maxAttempts}
+              {t("education.attempts")}
             </Badge>
             {quiz.timeLimitMinutes && (
               <Badge variant="outline" className="gap-1">
                 <Clock className="w-3 h-3" />
-                {quiz.timeLimitMinutes}{t("education.minutes")}
+                {quiz.timeLimitMinutes}
+                {t("education.minutes")}
               </Badge>
             )}
           </div>
@@ -259,7 +271,9 @@ function QuizTakeContent() {
           onClick={handleSubmit}
           disabled={isSubmitting}
         >
-          {isSubmitting ? t("education.quiz.submitting") : t("education.quiz.submitButton")}
+          {isSubmitting
+            ? t("education.quiz.submitting")
+            : t("education.quiz.submitButton")}
         </Button>
       </main>
 

@@ -151,7 +151,8 @@ export default function ActionsPage() {
 
                     {action.post && (
                       <p className="text-sm text-muted-foreground line-clamp-1">
-                        {t("actions.view.relatedReport")}: {action.post.title || t("actions.list.noTitle")}
+                        {t("actions.view.relatedReport")}:{" "}
+                        {action.post.title || t("actions.list.noTitle")}
                       </p>
                     )}
                   </CardContent>

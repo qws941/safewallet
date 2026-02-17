@@ -25,7 +25,8 @@ export function PointsCard({ balance, recentPoints, delta }: PointsCardProps) {
         </div>
         {recentPoints !== undefined && recentPoints > 0 && (
           <p className="text-sm opacity-75 mt-1">
-            {t("pointsCard.thisMonth")} +{recentPoints.toLocaleString("ko-KR")} P
+            {t("pointsCard.thisMonth")} +{recentPoints.toLocaleString("ko-KR")}{" "}
+            P
           </p>
         )}
         {delta !== undefined && delta !== 0 && (

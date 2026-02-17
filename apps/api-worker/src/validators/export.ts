@@ -24,7 +24,14 @@ export const ExportPostsQuerySchema = z.object({
   site: z.string().uuid().optional(),
   category: z.string().optional(),
   status: z
-    .enum(["PENDING", "RECEIVED", "IN_REVIEW", "APPROVED", "REJECTED", "NEED_INFO"])
+    .enum([
+      "PENDING",
+      "RECEIVED",
+      "IN_REVIEW",
+      "APPROVED",
+      "REJECTED",
+      "NEED_INFO",
+    ])
     .optional(),
   startDate: DateStringSchema.optional(),
   endDate: DateStringSchema.optional(),
@@ -80,6 +87,4 @@ export const ExportAttendanceQuerySchema = z.object({
 
 export type ExportPostsQuery = z.infer<typeof ExportPostsQuerySchema>;
 export type ExportUsersQuery = z.infer<typeof ExportUsersQuerySchema>;
-export type ExportAttendanceQuery = z.infer<
-  typeof ExportAttendanceQuerySchema
->;
+export type ExportAttendanceQuery = z.infer<typeof ExportAttendanceQuerySchema>;

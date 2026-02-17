@@ -1,6 +1,6 @@
-import { setupDevPlatform } from '@cloudflare/next-on-pages/next-dev';
+import { setupDevPlatform } from "@cloudflare/next-on-pages/next-dev";
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   await setupDevPlatform();
 }
 
@@ -9,7 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  transpilePackages: ['@safetywallet/ui', '@safetywallet/types'],
+  transpilePackages: ["@safetywallet/ui", "@safetywallet/types"],
 };
 
 export default nextConfig;

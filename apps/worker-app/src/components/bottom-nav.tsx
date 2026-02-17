@@ -47,7 +47,7 @@ export function BottomNav() {
               )}
             >
               <Icon className="w-5 h-5 mb-1" />
-              <span>{item.label ? t(item.label) : ''}</span>
+              <span>{item.label ? t(item.label) : ""}</span>
             </Link>
           );
         })}

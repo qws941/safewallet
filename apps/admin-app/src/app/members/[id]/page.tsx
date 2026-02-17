@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-export const runtime = 'edge';
+export const runtime = "edge";
 
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
-import { Button, Card, Badge, Skeleton } from '@safetywallet/ui';
-import { useMember } from '@/hooks/use-api';
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { Button, Card, Badge, Skeleton } from "@safetywallet/ui";
+import { useMember } from "@/hooks/use-api";
 
 export default function MemberDetailPage() {
   const params = useParams();
@@ -58,9 +58,9 @@ export default function MemberDetailPage() {
               <dt className="text-muted-foreground">상태</dt>
               <dd>
                 <Badge
-                  variant={member.status === 'ACTIVE' ? 'default' : 'secondary'}
+                  variant={member.status === "ACTIVE" ? "default" : "secondary"}
                 >
-                  {member.status === 'ACTIVE' ? '활성' : member.status}
+                  {member.status === "ACTIVE" ? "활성" : member.status}
                 </Badge>
               </dd>
             </div>
@@ -71,7 +71,7 @@ export default function MemberDetailPage() {
             <div className="flex justify-between">
               <dt className="text-muted-foreground">가입일</dt>
               <dd className="font-medium">
-                {new Date(member.joinedAt).toLocaleDateString('ko-KR')}
+                {new Date(member.joinedAt).toLocaleDateString("ko-KR")}
               </dd>
             </div>
           </dl>

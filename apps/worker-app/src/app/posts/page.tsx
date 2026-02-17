@@ -83,10 +83,13 @@ export default function PostsPage() {
 
       <main className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">{t("posts.pageList.myReportsList")}</h2>
+          <h2 className="text-lg font-bold">
+            {t("posts.pageList.myReportsList")}
+          </h2>
           <Link href="/posts/new">
             <Button size="sm" type="button" className="gap-1">
-              <Plus className="w-4 h-4" />{t("posts.pageList.newReport")}
+              <Plus className="w-4 h-4" />
+              {t("posts.pageList.newReport")}
             </Button>
           </Link>
         </div>

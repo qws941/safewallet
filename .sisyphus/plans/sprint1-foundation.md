@@ -3,8 +3,9 @@
 ## TL;DR
 
 > **Quick Summary**: Set up the complete monorepo foundation for SafetyWallet PWA including Turborepo config, Docker infrastructure, NestJS API scaffold, Prisma schema with 11 entities, two Next.js app scaffolds (worker + admin), shared UI library, and CI/CD pipeline.
-> 
+>
 > **Deliverables**:
+>
 > - pnpm + Turborepo monorepo with 3 apps and 3 packages
 > - Docker Compose with PostgreSQL 15, Redis 7, MinIO
 > - NestJS API with core modules (auth, users, sites, posts)
@@ -13,7 +14,7 @@
 > - Next.js admin app scaffold
 > - Shared UI library with 8 shadcn/ui components
 > - GitHub Actions CI pipeline (lint, typecheck, build)
-> 
+>
 > **Estimated Effort**: Large (8 tasks, ~3-4 days for full team)
 > **Parallel Execution**: YES - 3 waves
 > **Critical Path**: Task 1 → Task 3/4/5/6/7 → Task 8
@@ -23,16 +24,20 @@
 ## Context
 
 ### Original Request
+
 Create a detailed parallel execution plan for Sprint 1 (Foundation) of SafetyWallet - a construction site safety reporting PWA. The foundation includes repository setup, Docker infrastructure, backend/frontend scaffolds, and CI/CD.
 
 ### Interview Summary
+
 **Key Discussions**:
+
 - Tech stack confirmed: Next.js 14, NestJS, Prisma, PostgreSQL, Redis, MinIO
 - Monorepo structure: pnpm + Turborepo with apps/ and packages/ directories
 - Test strategy: Include setup (Jest for NestJS, Vitest for Next.js)
 - Auth approach: Mock auth for Sprint 1, defer real implementation
 
 **Decisions Made**:
+
 1. Prisma schema: Design from 12 listed entities
 2. Tests: Set up infrastructure, not in CI yet
 3. CI/CD: Lint + Type-check + Build only
@@ -40,7 +45,9 @@ Create a detailed parallel execution plan for Sprint 1 (Foundation) of SafetyWal
 5. Auth: Mock implementation for Sprint 1
 
 ### Self-Applied Gap Analysis
+
 **Identified Gaps** (addressed):
+
 - Missing Node.js version specification → Using Node 20 LTS
 - Missing pnpm version → Using pnpm 9.x
 - Missing port allocations → API: 3001, Worker: 3000, Admin: 3002, PG: 5432, Redis: 6379, MinIO: 9000/9001
@@ -51,9 +58,11 @@ Create a detailed parallel execution plan for Sprint 1 (Foundation) of SafetyWal
 ## Work Objectives
 
 ### Core Objective
+
 Establish the complete development foundation so Sprint 2 can immediately begin feature implementation without infrastructure concerns.
 
 ### Concrete Deliverables
+
 - `/package.json` - Turborepo root with workspace config
 - `/turbo.json` - Build pipeline configuration
 - `/docker/docker-compose.yml` - Local dev infrastructure
@@ -66,6 +75,7 @@ Establish the complete development foundation so Sprint 2 can immediately begin 
 - `/.github/workflows/ci.yml` - GitHub Actions pipeline
 
 ### Definition of Done
+
 - [ ] `pnpm install` succeeds from root
 - [ ] `pnpm turbo build` builds all packages and apps
 - [ ] `docker compose up -d` starts all services
@@ -76,12 +86,14 @@ Establish the complete development foundation so Sprint 2 can immediately begin 
 - [ ] API responds at localhost:3001/health
 
 ### Must Have
+
 - All 12 database entities in Prisma schema
 - PWA manifest and service worker setup for worker app
 - Shared types package consumed by all apps
 - Test infrastructure configured (not necessarily tests written)
 
 ### Must NOT Have (Guardrails)
+
 - ❌ Real authentication implementation (use mock)
 - ❌ Real SMS/OTP integration
 - ❌ Production deployment configuration
@@ -101,11 +113,13 @@ Establish the complete development foundation so Sprint 2 can immediately begin 
 > The executing agent verifies using tools (Bash, Playwright, curl).
 
 ### Test Decision
+
 - **Infrastructure exists**: NO (greenfield)
 - **Automated tests**: Set up infrastructure only
 - **Framework**: Jest (NestJS), Vitest + testing-library (Next.js)
 
 ### Test Setup (deferred to individual tasks)
+
 Each app will include test config but no test cases in Sprint 1.
 
 ---
@@ -135,24 +149,24 @@ Parallel Speedup: ~60% faster than sequential
 
 ### Dependency Matrix
 
-| Task | Depends On | Blocks | Can Parallelize With |
-|------|------------|--------|---------------------|
-| 1 | None | 2,3,4,5,6,7 | None (first) |
-| 2 | 1 | 5,8 | 3,4,6,7 |
-| 3 | 1 | 5,6,7,8 | 2,4,5,6,7 |
-| 4 | 1 | 6,7,8 | 2,3,5,6,7 |
-| 5 | 1,2,3 | 8 | 6,7 (after 2,3 complete) |
-| 6 | 1,3,4 | 8 | 5,7 (after 3,4 complete) |
-| 7 | 1,3,4 | 8 | 5,6 (after 3,4 complete) |
-| 8 | 1-7 | None | None (final) |
+| Task | Depends On | Blocks      | Can Parallelize With     |
+| ---- | ---------- | ----------- | ------------------------ |
+| 1    | None       | 2,3,4,5,6,7 | None (first)             |
+| 2    | 1          | 5,8         | 3,4,6,7                  |
+| 3    | 1          | 5,6,7,8     | 2,4,5,6,7                |
+| 4    | 1          | 6,7,8       | 2,3,5,6,7                |
+| 5    | 1,2,3      | 8           | 6,7 (after 2,3 complete) |
+| 6    | 1,3,4      | 8           | 5,7 (after 3,4 complete) |
+| 7    | 1,3,4      | 8           | 5,6 (after 3,4 complete) |
+| 8    | 1-7        | None        | None (final)             |
 
 ### Agent Dispatch Summary
 
-| Wave | Tasks | Recommended Approach |
-|------|-------|---------------------|
-| 1 | 1 | Single agent, sequential |
-| 2 | 2,3,4,5,6,7 | 6 parallel agents, run_in_background=true, wait for all |
-| 3 | 8 | Single agent after all complete |
+| Wave | Tasks       | Recommended Approach                                    |
+| ---- | ----------- | ------------------------------------------------------- |
+| 1    | 1           | Single agent, sequential                                |
+| 2    | 2,3,4,5,6,7 | 6 parallel agents, run_in_background=true, wait for all |
+| 3    | 8           | Single agent after all complete                         |
 
 ---
 
@@ -163,6 +177,7 @@ Parallel Speedup: ~60% faster than sequential
 ### Task 1: Monorepo + Docker Infrastructure Setup
 
 **What to do**:
+
 - Initialize pnpm workspace with Turborepo
 - Create root package.json with workspace configuration
 - Create turbo.json with build pipeline
@@ -172,23 +187,27 @@ Parallel Speedup: ~60% faster than sequential
 - Initialize git repository
 
 **Must NOT do**:
+
 - Install app-specific dependencies (defer to app tasks)
 - Create Prisma schema (separate task)
 - Set up CI/CD (separate task)
 
 **Recommended Agent Profile**:
+
 - **Category**: `quick`
   - Reason: Boilerplate setup with known patterns, no complex logic
 - **Skills**: [`git-master`]
   - `git-master`: Initial git setup with proper .gitignore
 
 **Parallelization**:
+
 - **Can Run In Parallel**: NO
 - **Parallel Group**: Wave 1 (solo)
 - **Blocks**: Tasks 2,3,4,5,6,7
 - **Blocked By**: None
 
 **References**:
+
 - Turborepo docs: https://turbo.build/repo/docs
 - pnpm workspace: https://pnpm.io/workspaces
 
@@ -197,16 +216,14 @@ Parallel Speedup: ~60% faster than sequential
 ---
 
 #### File 1: `/package.json`
+
 ```json
 {
   "name": "safetywallet",
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@9.15.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -236,6 +253,7 @@ Parallel Speedup: ~60% faster than sequential
 ---
 
 #### File 2: `/pnpm-workspace.yaml`
+
 ```yaml
 packages:
   - "apps/*"
@@ -245,6 +263,7 @@ packages:
 ---
 
 #### File 3: `/turbo.json`
+
 ```json
 {
   "$schema": "https://turbo.build/schema.json",
@@ -283,6 +302,7 @@ packages:
 ---
 
 #### File 4: `/.nvmrc`
+
 ```
 20
 ```
@@ -290,6 +310,7 @@ packages:
 ---
 
 #### File 5: `/.npmrc`
+
 ```ini
 auto-install-peers=true
 strict-peer-dependencies=false
@@ -299,6 +320,7 @@ shamefully-hoist=true
 ---
 
 #### File 6: `/.gitignore`
+
 ```gitignore
 # Dependencies
 node_modules/
@@ -348,6 +370,7 @@ docker/data/
 ---
 
 #### File 7: `/.env.example`
+
 ```bash
 # Node
 NODE_ENV=development
@@ -385,6 +408,7 @@ JWT_EXPIRES_IN="7d"
 ---
 
 #### File 8: `/docker/docker-compose.yml`
+
 ```yaml
 version: "3.8"
 
@@ -457,6 +481,7 @@ networks:
 ---
 
 #### File 9: `/docker/.env.example`
+
 ```bash
 # PostgreSQL
 POSTGRES_USER=safetywallet
@@ -477,6 +502,7 @@ MINIO_CONSOLE_PORT=9001
 ---
 
 #### File 10: `/apps/.gitkeep`
+
 ```
 # This directory contains application packages:
 # - api/     - NestJS backend API
@@ -487,6 +513,7 @@ MINIO_CONSOLE_PORT=9001
 ---
 
 #### File 11: `/packages/.gitkeep`
+
 ```
 # This directory contains shared packages:
 # - database/  - Prisma schema and client
@@ -497,6 +524,7 @@ MINIO_CONSOLE_PORT=9001
 ---
 
 #### File 12: `/.sisyphus/evidence/.gitkeep`
+
 ```
 # QA evidence artifacts (screenshots, logs) are stored here
 ```
@@ -578,6 +606,7 @@ Scenario: Node version file exists
 ```
 
 **Commit**: YES
+
 - Message: `chore: initialize monorepo with Turborepo and Docker infrastructure`
 - Files: All files listed above
 - Pre-commit: `docker compose -f docker/docker-compose.yml config`
@@ -587,6 +616,7 @@ Scenario: Node version file exists
 ### Task 2: Prisma Schema + Database Package
 
 **What to do**:
+
 - Create packages/database with Prisma setup
 - Design complete schema with all 11 entities
 - Configure Prisma client generation
@@ -594,27 +624,32 @@ Scenario: Node version file exists
 - Create seed script placeholder
 
 **Must NOT do**:
+
 - Run migrations against any database
 - Create actual seed data
 - Set up database connection pooling (defer)
 
 **Recommended Agent Profile**:
+
 - **Category**: `deep`
   - Reason: Schema design requires careful thought about relationships, indexes, enums
 - **Skills**: []
   - No special skills needed, deep category handles complexity
 
 **Parallelization**:
+
 - **Can Run In Parallel**: YES
 - **Parallel Group**: Wave 2 (with Tasks 3,4,5,6,7)
 - **Blocks**: Task 5 (API needs Prisma), Task 8
 - **Blocked By**: Task 1
 
 **References**:
+
 - Prisma schema docs: https://www.prisma.io/docs/concepts/components/prisma-schema
 - Prisma with NestJS: https://docs.nestjs.com/recipes/prisma
 
 **Files to Create**:
+
 ```
 /packages/database/package.json
 /packages/database/tsconfig.json
@@ -625,6 +660,7 @@ Scenario: Node version file exists
 ```
 
 **Schema Entities** (12 total):
+
 1. **User** - id, phone (encrypted), name (encrypted), role enum, status, createdAt, updatedAt
 2. **Site** - id, name, address, joinCode (unique), status, createdAt
 3. **SiteMembership** - id, userId, siteId, role enum, joinedAt, leftAt
@@ -693,8 +729,9 @@ Scenario: Package exports Prisma client
 ```
 
 **Commit**: YES (groups with Wave 2)
+
 - Message: `feat(database): add Prisma schema with all 11 entities`
-- Files: packages/database/**
+- Files: packages/database/\*\*
 - Pre-commit: `cd packages/database && npx prisma validate`
 
 ---
@@ -702,28 +739,33 @@ Scenario: Package exports Prisma client
 ### Task 3: Shared Types Package
 
 **What to do**:
+
 - Create packages/types with shared TypeScript types
 - Define DTOs, enums, and interfaces used across apps
 - Configure TypeScript for library output
 - Export all types from index
 
 **Must NOT do**:
+
 - Duplicate Prisma-generated types (import from @safetywallet/database)
 - Include runtime code (types only)
 - Add validation logic (that's for apps)
 
 **Recommended Agent Profile**:
+
 - **Category**: `quick`
   - Reason: Simple TypeScript setup with type definitions only
 - **Skills**: []
 
 **Parallelization**:
+
 - **Can Run In Parallel**: YES
 - **Parallel Group**: Wave 2
 - **Blocks**: Tasks 5,6,7,8
 - **Blocked By**: Task 1
 
 **Files to Create**:
+
 ```
 /packages/types/package.json
 /packages/types/tsconfig.json
@@ -738,6 +780,7 @@ Scenario: Package exports Prisma client
 ```
 
 **Types to Define**:
+
 - Enums: UserRole, UserStatus, SiteStatus, PostCategory, VisibilityState, ResolutionState, ReviewDecision, ActionStatus, PointsReason, NotificationType, AnnouncementPriority
 - DTOs: CreateUserDto, UpdateUserDto, CreateSiteDto, CreatePostDto, LoginRequestDto, LoginResponseDto, ApiResponse<T>, PaginatedResponse<T>
 
@@ -769,8 +812,9 @@ Scenario: All enums are exported
 ```
 
 **Commit**: YES (groups with Wave 2)
+
 - Message: `feat(types): add shared TypeScript types and DTOs`
-- Files: packages/types/**
+- Files: packages/types/\*\*
 - Pre-commit: `pnpm --filter @safetywallet/types build`
 
 ---
@@ -778,6 +822,7 @@ Scenario: All enums are exported
 ### Task 4: Shared UI Package (shadcn/ui)
 
 **What to do**:
+
 - Create packages/ui with React component library
 - Set up Tailwind CSS configuration
 - Add 8 core shadcn/ui components: Button, Input, Card, Form, Dialog, Toast, Avatar, Badge
@@ -785,23 +830,27 @@ Scenario: All enums are exported
 - Add Storybook (optional, nice-to-have)
 
 **Must NOT do**:
+
 - Create custom components (just shadcn primitives)
 - Add application-specific styling
 - Include business logic
 
 **Recommended Agent Profile**:
+
 - **Category**: `visual-engineering`
   - Reason: UI component library setup with Tailwind/shadcn
 - **Skills**: [`frontend-ui-ux`]
   - `frontend-ui-ux`: shadcn/ui patterns and Tailwind configuration
 
 **Parallelization**:
+
 - **Can Run In Parallel**: YES
 - **Parallel Group**: Wave 2
 - **Blocks**: Tasks 6,7,8
 - **Blocked By**: Task 1
 
 **Files to Create**:
+
 ```
 /packages/ui/package.json
 /packages/ui/tsconfig.json
@@ -859,8 +908,9 @@ Scenario: Tailwind config includes shadcn presets
 ```
 
 **Commit**: YES (groups with Wave 2)
+
 - Message: `feat(ui): add shared UI library with shadcn/ui components`
-- Files: packages/ui/**
+- Files: packages/ui/\*\*
 - Pre-commit: `pnpm --filter @safetywallet/ui build`
 
 ---
@@ -868,6 +918,7 @@ Scenario: Tailwind config includes shadcn presets
 ### Task 5: NestJS API Scaffold
 
 **What to do**:
+
 - Create apps/api with NestJS application
 - Set up core modules: App, Auth, Users, Sites, Posts
 - Configure Prisma integration
@@ -876,23 +927,27 @@ Scenario: Tailwind config includes shadcn presets
 - Configure CORS, validation pipes, swagger
 
 **Must NOT do**:
+
 - Implement real authentication (mock only)
 - Create actual business logic beyond scaffolding
 - Connect to production database
 - Write actual test cases (setup only)
 
 **Recommended Agent Profile**:
+
 - **Category**: `deep`
   - Reason: NestJS module architecture requires understanding of DI, decorators, and patterns
 - **Skills**: []
 
 **Parallelization**:
+
 - **Can Run In Parallel**: YES (after Tasks 2,3 complete)
 - **Parallel Group**: Wave 2 (late start)
 - **Blocks**: Task 8
 - **Blocked By**: Tasks 1, 2 (Prisma), 3 (types)
 
 **Files to Create**:
+
 ```
 /apps/api/package.json
 /apps/api/tsconfig.json
@@ -983,8 +1038,9 @@ Scenario: Jest is configured
 ```
 
 **Commit**: YES (groups with Wave 2)
+
 - Message: `feat(api): scaffold NestJS application with core modules`
-- Files: apps/api/**
+- Files: apps/api/\*\*
 - Pre-commit: `pnpm --filter @safetywallet/api build`
 
 ---
@@ -992,6 +1048,7 @@ Scenario: Jest is configured
 ### Task 6: Next.js Worker App (PWA)
 
 **What to do**:
+
 - Create apps/worker with Next.js 14 App Router
 - Configure PWA with next-pwa (manifest, service worker)
 - Set up Tailwind CSS with shared UI package
@@ -1002,11 +1059,13 @@ Scenario: Jest is configured
 - Create mock auth context
 
 **Must NOT do**:
+
 - Implement actual features (just scaffolding)
 - Connect to real API
 - Create actual pages beyond layout and home
 
 **Recommended Agent Profile**:
+
 - **Category**: `visual-engineering`
   - Reason: PWA setup with mobile-first Next.js requires UI expertise
 - **Skills**: [`frontend-ui-ux`, `playwright`]
@@ -1014,12 +1073,14 @@ Scenario: Jest is configured
   - `playwright`: Browser verification of PWA manifest
 
 **Parallelization**:
+
 - **Can Run In Parallel**: YES (after Tasks 3,4 complete)
 - **Parallel Group**: Wave 2 (late start)
 - **Blocks**: Task 8
 - **Blocked By**: Tasks 1, 3 (types), 4 (UI)
 
 **Files to Create**:
+
 ```
 /apps/worker/package.json
 /apps/worker/tsconfig.json
@@ -1100,8 +1161,9 @@ Scenario: Vitest is configured
 ```
 
 **Commit**: YES (groups with Wave 2)
+
 - Message: `feat(worker): scaffold Next.js PWA for construction workers`
-- Files: apps/worker/**
+- Files: apps/worker/\*\*
 - Pre-commit: `pnpm --filter @safetywallet/worker build`
 
 ---
@@ -1109,6 +1171,7 @@ Scenario: Vitest is configured
 ### Task 7: Next.js Admin App
 
 **What to do**:
+
 - Create apps/admin with Next.js 14 App Router
 - Set up Tailwind CSS with shared UI package
 - Create admin layout with sidebar navigation placeholder
@@ -1117,23 +1180,27 @@ Scenario: Vitest is configured
 - Create mock auth context (admin role)
 
 **Must NOT do**:
+
 - Implement actual admin features
 - Create real dashboard pages
 - Connect to real API
 
 **Recommended Agent Profile**:
+
 - **Category**: `visual-engineering`
   - Reason: Admin dashboard scaffold with layout patterns
 - **Skills**: [`frontend-ui-ux`]
   - `frontend-ui-ux`: Next.js App Router patterns, admin layout design
 
 **Parallelization**:
+
 - **Can Run In Parallel**: YES (after Tasks 3,4 complete)
 - **Parallel Group**: Wave 2 (late start)
 - **Blocks**: Task 8
 - **Blocked By**: Tasks 1, 3 (types), 4 (UI)
 
 **Files to Create**:
+
 ```
 /apps/admin/package.json
 /apps/admin/tsconfig.json
@@ -1195,8 +1262,9 @@ Scenario: Vitest is configured
 ```
 
 **Commit**: YES (groups with Wave 2)
+
 - Message: `feat(admin): scaffold Next.js admin dashboard`
-- Files: apps/admin/**
+- Files: apps/admin/\*\*
 - Pre-commit: `pnpm --filter @safetywallet/admin build`
 
 ---
@@ -1204,29 +1272,34 @@ Scenario: Vitest is configured
 ### Task 8: CI/CD Pipeline (GitHub Actions)
 
 **What to do**:
+
 - Create GitHub Actions workflow for CI
 - Configure: lint, typecheck, build for all packages/apps
 - Use Turborepo's remote caching (optional)
 - Add PR trigger and push to main trigger
 
 **Must NOT do**:
+
 - Set up deployment (defer to later sprint)
 - Add test execution (tests not written yet)
 - Configure secrets for production
 
 **Recommended Agent Profile**:
+
 - **Category**: `quick`
   - Reason: Standard GitHub Actions boilerplate
 - **Skills**: [`git-master`]
   - `git-master`: Git workflow and CI configuration
 
 **Parallelization**:
+
 - **Can Run In Parallel**: NO
 - **Parallel Group**: Wave 3 (final)
 - **Blocks**: None
 - **Blocked By**: Tasks 1-7 (needs all apps to verify build)
 
 **Files to Create**:
+
 ```
 /.github/workflows/ci.yml
 /.github/dependabot.yml (optional)
@@ -1268,21 +1341,23 @@ Scenario: CI uses correct Node version
 ```
 
 **Commit**: YES
+
 - Message: `ci: add GitHub Actions workflow for lint, typecheck, and build`
-- Files: .github/**
+- Files: .github/\*\*
 - Pre-commit: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`
 
 ---
 
 ## Commit Strategy
 
-| After Task | Message | Files | Verification |
-|------------|---------|-------|--------------|
-| 1 | `chore: initialize monorepo with Turborepo and Docker` | root files, docker/ | docker compose config |
-| 2-7 (batch) | Individual commits per task | Each app/package | turbo build |
-| 8 | `ci: add GitHub Actions workflow` | .github/ | YAML validation |
+| After Task  | Message                                                | Files               | Verification          |
+| ----------- | ------------------------------------------------------ | ------------------- | --------------------- |
+| 1           | `chore: initialize monorepo with Turborepo and Docker` | root files, docker/ | docker compose config |
+| 2-7 (batch) | Individual commits per task                            | Each app/package    | turbo build           |
+| 8           | `ci: add GitHub Actions workflow`                      | .github/            | YAML validation       |
 
 **Final verification after all tasks:**
+
 ```bash
 cd /home/jclee/dev/safework2
 pnpm install
@@ -1296,6 +1371,7 @@ pnpm turbo typecheck
 ## Success Criteria
 
 ### Verification Commands
+
 ```bash
 # All packages install
 pnpm install  # Expected: success, no errors
@@ -1326,6 +1402,7 @@ curl http://localhost:3002  # Expected: HTML response
 ```
 
 ### Final Checklist
+
 - [ ] Monorepo structure: apps/worker, apps/admin, apps/api, packages/database, packages/types, packages/ui
 - [ ] Docker Compose: PostgreSQL 15, Redis 7, MinIO all healthy
 - [ ] Prisma schema: All 12 entities defined and validated

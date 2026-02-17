@@ -78,7 +78,13 @@ export const AttendanceSyncBodySchema = z.object({
  */
 export const SyncResultSchema = z.object({
   fasEventId: z.string(),
-  result: z.enum(["SUCCESS", "DUPLICATE", "NOT_FOUND", "MISSING_SITE", "ERROR"]),
+  result: z.enum([
+    "SUCCESS",
+    "DUPLICATE",
+    "NOT_FOUND",
+    "MISSING_SITE",
+    "ERROR",
+  ]),
 });
 
 export const AttendanceSyncResponseSchema = z.object({

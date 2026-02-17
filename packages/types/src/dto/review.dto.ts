@@ -1,4 +1,4 @@
-import type { ReviewAction, RejectReason } from '../enums';
+import type { ReviewAction, RejectReason } from "../enums";
 
 export interface ReviewActionDto {
   postId: string;

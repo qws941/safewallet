@@ -145,7 +145,10 @@ describe("routes/approvals", () => {
       const { app, env } = await createApp(makeAuth("WORKER"));
       const res = await app.request("/approvals", {}, env);
       expect(res.status).toBe(403);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.error.code).toBe("FORBIDDEN");
     });
 
@@ -157,7 +160,10 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(400);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.error.code).toBe("INVALID_STATUS");
     });
 
@@ -175,7 +181,10 @@ describe("routes/approvals", () => {
       const { app, env } = await createApp(makeAuth("ADMIN"));
       const res = await app.request("/approvals?limit=10&offset=0", {}, env);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data).toBeDefined();
       expect(body.data.data.length).toBeGreaterThanOrEqual(0);
     });
@@ -185,7 +194,10 @@ describe("routes/approvals", () => {
       const { app, env } = await createApp(makeAuth("ADMIN"));
       const res = await app.request("/approvals?date=2025-01-15", {}, env);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data).toBeDefined();
     });
 
@@ -225,7 +237,10 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(404);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.error.code).toBe("NOT_FOUND");
     });
 
@@ -263,7 +278,10 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(400);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.error.code).toBe("INVALID_STATUS");
     });
 
@@ -283,7 +301,10 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(409);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.error.code).toBe("CONFLICT");
     });
 
@@ -305,7 +326,10 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data.success).toBe(true);
     });
   });
@@ -338,7 +362,10 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(400);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.error.code).toBe("REASON_REQUIRED");
     });
 
@@ -417,7 +444,10 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data.success).toBe(true);
     });
 

@@ -210,7 +210,7 @@ describe("routes/images", () => {
         head: headFn,
       });
 
-      (env as Record<string, unknown>).AI = {
+      (env as unknown as Record<string, unknown>).AI = {
         run: vi.fn().mockResolvedValue([{ label: "ladder", score: 0.85 }]),
       };
 

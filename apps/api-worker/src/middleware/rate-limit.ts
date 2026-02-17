@@ -44,7 +44,7 @@ export function rateLimitMiddleware(options: RateLimitOptions = {}) {
       });
 
       if (!response.ok) {
-        logger.warn("Rate limiter DO unavailable", { 
+        logger.warn("Rate limiter DO unavailable", {
           key,
           status: response.status,
         });

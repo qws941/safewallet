@@ -70,7 +70,7 @@ export class RateLimiter {
     // Clean up expired entries older than 7 days
     const now = Date.now();
     const cutoff = now - CLEANUP_ALARM_MS;
-    
+
     const allKeys = await this.state.storage.list();
     const keysToDelete: string[] = [];
 
@@ -83,7 +83,10 @@ export class RateLimiter {
           }
         }
         // Check OtpLimitState entries
-        else if ("dailyResetAt" in value && typeof value.dailyResetAt === "number") {
+        else if (
+          "dailyResetAt" in value &&
+          typeof value.dailyResetAt === "number"
+        ) {
           if (value.dailyResetAt < cutoff) {
             keysToDelete.push(key);
           }

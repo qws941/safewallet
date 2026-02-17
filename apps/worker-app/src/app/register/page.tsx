@@ -82,10 +82,10 @@ export default function RegisterPage() {
       <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50">
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">{t("auth.success.registerSuccess")}</CardTitle>
-            <CardDescription>
-              {t("common.ok")}
-            </CardDescription>
+            <CardTitle className="text-2xl">
+              {t("auth.success.registerSuccess")}
+            </CardTitle>
+            <CardDescription>{t("common.ok")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/login">

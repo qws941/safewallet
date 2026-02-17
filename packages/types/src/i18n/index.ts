@@ -1,6 +1,6 @@
-export { ko, type Ko } from './ko';
+export { ko, type Ko } from "./ko";
 
-import { ko } from './ko';
+import { ko } from "./ko";
 
 export const i18n = {
   ko,

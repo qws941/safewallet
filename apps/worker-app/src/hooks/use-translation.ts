@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useI18n } from '@/i18n';
-import { createTranslator } from '@/i18n/translate';
+import { useI18n } from "@/i18n";
+import { createTranslator } from "@/i18n/translate";
 
 /**
  * Hook to get translation function with full type safety

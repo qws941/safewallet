@@ -29,21 +29,21 @@ export function UnsafeWarningModal({
     <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("components.unsafeWarningTitle")}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {t("components.unsafeWarningTitle")}
+          </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
-            <p>
-              {t("components.unsafeWarningImprovementNote")}
-            </p>
-            <p>
-              {t("components.unsafeWarningPrivacyNote")}
-            </p>
+            <p>{t("components.unsafeWarningImprovementNote")}</p>
+            <p>{t("components.unsafeWarningPrivacyNote")}</p>
             <p className="text-sm text-muted-foreground">
               {t("components.unsafeWarningAdminNote")}
             </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogCancel onClick={onCancel}>
+            {t("common.cancel")}
+          </AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>
             {t("components.unsafeWarningConfirm")}
           </AlertDialogAction>

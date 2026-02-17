@@ -162,7 +162,9 @@ export default function HomePage() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-4 text-center">
                 <div className="text-2xl mb-1">📣</div>
-                <div className="text-sm font-medium">{t("announcements.title")}</div>
+                <div className="text-sm font-medium">
+                  {t("announcements.title")}
+                </div>
               </CardContent>
             </Card>
           </Link>
@@ -179,7 +181,9 @@ export default function HomePage() {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{t("home.recentReports")}</CardTitle>
+              <CardTitle className="text-base">
+                {t("home.recentReports")}
+              </CardTitle>
               <Link href="/posts" className="text-sm text-primary">
                 {t("home.viewAll")}
               </Link>

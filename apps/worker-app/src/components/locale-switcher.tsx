@@ -28,7 +28,9 @@ export function LocaleSwitcher() {
         aria-label={t("common.language")}
       >
         <Globe className="w-4 h-4" />
-        <span className="text-xs font-medium">{currentLocale.toUpperCase()}</span>
+        <span className="text-xs font-medium">
+          {currentLocale.toUpperCase()}
+        </span>
       </Button>
 
       {isOpen && (
@@ -51,10 +53,7 @@ export function LocaleSwitcher() {
 
       {/* Close menu when clicking outside */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setIsOpen(false)}
-        />
+        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
       )}
     </div>
   );

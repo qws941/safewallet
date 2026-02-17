@@ -16,14 +16,16 @@ export async function getLocale(locale?: Locale): Promise<Record<string, any>> {
         `Locale ${resolvedLocale} not found, falling back to ${defaultLocale}`,
       );
       const fallbackFn = locales[defaultLocale];
-      if (!fallbackFn) throw new Error(`Default locale ${defaultLocale} not found`);
+      if (!fallbackFn)
+        throw new Error(`Default locale ${defaultLocale} not found`);
       return await fallbackFn();
     }
     return await loaderFn();
   } catch (error) {
     console.error(`Failed to load locale ${resolvedLocale}:`, error);
     const fallbackFn = locales[defaultLocale];
-    if (!fallbackFn) throw new Error(`Default locale ${defaultLocale} not found`);
+    if (!fallbackFn)
+      throw new Error(`Default locale ${defaultLocale} not found`);
     return await fallbackFn();
   }
 }

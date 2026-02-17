@@ -108,7 +108,9 @@ export default function RecommendationsPage() {
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">{t("votes.selectSiteFirst")}</p>
+            <p className="text-muted-foreground">
+              {t("votes.selectSiteFirst")}
+            </p>
             <Button onClick={() => router.push("/home")} className="mt-4">
               {t("votes.backHome")}
             </Button>
@@ -135,9 +137,7 @@ export default function RecommendationsPage() {
               <Award className="h-5 w-5 text-yellow-500" />
               {t("votes.recommendWorkerTitle")}
             </CardTitle>
-            <CardDescription>
-              {t("votes.recommendWorkerDesc")}
-            </CardDescription>
+            <CardDescription>{t("votes.recommendWorkerDesc")}</CardDescription>
           </CardHeader>
         </Card>
 
@@ -145,7 +145,9 @@ export default function RecommendationsPage() {
           <Card className="border-green-200 bg-green-50">
             <CardContent className="p-6 text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <p className="font-medium text-green-700">{t("votes.recommendedToday")}</p>
+              <p className="font-medium text-green-700">
+                {t("votes.recommendedToday")}
+              </p>
               <p className="text-sm text-green-600 mt-1">
                 {t("votes.canRecommendTomorrow")}
               </p>

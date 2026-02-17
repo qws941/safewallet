@@ -1,6 +1,6 @@
-import { Card } from '@safetywallet/ui';
-import { cn } from '@/lib/utils';
-import type { LucideIcon } from 'lucide-react';
+import { Card } from "@safetywallet/ui";
+import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 
 interface StatsCardProps {
   title: string;
@@ -23,7 +23,7 @@ export function StatsCard({
   className,
 }: StatsCardProps) {
   return (
-    <Card className={cn('p-6', className)}>
+    <Card className={cn("p-6", className)}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
@@ -34,11 +34,11 @@ export function StatsCard({
           {trend && (
             <p
               className={cn(
-                'mt-1 text-sm',
-                trend.isPositive ? 'text-green-600' : 'text-red-600'
+                "mt-1 text-sm",
+                trend.isPositive ? "text-green-600" : "text-red-600",
               )}
             >
-              {trend.isPositive ? '+' : ''}
+              {trend.isPositive ? "+" : ""}
               {trend.value}% 전주 대비
             </p>
           )}

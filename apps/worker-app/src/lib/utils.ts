@@ -1,1 +1,1 @@
-export { cn } from '@safetywallet/ui';
+export { cn } from "@safetywallet/ui";

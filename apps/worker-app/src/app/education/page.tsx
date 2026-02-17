@@ -125,7 +125,8 @@ function ContentsTab({ siteId }: { siteId: string }) {
     <div className="space-y-3">
       {contents.map((content) => {
         const Icon = contentTypeIcons[content.contentType] || FileText;
-        const contentTypeKey = `education.contentTypes.${content.contentType}` as const;
+        const contentTypeKey =
+          `education.contentTypes.${content.contentType}` as const;
         return (
           <AttendanceGuard key={content.id}>
             <Link href={`/education/view?id=${content.id}`}>
@@ -193,7 +194,9 @@ function QuizzesTab({ siteId }: { siteId: string }) {
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-2">
                 <Badge variant={quiz.isActive ? "default" : "secondary"}>
-                  {quiz.isActive ? t("education.active") : t("education.closed")}
+                  {quiz.isActive
+                    ? t("education.active")
+                    : t("education.closed")}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {quiz.timeLimitMinutes
@@ -208,11 +211,16 @@ function QuizzesTab({ siteId }: { siteId: string }) {
               <div className="flex items-center gap-4 text-xs text-muted-foreground bg-gray-50 p-2 rounded">
                 <div className="flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{t("education.passingScore")} {quiz.passingScore}점</span>
+                  <span>
+                    {t("education.passingScore")} {quiz.passingScore}점
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" />
-                  <span>{t("education.maxAttempts")} {quiz.maxAttempts}{t("education.attempts")}</span>
+                  <span>
+                    {t("education.maxAttempts")} {quiz.maxAttempts}
+                    {t("education.attempts")}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -231,8 +239,7 @@ function TbmTab({ siteId }: { siteId: string }) {
 
   const handleAttend = (id: string) => {
     attendTbm(id, {
-      onSuccess: () =>
-        toast({ title: t("education.attendanceConfirmed") }),
+      onSuccess: () => toast({ title: t("education.attendanceConfirmed") }),
       onError: (error) => {
         let errorCode = "";
         try {
@@ -279,7 +286,10 @@ function TbmTab({ siteId }: { siteId: string }) {
                 </h3>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Users className="w-3 h-3" />
-                  <span>{t("education.attendance")} {record._count?.attendees || 0}{t("education.attendees")}</span>
+                  <span>
+                    {t("education.attendance")} {record._count?.attendees || 0}
+                    {t("education.attendees")}
+                  </span>
                   <span className="mx-1">·</span>
                   <span>{record.leader?.nameMasked}</span>
                 </p>

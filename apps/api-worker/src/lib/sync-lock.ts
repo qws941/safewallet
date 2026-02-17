@@ -59,9 +59,9 @@ export async function releaseSyncLock(
     await kv.delete(key);
     log.info("Sync lock released", { lockName });
   } catch (err) {
-    log.error("Failed to release sync lock", { 
+    log.error("Failed to release sync lock", {
       lockName,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }

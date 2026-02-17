@@ -1,6 +1,7 @@
 # Draft: SafetyWallet Sprint 1 Foundation Plan
 
 ## Requirements (confirmed)
+
 - **Project type**: Construction site safety reporting PWA
 - **Monorepo**: pnpm + Turborepo
 - **Frontend**: Next.js 14 (App Router), Tailwind CSS, shadcn/ui, Zustand, React Hook Form + Zod
@@ -9,6 +10,7 @@
 - **Infra**: Docker Compose for local dev
 
 ## Project Structure (confirmed)
+
 ```
 safetywallet/
 ├── apps/
@@ -25,6 +27,7 @@ safetywallet/
 ```
 
 ## Sprint 1 Scope (confirmed - 8 items)
+
 1. Repository setup (pnpm monorepo with Turborepo)
 2. Docker Compose (PostgreSQL, Redis, MinIO)
 3. NestJS project scaffold with core modules
@@ -35,6 +38,7 @@ safetywallet/
 8. CI/CD pipeline (GitHub Actions)
 
 ## Entities (from PRD)
+
 - Users (phone-based auth, encrypted PII)
 - Sites (QR join codes)
 - SiteMemberships (user-site relationship)
@@ -48,9 +52,11 @@ safetywallet/
 - AuditLogs
 
 ## Open Questions
+
 - ✅ All resolved
 
 ## Technical Decisions (CONFIRMED)
+
 1. **Prisma Schema**: Design from 11 entities listed (Users, Sites, SiteMemberships, Posts, PostImages, Reviews, Actions, ActionImages, PointsLedger, Notifications, Announcements, AuditLogs)
 2. **Test Strategy**: YES - Jest for NestJS, Vitest + testing-library for Next.js
 3. **CI/CD Scope**: Lint + Type-check + Build (no tests in CI for Sprint 1)
@@ -58,5 +64,6 @@ safetywallet/
 5. **Auth Mechanism**: Mock auth for Sprint 1 (defer real phone/QR implementation to later sprint)
 
 ## Scope Boundaries
+
 - INCLUDE: Sprint 1 only
 - EXCLUDE: Sprint 2+ features, production deployment

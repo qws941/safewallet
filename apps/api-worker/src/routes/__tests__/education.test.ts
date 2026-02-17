@@ -632,13 +632,11 @@ describe("education", () => {
     });
 
     it("creates TBM record as SUPER_ADMIN", async () => {
-      mockGet
-        .mockResolvedValueOnce(undefined)
-        .mockResolvedValueOnce({
-          id: "tbm-1",
-          siteId: "site-1",
-          topic: "Safety",
-        });
+      mockGet.mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+        id: "tbm-1",
+        siteId: "site-1",
+        topic: "Safety",
+      });
       const { app, env } = await createApp(makeAuth("SUPER_ADMIN"));
       const res = await app.request(
         "/tbm",

@@ -48,7 +48,8 @@ export function RankingCard({
                   </span>
                   {totalParticipants && (
                     <span className="text-xs text-amber-700 font-medium">
-                      / {totalParticipants}{t("rankingCard.participants")}
+                      / {totalParticipants}
+                      {t("rankingCard.participants")}
                     </span>
                   )}
                 </div>

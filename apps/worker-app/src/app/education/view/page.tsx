@@ -60,9 +60,7 @@ function EducationDetailContent() {
         <main className="p-4">
           <div className="text-center py-12">
             <p className="text-4xl mb-4">❌</p>
-            <p className="text-muted-foreground">
-              {t("education.notFound")}
-            </p>
+            <p className="text-muted-foreground">{t("education.notFound")}</p>
             <Button className="mt-4" onClick={() => router.back()}>
               {t("common.back")}
             </Button>

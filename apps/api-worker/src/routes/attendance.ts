@@ -119,7 +119,7 @@ attendanceRoute.post(
     }
 
     // BATCH FIX: Prepare batch insert instead of individual inserts
-    const insertBatch: typeof attendance.$inferInsert[] = [];
+    const insertBatch: (typeof attendance.$inferInsert)[] = [];
     for (const event of events) {
       const user = userMap.get(event.fasUserId);
       if (!user) {
@@ -161,13 +161,16 @@ attendanceRoute.post(
     if (insertBatch.length > 0) {
       try {
         const ops = insertBatch.map((values) =>
-          db.insert(attendance).values(values).onConflictDoNothing({
-            target: [
-              attendance.externalWorkerId,
-              attendance.siteId,
-              attendance.checkinAt,
-            ],
-          }),
+          db
+            .insert(attendance)
+            .values(values)
+            .onConflictDoNothing({
+              target: [
+                attendance.externalWorkerId,
+                attendance.siteId,
+                attendance.checkinAt,
+              ],
+            }),
         );
         await dbBatchChunked(db, ops);
       } catch (err) {

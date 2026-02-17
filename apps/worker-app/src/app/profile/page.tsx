@@ -137,7 +137,9 @@ export default function ProfilePage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>{t("profile.leaveSiteTitle")}</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {t("profile.leaveSiteTitle")}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
                   {t("profile.leaveSiteDescription")}
                 </AlertDialogDescription>
@@ -148,7 +150,9 @@ export default function ProfilePage() {
                   onClick={handleLeaveSite}
                   disabled={leaveSite.isPending}
                 >
-                  {leaveSite.isPending ? t("profile.processing") : t("profile.leaveSiteButton")}
+                  {leaveSite.isPending
+                    ? t("profile.processing")
+                    : t("profile.leaveSiteButton")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

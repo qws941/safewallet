@@ -81,7 +81,11 @@ export function PostCard({ post }: PostCardProps) {
                     +100P
                   </Badge>
                 )}
-                {post.isUrgent && <Badge variant="destructive">{t("posts.pageList.urgent")}</Badge>}
+                {post.isUrgent && (
+                  <Badge variant="destructive">
+                    {t("posts.pageList.urgent")}
+                  </Badge>
+                )}
                 {post.actionStatus &&
                   post.actionStatus !== ActionStatus.NONE && (
                     <Badge

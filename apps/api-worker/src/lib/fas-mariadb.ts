@@ -115,7 +115,7 @@ async function getConnection(
     connectTimeout: 5000,
     disableEval: true,
     waitForConnections: true,
-    connectionLimit: 1,  // Single connection per isolate
+    connectionLimit: 1, // Single connection per isolate
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
   });
@@ -221,7 +221,6 @@ export async function fasGetEmployeesBatch(
   }
 }
 
-
 /**
  * Get employees updated since a given timestamp (for delta sync).
  * Returns all employees if sinceTimestamp is empty/null.
@@ -234,7 +233,7 @@ export async function fasGetUpdatedEmployees(
   const validated = FasGetUpdatedEmployeesParamsSchema.parse({
     sinceTimestamp,
   });
-  
+
   const conn = await getConnection(hyperdrive);
   try {
     let query = `SELECT ${EMPLOYEE_SELECT} ${EMPLOYEE_FROM}

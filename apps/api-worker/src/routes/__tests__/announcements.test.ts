@@ -151,7 +151,10 @@ describe("routes/announcements", () => {
       const { app, env } = await createApp(makeAuth("ADMIN"));
       const res = await app.request("/announcements", {}, env);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data.data).toHaveLength(1);
     });
 
@@ -183,7 +186,10 @@ describe("routes/announcements", () => {
         env,
       );
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data.pagination.limit).toBe(5);
       expect(body.data.pagination.offset).toBe(10);
     });
@@ -193,7 +199,10 @@ describe("routes/announcements", () => {
       const { app, env } = await createApp(makeAuth("ADMIN"));
       const res = await app.request("/announcements?limit=500", {}, env);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data.pagination.limit).toBe(100);
     });
   });
@@ -207,7 +216,10 @@ describe("routes/announcements", () => {
       const { app, env } = await createApp(makeAuth("ADMIN"));
       const res = await app.request("/announcements/a1", {}, env);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data.announcement.id).toBe("a1");
     });
 
@@ -216,7 +228,10 @@ describe("routes/announcements", () => {
       const { app, env } = await createApp(makeAuth("ADMIN"));
       const res = await app.request("/announcements/missing", {}, env);
       expect(res.status).toBe(404);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.error.code).toBe("ANNOUNCEMENT_NOT_FOUND");
     });
   });
@@ -246,7 +261,10 @@ describe("routes/announcements", () => {
         env,
       );
       expect(res.status).toBe(201);
-      const body = (await res.json()) as { data: Record<string, Record<string, unknown>>; error: { code: string } };
+      const body = (await res.json()) as {
+        data: Record<string, Record<string, unknown>>;
+        error: { code: string };
+      };
       expect(body.data.announcement.id).toBe("a-new");
     });
 

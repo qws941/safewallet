@@ -88,7 +88,7 @@ function checkInMemoryLimit(
   limit: number,
   windowMs: number,
 ): RateLimitResult {
-  cleanupExpiredEntries();  // Clean up before checking
+  cleanupExpiredEntries(); // Clean up before checking
   const now = Date.now();
   const record = inMemoryFallback.get(key);
 

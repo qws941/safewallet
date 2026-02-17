@@ -38,8 +38,8 @@ src/hooks/
 ```typescript
 // Translations are dynamically imported as JSON
 const locales = {
-  ko: () => import('../locales/ko.json').then(m => m.default),
-  en: () => import('../locales/en.json').then(m => m.default),
+  ko: () => import("../locales/ko.json").then((m) => m.default),
+  en: () => import("../locales/en.json").then((m) => m.default),
 };
 ```
 
@@ -52,7 +52,7 @@ import { useTranslation } from '@/hooks/use-translation';
 
 export function MyComponent() {
   const t = useTranslation();
-  
+
   return <button>{t('auth.loginButton')}</button>;
   // Returns: "로그인" (Korean) or "Login" (English)
 }
@@ -103,6 +103,7 @@ export function MyComponent() {
 ### Phase 2: Posts, Education & Features (IN PROGRESS)
 
 Remaining components to refactor:
+
 - `src/app/posts/new/page.tsx` - Create report form
 - `src/app/posts/page.tsx` - Reports list
 - `src/app/posts/view/page.tsx` - Report detail
@@ -144,7 +145,7 @@ import { useI18n } from '@/i18n';
 
 export function LocaleSelector() {
   const { locale, setLocale } = useI18n();
-  
+
   return (
     <button onClick={() => setLocale('en')}>
       Switch to English
@@ -156,7 +157,7 @@ export function LocaleSelector() {
 ### Accessing Metadata
 
 ```typescript
-import { locales, localeNames } from '@/i18n';
+import { locales, localeNames } from "@/i18n";
 
 locales; // ['ko', 'en']
 localeNames.ko; // '한국어'
@@ -219,7 +220,7 @@ const ERROR_MESSAGES = {
 // After
 // Move to ko.json under auth.error.accountNotFound
 const t = useTranslation();
-const message = t('auth.error.accountNotFound');
+const message = t("auth.error.accountNotFound");
 ```
 
 ## Next Steps
@@ -244,8 +245,8 @@ const message = t('auth.error.accountNotFound');
 
 ```typescript
 // TypeScript will help catch missing or misspelled keys
-const key = 'auth.loginButton'; // ✅ Valid
-const key = 'auth.login'; // ❌ Key doesn't exist in structure
+const key = "auth.loginButton"; // ✅ Valid
+const key = "auth.login"; // ❌ Key doesn't exist in structure
 ```
 
 ## Troubleshooting
