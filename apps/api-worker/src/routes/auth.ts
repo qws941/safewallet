@@ -772,7 +772,30 @@ auth.post(
       )
       .limit(1);
 
-    if (userResults.length === 0) {
+    let user = userResults[0] ?? null;
+
+    // D1에 유저 없으면 FAS MariaDB에서 실시간 생성 시도
+    if (!user && c.env.FAS_HYPERDRIVE) {
+      try {
+        const fasEmployee = await fasGetEmployeeInfo(
+          c.env.FAS_HYPERDRIVE,
+          body.employeeCode,
+        );
+        if (fasEmployee) {
+          const created = await syncSingleFasEmployee(fasEmployee, db, {
+            HMAC_SECRET: c.env.HMAC_SECRET,
+            ENCRYPTION_KEY: c.env.ENCRYPTION_KEY,
+          });
+          if (created) {
+            user = created;
+          }
+        }
+      } catch {
+        // FAS unavailability falls through to USER_NOT_FOUND
+      }
+    }
+
+    if (!user) {
       const updatedAttempt = await recordFailedLoginAttempt(
         c.env.KV,
         attemptKey,
@@ -812,8 +835,6 @@ auth.post(
         ),
       );
     }
-
-    const user = userResults[0];
 
     const normalizedInputName = body.name.trim().toLowerCase();
     const normalizedUserName = (user.name || "").trim().toLowerCase();
