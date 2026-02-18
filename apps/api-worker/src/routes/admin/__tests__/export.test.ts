@@ -45,7 +45,7 @@ vi.mock("../../../db/schema", () => ({
   users: {
     id: "id",
     name: "name",
-    phone: "phone",
+    phoneEncrypted: "phoneEncrypted",
     role: "role",
     createdAt: "createdAt",
   },
@@ -78,6 +78,14 @@ vi.mock("../../../lib/logger", () => ({
     warn: vi.fn(),
     debug: vi.fn(),
   }),
+}));
+
+vi.mock("../../../lib/crypto", () => ({
+  decrypt: vi.fn(async () => "010-0000-0000"),
+}));
+
+vi.mock("../../../lib/audit", () => ({
+  logAuditWithContext: vi.fn(),
 }));
 
 vi.mock("../../../lib/response", async () => {
@@ -141,7 +149,7 @@ describe("admin/export", () => {
         {
           id: "u-1",
           name: "Kim",
-          phone: "010-1234",
+          phoneEncrypted: "encrypted-010-1234",
           role: "WORKER",
           createdAt: new Date(),
         },

@@ -37,7 +37,13 @@ describe("db schema", () => {
 
     const userColumns = getTableColumns(schema.users);
     expect(Object.keys(userColumns)).toEqual(
-      expect.arrayContaining(["id", "phone", "phoneHash", "role", "createdAt"]),
+      expect.arrayContaining([
+        "id",
+        "phoneEncrypted",
+        "phoneHash",
+        "role",
+        "createdAt",
+      ]),
     );
 
     const postColumns = getTableColumns(schema.posts);

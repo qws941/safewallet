@@ -109,6 +109,10 @@ vi.mock("../../lib/logger", () => ({
   })),
 }));
 
+vi.mock("../../lib/crypto", () => ({
+  decrypt: vi.fn(async () => "010-1234-5678"),
+}));
+
 interface AuthContext {
   user: {
     id: string;
@@ -365,7 +369,9 @@ describe("routes/notifications", () => {
     it("triggers SMS fallback when no push subscriptions exist", async () => {
       mockAll
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ id: "user-1", phone: "010-1234-5678" }]);
+        .mockResolvedValueOnce([
+          { id: "user-1", phoneEncrypted: "encrypted-010-1234-5678" },
+        ]);
       mockSmsSendBulk.mockResolvedValueOnce({
         totalRequested: 1,
         successCount: 1,
