@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Next.js 14 App Router pages for the admin dashboard. 16 feature directories + root layout files. All pages use `'use client'` — zero React Server Components.
+Next.js 14 App Router pages for the admin dashboard. 17 feature directories + root layout files. All pages use `'use client'` — zero React Server Components.
 
 ## STRUCTURE
 
@@ -22,6 +22,7 @@ Next.js 14 App Router pages for the admin dashboard. 16 feature directories + ro
 | `recommendations/` | 1     | Safety recommendations                     |
 | `monitoring/`      | 1     | System monitoring dashboard                |
 | `settings/`        | 1     | Site/system settings                       |
+| `rewards/`         | 1     | Reward system management                   |
 | `votes/`           | 4     | Monthly worker voting management           |
 
 ### Root Files

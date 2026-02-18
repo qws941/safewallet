@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE: SAFEWORK2
 
-**Updated:** 2026-02-13
-**Branch:** master
+**Updated:** 2026-02-18
+**Branch:** master (f4ac56e)
 
 ## OVERVIEW
 
@@ -98,6 +98,8 @@ tsc --noEmit # Global type check (Quality Gate)
 ## NOTES
 
 - **Package Manager**: npm (standardized; avoid pnpm usage here).
-- **Static Export**: \`worker-app\` is a static export for CF Pages.
+- **Static Export**: `worker-app` is a static export for CF Pages.
 - **Integration**: FAS (Foreign Attendance System) syncs via Hyperdrive (MariaDB) every 5 minutes.
-- **E2E Obsession**: 1000+ lines of Playwright tests; the primary verification method.
+- **Scheduled Tasks**: 9 CRON jobs across 4 schedules (5-min sync, daily overdue/PII, weekly retention, monthly settlement).
+- **E2E Tests**: 1000+ lines Playwright; primary verification method.
+- **Scale**: ~19k LOC backend, 36 route modules, 32 DB tables, 10 CF bindings.

@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Admin-only API sub-routes mounted at `/admin`. 12 domain modules + shared helpers. All routes require authentication and admin role.
+Admin-only API sub-routes mounted at `/admin`. 15 domain modules + shared helpers (3.8k LOC). All routes require authentication and admin role.
 
 ## STRUCTURE
 
@@ -21,7 +21,10 @@ admin/
 ├── sync-errors.ts       # FAS sync error management
 ├── access-policies.ts   # Point policies, reward config
 ├── recommendations.ts   # Safety recommendations CRUD
-└── monitoring.ts        # System monitoring endpoints
+├── monitoring.ts        # System monitoring endpoints
+├── alerting.ts          # Alert configuration & webhooks
+├── images.ts            # Image moderation, privacy review
+└── trends.ts            # Trend analysis, statistics
 ```
 
 ## KEY DIFFERENCE FROM OTHER ROUTES
@@ -55,13 +58,17 @@ Shared utilities imported by all admin sub-modules:
 
 | Module             | Lines | Key Endpoints                        |
 | ------------------ | ----- | ------------------------------------ |
-| posts.ts           | 456   | List, detail, review, reject, delete |
-| export.ts          | 374   | CSV: users, posts, attendance        |
-| votes.ts           | 342   | Vote CRUD, candidate management      |
-| users.ts           | 311   | Search, detail, role update, suspend |
-| fas.ts             | 285   | FAS sync trigger, status, errors     |
+| posts.ts           | 623   | List, detail, review, reject, delete |
+| users.ts           | 465   | Search, detail, role update, suspend |
+| votes.ts           | 409   | Vote CRUD, candidate management      |
+| fas.ts             | 399   | FAS sync trigger, status, errors     |
 | recommendations.ts | 211   | Safety recommendation CRUD           |
+| trends.ts          | 207   | Trend analysis, statistics           |
+| helpers.ts         | 191   | Shared pagination, CSV, guards       |
+| alerting.ts        | 182   | Alert config, webhook management     |
+| export.ts          | 176   | CSV: users, posts, attendance        |
 | monitoring.ts      | 166   | System monitoring endpoints          |
+| images.ts          | 165   | Image moderation, privacy review     |
 | sync-errors.ts     | 149   | FAS sync error list, resolve, retry  |
 | attendance.ts      | 144   | Attendance logs, manual override     |
 | stats.ts           | 113   | Dashboard counts, category stats     |
