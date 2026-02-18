@@ -84,10 +84,10 @@ export default function AttendancePage() {
     { date },
   );
 
-  const { data: unmatchedList = [], isLoading: isUnmatchedLoading } =
+  const { data: unmatchedData, isLoading: isUnmatchedLoading } =
     useUnmatchedRecords();
 
-  const allLogs = logsResponse?.items || [];
+  const allLogs = logsResponse?.logs || [];
 
   const stats = useMemo(() => {
     return {
@@ -97,19 +97,17 @@ export default function AttendancePage() {
     };
   }, [allLogs]);
 
-  const companyNames = useMemo(() => {
-    const names = new Set(allLogs.map((l) => l.companyName).filter(Boolean));
-    return Array.from(names).sort();
-  }, [allLogs]);
+  const companyNames = useMemo<string[]>(() => {
+    // Company name not available from backend
+    return [];
+  }, []);
 
   const filteredLogs = useMemo(() => {
     let logs = allLogs;
     if (resultFilter !== "ALL") {
       logs = logs.filter((l) => l.result === resultFilter);
     }
-    if (companyFilter !== "ALL") {
-      logs = logs.filter((l) => l.companyName === companyFilter);
-    }
+    // Company filter disabled — backend does not return companyName
 
     const nameCounts = new Map<string, number>();
     for (const l of logs) {
@@ -124,15 +122,13 @@ export default function AttendancePage() {
     const withAnomalies = logs.map((log, i) => {
       const anomalies: AnomalyType[] = [];
 
-      if (log.checkInTime) {
-        const hour = getKSTHour(log.checkInTime);
+      if (log.checkinAt) {
+        const hour = getKSTHour(log.checkinAt);
         if (hour < 5) anomalies.push("EARLY");
         if (hour >= 12) anomalies.push("LATE");
       }
 
-      if (isPastDate && log.result === "SUCCESS" && !log.checkOutTime) {
-        anomalies.push("NO_CHECKOUT");
-      }
+      // checkOutTime not available from backend
 
       if (log.userName && (nameCounts.get(log.userName) || 0) > 1) {
         anomalies.push("DUPLICATE");
@@ -148,7 +144,7 @@ export default function AttendancePage() {
     }
 
     return withAnomalies;
-  }, [allLogs, resultFilter, companyFilter, date, showAnomalyOnly]);
+  }, [allLogs, resultFilter, date, showAnomalyOnly]);
 
   const anomalyCount = useMemo(
     () => filteredLogs.filter((l) => l.anomalies.length > 0).length,
@@ -156,8 +152,11 @@ export default function AttendancePage() {
   );
 
   const unmatchedWithIndex = useMemo(() => {
-    return unmatchedList.map((item, i) => ({ ...item, index: i + 1 }));
-  }, [unmatchedList]);
+    return (unmatchedData?.records ?? []).map((item, i) => ({
+      ...item,
+      index: i + 1,
+    }));
+  }, [unmatchedData]);
 
   const logColumns: Column<(typeof filteredLogs)[0]>[] = [
     {
@@ -176,7 +175,7 @@ export default function AttendancePage() {
         <div>
           <p className="font-medium">{item.userName || "-"}</p>
           <p className="text-xs text-muted-foreground">
-            {item.companyName || "-"}
+            {item.externalWorkerId || "-"}
           </p>
         </div>
       ),
@@ -212,16 +211,16 @@ export default function AttendancePage() {
         ) : null,
     },
     {
-      key: "checkInTime",
+      key: "checkinAt",
       header: "출근시간",
       sortable: true,
-      render: (item) => formatTime(item.checkInTime),
+      render: (item) => formatTime(item.checkinAt),
     },
     {
       key: "checkOutTime",
       header: "퇴근시간",
       sortable: true,
-      render: (item) => formatTime(item.checkOutTime),
+      render: () => "-",
     },
     {
       key: "source",
@@ -242,36 +241,34 @@ export default function AttendancePage() {
       className: "w-[60px]",
     },
     {
-      key: "name",
-      header: "이름",
+      key: "externalWorkerId",
+      header: "근로자 ID",
       sortable: true,
       render: (item) => (
         <div>
-          <p className="font-medium">{item.name}</p>
-          <p className="text-xs text-muted-foreground">
-            External ID: {item.externalId}
-          </p>
+          <p className="font-medium">{item.externalWorkerId}</p>
+          <p className="text-xs text-muted-foreground">현장: {item.siteName}</p>
         </div>
       ),
     },
     {
-      key: "companyName",
-      header: "소속",
+      key: "siteName",
+      header: "현장",
       sortable: true,
-      render: (item) => item.companyName || "-",
+      render: (item) => item.siteName || "-",
     },
     {
-      key: "checkInTime",
+      key: "checkinAt",
       header: "태깅시간",
       sortable: true,
-      render: (item) => formatTime(item.checkInTime),
+      render: (item) => formatTime(item.checkinAt),
     },
     {
-      key: "reason",
+      key: "source",
       header: "사유",
-      render: (item) => (
+      render: () => (
         <Badge variant="outline" className="text-xs">
-          {item.reason || "미매칭"}
+          {"미매칭"}
         </Badge>
       ),
     },
@@ -354,9 +351,9 @@ export default function AttendancePage() {
             size="sm"
           >
             미매칭 기록
-            {unmatchedList.length > 0 && (
+            {(unmatchedData?.records?.length ?? 0) > 0 && (
               <Badge variant="destructive" className="ml-2 h-5 px-1.5">
-                {unmatchedList.length}
+                {unmatchedData?.records?.length ?? 0}
               </Badge>
             )}
           </Button>

@@ -31,7 +31,8 @@ describe("use-recommendations", () => {
 
   it("fetches recommendation list with query params", async () => {
     mockApiFetch.mockResolvedValue({
-      data: { items: [], pagination: { page: 1 } },
+      items: [],
+      pagination: { page: 1 },
     });
     const { wrapper } = createWrapper();
     const { result } = renderHook(
@@ -48,7 +49,7 @@ describe("use-recommendations", () => {
   });
 
   it("fetches recommendation stats", async () => {
-    mockApiFetch.mockResolvedValue({ data: { totalRecommendations: 5 } });
+    mockApiFetch.mockResolvedValue({ totalRecommendations: 5 });
     const { wrapper } = createWrapper();
     const { result } = renderHook(
       () => useRecommendationStats("2026-02-01", "2026-02-28"),
@@ -106,7 +107,8 @@ describe("use-recommendations", () => {
 
   it("fetches recommendations without optional date params", async () => {
     mockApiFetch.mockResolvedValue({
-      data: { items: [], pagination: { page: 1 } },
+      items: [],
+      pagination: { page: 1 },
     });
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useRecommendations(1, 10), { wrapper });
@@ -119,7 +121,7 @@ describe("use-recommendations", () => {
   });
 
   it("fetches recommendation stats without dates", async () => {
-    mockApiFetch.mockResolvedValue({ data: { totalRecommendations: 0 } });
+    mockApiFetch.mockResolvedValue({ totalRecommendations: 0 });
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useRecommendationStats(), { wrapper });
 

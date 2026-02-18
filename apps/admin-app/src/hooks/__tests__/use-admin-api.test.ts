@@ -36,7 +36,7 @@ describe("use-admin-api hooks", () => {
   });
 
   it("uses dashboard query key and calls stats endpoint", async () => {
-    mockApiFetch.mockResolvedValue({ pendingReviews: 1 });
+    mockApiFetch.mockResolvedValue({ stats: { pendingReviews: 1 } });
     const { wrapper, queryClient } = createWrapper();
 
     const { result } = renderHook(() => useDashboardStats(), { wrapper });
@@ -44,11 +44,9 @@ describe("use-admin-api hooks", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({ pendingReviews: 1 });
     expect(
-      queryClient
-        .getQueryCache()
-        .find({ queryKey: ["dashboard", "stats", "site-1"] }),
+      queryClient.getQueryCache().find({ queryKey: ["dashboard", "stats"] }),
     ).toBeDefined();
-    expect(mockApiFetch).toHaveBeenCalledWith("/sites/site-1/stats");
+    expect(mockApiFetch).toHaveBeenCalledWith("/admin/stats");
   });
 
   it("disables members query when siteId is missing", () => {
@@ -144,7 +142,7 @@ describe("use-admin-api hooks", () => {
   it("unwraps audit logs and loads my sites", async () => {
     const { wrapper } = createWrapper();
     mockApiFetch
-      .mockResolvedValueOnce({ data: { logs: [{ id: "log-1" }] } })
+      .mockResolvedValueOnce({ logs: [{ id: "log-1" }] })
       .mockResolvedValueOnce([{ siteId: "site-1" }]);
 
     const audit = renderHook(() => useAuditLogs(), { wrapper });

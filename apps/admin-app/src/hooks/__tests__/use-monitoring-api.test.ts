@@ -19,7 +19,7 @@ describe("use-monitoring-api", () => {
   });
 
   it("fetches monitoring summary and unwraps data", async () => {
-    mockApiFetch.mockResolvedValue({ data: { totalRequests: 10 } });
+    mockApiFetch.mockResolvedValue({ totalRequests: 10 });
     const { wrapper, queryClient } = createWrapper();
     const { result } = renderHook(() => useMonitoringSummary(30), { wrapper });
 
@@ -34,8 +34,8 @@ describe("use-monitoring-api", () => {
 
   it("builds metrics query with and without date range", async () => {
     mockApiFetch
-      .mockResolvedValueOnce({ data: { rows: [] } })
-      .mockResolvedValueOnce({ data: { rows: [] } });
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
     const { wrapper } = createWrapper();
 
     renderHook(
@@ -57,8 +57,8 @@ describe("use-monitoring-api", () => {
 
   it("builds top-errors query with optional date params", async () => {
     mockApiFetch
-      .mockResolvedValueOnce({ data: { rows: [] } })
-      .mockResolvedValueOnce({ data: { rows: [] } });
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
     const { wrapper } = createWrapper();
 
     renderHook(() => useMonitoringTopErrors("2026-02-01", "2026-02-14"), {

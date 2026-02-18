@@ -16,7 +16,7 @@ vi.mock("@/lib/api", () => ({
 describe("use-trends", () => {
   it("builds trend query and returns trend data", async () => {
     mockApiFetch.mockResolvedValue({
-      data: { trend: [{ date: "2026-02-14", value: 2 }] },
+      trend: [{ date: "2026-02-14", value: 2 }],
     });
     const { wrapper } = createWrapper();
     const { result } = renderHook(
@@ -33,7 +33,7 @@ describe("use-trends", () => {
 
   it("fetches attendance trend data", async () => {
     mockApiFetch.mockResolvedValue({
-      data: { trend: [{ date: "2026-02-14", count: 10 }] },
+      trend: [{ date: "2026-02-14", count: 10 }],
     });
     const { wrapper } = createWrapper();
     const { result } = renderHook(
@@ -49,7 +49,7 @@ describe("use-trends", () => {
 
   it("fetches points distribution data", async () => {
     mockApiFetch.mockResolvedValue({
-      data: { distribution: [{ range: "0-10", count: 5 }] },
+      distribution: [{ range: "0-10", count: 5 }],
     });
     const { wrapper } = createWrapper();
     const { result } = renderHook(

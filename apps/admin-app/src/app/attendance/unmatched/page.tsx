@@ -48,7 +48,7 @@ export default function UnmatchedRecordsPage() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          ) : !data?.length ? (
+          ) : !data?.records?.length ? (
             <p className="text-center text-muted-foreground py-8">
               미매칭 기록이 없습니다
             </p>
@@ -57,27 +57,29 @@ export default function UnmatchedRecordsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>외부 ID</TableHead>
-                  <TableHead>이름</TableHead>
-                  <TableHead>업체</TableHead>
+                  <TableHead>현장</TableHead>
+                  <TableHead>출처</TableHead>
                   <TableHead>출근 시각</TableHead>
                   <TableHead>사유</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((record) => (
+                {data.records.map((record) => (
                   <TableRow
                     key={record.id}
                     className="bg-yellow-50/50 dark:bg-yellow-950/10"
                   >
                     <TableCell className="font-mono text-sm">
-                      {record.externalId}
+                      {record.externalWorkerId}
                     </TableCell>
-                    <TableCell className="font-medium">{record.name}</TableCell>
-                    <TableCell>{record.companyName ?? "-"}</TableCell>
+                    <TableCell className="font-medium">
+                      {record.siteName ?? "-"}
+                    </TableCell>
+                    <TableCell>{record.source ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {new Date(record.checkInTime).toLocaleString("ko-KR")}
+                      {new Date(record.checkinAt).toLocaleString("ko-KR")}
                     </TableCell>
-                    <TableCell>{record.reason ?? "미등록 사용자"}</TableCell>
+                    <TableCell>{"미등록 사용자"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -27,9 +27,9 @@ export function usePostsTrend(
     queryKey: ["admin", "trends", "posts", siteId, startDate, endDate],
     queryFn: () => {
       const query = buildTrendParams({ startDate, endDate, siteId });
-      return apiFetch<{ data: { trend: TrendDataPointDto[] } }>(
+      return apiFetch<{ trend: TrendDataPointDto[] }>(
         `/admin/trends/posts?${query}`,
-      ).then((res) => res.data.trend);
+      ).then((res) => res.trend);
     },
     enabled: !!startDate && !!endDate,
   });
@@ -44,9 +44,9 @@ export function useAttendanceTrend(
     queryKey: ["admin", "trends", "attendance", siteId, startDate, endDate],
     queryFn: () => {
       const query = buildTrendParams({ startDate, endDate, siteId });
-      return apiFetch<{ data: { trend: TrendDataPointDto[] } }>(
+      return apiFetch<{ trend: TrendDataPointDto[] }>(
         `/admin/trends/attendance?${query}`,
-      ).then((res) => res.data.trend);
+      ).then((res) => res.trend);
     },
     enabled: !!startDate && !!endDate,
   });
@@ -61,9 +61,9 @@ export function usePointsDistribution(
     queryKey: ["admin", "trends", "points", siteId, startDate, endDate],
     queryFn: () => {
       const query = buildTrendParams({ startDate, endDate, siteId });
-      return apiFetch<{ data: { distribution: PointsDistributionDto[] } }>(
+      return apiFetch<{ distribution: PointsDistributionDto[] }>(
         `/admin/trends/points?${query}`,
-      ).then((res) => res.data.distribution);
+      ).then((res) => res.distribution);
     },
     enabled: !!startDate && !!endDate,
   });

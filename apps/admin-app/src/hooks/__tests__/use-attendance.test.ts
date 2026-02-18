@@ -26,7 +26,7 @@ describe("use-attendance", () => {
   });
 
   it("fetches attendance logs with pagination filters", async () => {
-    mockApiFetch.mockResolvedValue({ data: { items: [], pagination: {} } });
+    mockApiFetch.mockResolvedValue({ logs: [], pagination: {} });
     const { wrapper } = createWrapper();
 
     renderHook(
@@ -60,7 +60,7 @@ describe("use-attendance", () => {
   });
 
   it("fetches unmatched records for current site", async () => {
-    mockApiFetch.mockResolvedValue({ data: [{ id: "r1" }] });
+    mockApiFetch.mockResolvedValue({ records: [{ id: "r1" }], pagination: {} });
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useUnmatchedRecords(), { wrapper });
 
@@ -70,9 +70,10 @@ describe("use-attendance", () => {
     );
   });
 
-  it("normalizes unmatched worker response with data wrapper", async () => {
+  it("returns unmatched worker data directly from apiFetch", async () => {
     mockApiFetch.mockResolvedValue({
-      data: { records: [{ id: "w2" }], pagination: { page: 1 } },
+      records: [{ id: "w2" }],
+      pagination: { page: 1 },
     });
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useUnmatchedWorkers(), { wrapper });
@@ -85,7 +86,7 @@ describe("use-attendance", () => {
   });
 
   it("includes result filter in attendance logs query", async () => {
-    mockApiFetch.mockResolvedValue({ data: { items: [], pagination: {} } });
+    mockApiFetch.mockResolvedValue({ logs: [], pagination: {} });
     const { wrapper } = createWrapper();
     renderHook(() => useAttendanceLogs(1, 10, { result: "FAIL" }), { wrapper });
 

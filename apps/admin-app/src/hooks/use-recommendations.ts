@@ -63,9 +63,9 @@ export function useRecommendations(
       params.set("limit", String(limit));
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
-      return apiFetch<{ data: RecommendationListResponse }>(
+      return apiFetch<RecommendationListResponse>(
         `/admin/recommendations?${params}`,
-      ).then((res) => res.data);
+      );
     },
     enabled: !!siteId,
   });
@@ -81,9 +81,9 @@ export function useRecommendationStats(startDate?: string, endDate?: string) {
       if (siteId) params.set("siteId", siteId);
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
-      return apiFetch<{ data: RecommendationStats }>(
+      return apiFetch<RecommendationStats>(
         `/admin/recommendations/stats?${params}`,
-      ).then((res) => res.data);
+      );
     },
     enabled: !!siteId,
   });

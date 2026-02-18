@@ -55,9 +55,9 @@ export function useMonitoringSummary(periodMinutes = 60) {
   return useQuery({
     queryKey: ["monitoring", "summary", periodMinutes],
     queryFn: () =>
-      apiFetch<{ data: MonitoringSummary }>(
+      apiFetch<MonitoringSummary>(
         `/admin/monitoring/summary?periodMinutes=${periodMinutes}`,
-      ).then((res) => res.data),
+      ),
     refetchInterval: 60_000,
   });
 }
@@ -74,9 +74,7 @@ export function useMonitoringMetrics(
   return useQuery({
     queryKey: ["monitoring", "metrics", groupBy, from, to],
     queryFn: () =>
-      apiFetch<{ data: MetricsResponse }>(
-        `/admin/monitoring/metrics?${params}`,
-      ).then((res) => res.data),
+      apiFetch<MetricsResponse>(`/admin/monitoring/metrics?${params}`),
     refetchInterval: 60_000,
   });
 }
@@ -89,9 +87,7 @@ export function useMonitoringTopErrors(from?: string, to?: string) {
   return useQuery({
     queryKey: ["monitoring", "top-errors", from, to],
     queryFn: () =>
-      apiFetch<{ data: TopErrorsResponse }>(
-        `/admin/monitoring/top-errors?${params}`,
-      ).then((res) => res.data),
+      apiFetch<TopErrorsResponse>(`/admin/monitoring/top-errors?${params}`),
     refetchInterval: 60_000,
   });
 }

@@ -107,9 +107,9 @@ export function useAttendanceLogs(
       if (filters?.date) params.set("date", filters.date);
       if (filters?.result) params.set("result", filters.result);
       if (filters?.search) params.set("search", filters.search);
-      return apiFetch<{ data: AttendanceListResponse }>(
+      return apiFetch<AttendanceLogsApiResponse>(
         `/admin/attendance-logs?${params}`,
-      ).then((res) => res.data);
+      );
     },
     enabled: !!siteId,
   });
@@ -123,9 +123,9 @@ export function useUnmatchedRecords() {
     queryFn: () => {
       const params = new URLSearchParams();
       if (siteId) params.set("siteId", siteId);
-      return apiFetch<{ data: UnmatchedRecord[] }>(
+      return apiFetch<UnmatchedWorkersResponse>(
         `/admin/attendance/unmatched?${params}`,
-      ).then((res) => res.data);
+      );
     },
     enabled: !!siteId,
   });
@@ -149,11 +149,9 @@ export function useUnmatchedWorkers(
         query.set("limit", String(params.limit));
       }
 
-      const response = await apiFetch<
-        UnmatchedWorkersResponse | { data: UnmatchedWorkersResponse }
-      >(`/admin/attendance/unmatched?${query.toString()}`);
-
-      return "data" in response ? response.data : response;
+      return apiFetch<UnmatchedWorkersResponse>(
+        `/admin/attendance/unmatched?${query.toString()}`,
+      );
     },
     enabled: !!targetSiteId,
   });
