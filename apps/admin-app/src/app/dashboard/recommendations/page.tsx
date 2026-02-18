@@ -187,7 +187,7 @@ export default function RecommendationStatsPage() {
                         <div
                           className="bg-primary h-full rounded-full transition-all"
                           style={{
-                            width: `${Math.min(100, (day.count / Math.max(...data.dailyCounts.map((d) => d.count))) * 100)}%`,
+                            width: `${Math.min(100, (day.count / Math.max(...data.dailyCounts.map((d) => d.count), 1)) * 100)}%`,
                           }}
                         />
                       </div>

@@ -1,12 +1,12 @@
 # Stale Issue/PR Management
 # Pattern: Microsoft/.github (adapted for personal account)
 # Auto-closes issues/PRs after 14 days stale + 5 day grace period
-name: 'Stale issue/PR cleanup'
+name: "Stale issue/PR cleanup"
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 2 * * *'  # Daily at 02:30 UTC
+    - cron: "30 2 * * *" # Daily at 02:30 UTC
 
 permissions:
   issues: write
@@ -32,8 +32,8 @@ jobs:
             Remove the `stale` label, comment, or merge to keep it open.
           days-before-stale: 14
           days-before-close: 5
-          exempt-issue-labels: 'keep-open,pinned,security'
-          exempt-pr-labels: 'keep-open,pinned,security'
-          stale-issue-label: 'stale'
-          stale-pr-label: 'stale'
+          exempt-issue-labels: "keep-open,pinned,security"
+          exempt-pr-labels: "keep-open,pinned,security"
+          stale-issue-label: "stale"
+          stale-pr-label: "stale"
           remove-stale-when-updated: true

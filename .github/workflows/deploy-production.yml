@@ -249,7 +249,8 @@ jobs:
   cache-purge:
     name: Purge Cloudflare Cache
     runs-on: ubuntu-latest
-    needs: [detect-changes, deploy-api-worker, deploy-worker-app, deploy-admin-app]
+    needs:
+      [detect-changes, deploy-api-worker, deploy-worker-app, deploy-admin-app]
     if: >-
       always() && !cancelled() &&
       needs.detect-changes.outputs.any-app == 'true' &&
@@ -268,7 +269,8 @@ jobs:
   verify:
     name: Post-Deploy Smoke Tests
     runs-on: ubuntu-latest
-    needs: [detect-changes, deploy-api-worker, deploy-worker-app, deploy-admin-app]
+    needs:
+      [detect-changes, deploy-api-worker, deploy-worker-app, deploy-admin-app]
     if: >-
       always() && !cancelled() &&
       needs.detect-changes.outputs.any-app == 'true' &&

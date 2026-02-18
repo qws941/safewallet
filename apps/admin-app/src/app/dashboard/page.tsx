@@ -1,24 +1,31 @@
-'use client';
+"use client";
 
-import { FileText, Users, Clock, AlertTriangle, BarChart3, Timer } from 'lucide-react';
-import { StatsCard } from '@/components/stats-card';
-import { useDashboardStats } from '@/hooks/use-api';
-import { Skeleton, Card } from '@safetywallet/ui';
+import {
+  FileText,
+  Users,
+  Clock,
+  AlertTriangle,
+  BarChart3,
+  Timer,
+} from "lucide-react";
+import { StatsCard } from "@/components/stats-card";
+import { useDashboardStats } from "@/hooks/use-api";
+import { Skeleton, Card } from "@safetywallet/ui";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  HAZARD: '위험요소',
-  UNSAFE_BEHAVIOR: '불안전 행동',
-  INCONVENIENCE: '불편사항',
-  SUGGESTION: '개선 제안',
-  BEST_PRACTICE: '모범 사례',
+  HAZARD: "위험요소",
+  UNSAFE_BEHAVIOR: "불안전 행동",
+  INCONVENIENCE: "불편사항",
+  SUGGESTION: "개선 제안",
+  BEST_PRACTICE: "모범 사례",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  HAZARD: 'bg-red-500',
-  UNSAFE_BEHAVIOR: 'bg-orange-500',
-  INCONVENIENCE: 'bg-yellow-500',
-  SUGGESTION: 'bg-blue-500',
-  BEST_PRACTICE: 'bg-green-500',
+  HAZARD: "bg-red-500",
+  UNSAFE_BEHAVIOR: "bg-orange-500",
+  INCONVENIENCE: "bg-yellow-500",
+  SUGGESTION: "bg-blue-500",
+  BEST_PRACTICE: "bg-green-500",
 };
 
 function CategoryDistributionChart({ data }: { data: Record<string, number> }) {
@@ -50,7 +57,7 @@ function CategoryDistributionChart({ data }: { data: Record<string, number> }) {
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
-                  className={`h-full ${CATEGORY_COLORS[category] || 'bg-gray-500'} transition-all`}
+                  className={`h-full ${CATEGORY_COLORS[category] || "bg-gray-500"} transition-all`}
                   style={{ width: `${percentage}%` }}
                 />
               </div>
@@ -83,17 +90,21 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">대시보드</h1>
 
-      {(stats?.pendingCount ?? 0) > 0 && (stats?.avgProcessingHours ?? 0) >= 48 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
-          <div>
-            <p className="font-medium text-red-800">48시간 이상 미처리 백로그가 있습니다</p>
-            <p className="text-sm text-red-600">
-              미처리 {stats?.pendingCount}건 · 평균 처리시간 {stats?.avgProcessingHours}시간
-            </p>
+      {(stats?.pendingCount ?? 0) > 0 &&
+        (stats?.avgProcessingHours ?? 0) >= 48 && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+            <div>
+              <p className="font-medium text-red-800">
+                48시간 이상 미처리 백로그가 있습니다
+              </p>
+              <p className="text-sm text-red-600">
+                미처리 {stats?.pendingCount}건 · 평균 처리시간{" "}
+                {stats?.avgProcessingHours}시간
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard

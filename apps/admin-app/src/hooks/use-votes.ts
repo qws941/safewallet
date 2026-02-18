@@ -58,9 +58,9 @@ export function useVoteResults(month: string) {
   return useQuery({
     queryKey: ["admin", "vote-results", siteId, month],
     queryFn: () =>
-      apiFetch<{ results: VoteResult[] }>(
+      apiFetch<VoteResult[]>(
         `/admin/votes/results?siteId=${siteId}&month=${month}`,
-      ).then((res) => res.results),
+      ),
     enabled: !!siteId && !!month,
   });
 }
