@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # npm dependencies
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -15,7 +16,11 @@ updates:
       - jclee-v1
     labels:
       - dependencies
+      - npm
+    commit-message:
+      prefix: "chore(deps)"
 
+  # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -25,4 +30,7 @@ updates:
     reviewers:
       - jclee-v1
     labels:
+      - dependencies
       - ci
+    commit-message:
+      prefix: "chore(deps)"
