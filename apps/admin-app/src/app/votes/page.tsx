@@ -17,6 +17,7 @@ import {
   buttonVariants,
   DialogDescription,
   DialogFooter,
+  useToast,
 } from "@safetywallet/ui";
 import {
   Table,
@@ -39,6 +40,7 @@ import { useMembers } from "@/hooks/use-api";
 import { useAuthStore } from "@/stores/auth";
 
 export default function VotesPage() {
+  const { toast } = useToast();
   const currentMonth = new Date().toISOString().slice(0, 7);
   const [month, setMonth] = useState(currentMonth);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -93,7 +95,11 @@ export default function VotesPage() {
         endDate: endEpoch,
       });
     } catch (error) {
-      console.error("Failed to update period:", error);
+      toast({
+        variant: "destructive",
+        title: "투표 기간 저장 실패",
+        description: error instanceof Error ? error.message : "알 수 없는 오류",
+      });
     }
   };
 
@@ -128,7 +134,11 @@ export default function VotesPage() {
       setIsAddDialogOpen(false);
       setSearchTerm("");
     } catch (error) {
-      console.error("Failed to add candidate:", error);
+      toast({
+        variant: "destructive",
+        title: "후보자 추가 실패",
+        description: error instanceof Error ? error.message : "알 수 없는 오류",
+      });
     }
   };
 
@@ -139,25 +149,31 @@ export default function VotesPage() {
       setIsDeleteDialogOpen(false);
       setDeleteTargetId(null);
     } catch (error) {
-      console.error("Failed to delete candidate:", error);
+      toast({
+        variant: "destructive",
+        title: "후보자 삭제 실패",
+        description: error instanceof Error ? error.message : "알 수 없는 오류",
+      });
     }
   };
 
-  const handleExportCsv = async () => {
+  const handleExportCsv = () => {
     try {
-      const { tokens } = useAuthStore.getState();
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "https://safework2-api.jclee.workers.dev/api"}/admin/votes/results?siteId=${siteId}&month=${month}&format=csv`,
-        {
-          headers: {
-            Authorization: `Bearer ${tokens?.accessToken}`,
-          },
-        },
-      );
-
-      if (!res.ok) throw new Error("Export failed");
-
-      const blob = await res.blob();
+      if (results.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "내보내기 실패",
+          description: "투표 결과가 없습니다.",
+        });
+        return;
+      }
+      const sorted = [...results].sort((a, b) => b.voteCount - a.voteCount);
+      let csv = "순위,이름,소속,득표수\n";
+      for (const [index, result] of sorted.entries()) {
+        csv += `${index + 1},${result.user.nameMasked},${result.user.companyName},${result.voteCount}\n`;
+      }
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -167,7 +183,11 @@ export default function VotesPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error("Export failed:", error);
+      toast({
+        variant: "destructive",
+        title: "내보내기 실패",
+        description: error instanceof Error ? error.message : "알 수 없는 오류",
+      });
     }
   };
 
