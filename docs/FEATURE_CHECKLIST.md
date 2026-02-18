@@ -339,6 +339,10 @@
 - [x] role (WORKER, ADMIN, SUPER_ADMIN)
 - [x] created_at, updated_at
 
+> **참고 (2026-02-18):** 레거시 평문 `phone`, `dob` 컬럼은 더 이상 읽기/쓰기되지 않습니다 (dead columns).
+> 모든 코드 경로가 `phoneEncrypted`/`dobEncrypted` + `phoneHash`/`dobHash`만 사용합니다.
+> 향후 Drizzle 마이그레이션으로 평문 컬럼 DROP 예정.
+
 ### 10.2 Attendance 테이블
 
 - [x] id (PK)
@@ -406,6 +410,8 @@
 - [x] CryptoService 구현 (AES-256-GCM) ✅ NEW
 - [x] HMAC 해시 인덱스 (검색용)
 - [x] 전화번호/생년월일 실제 암호화 적용 ✅ (phoneEncrypted, dobEncrypted)
+- [x] 평문 PII 쓰기 경로 완전 제거 ✅ (2026-02-18) — auth.ts, fas-sync.ts, fas.ts 모든 insert/update에서 plaintext phone/dob 제거
+- [x] 평문 PII 읽기 경로 완전 제거 ✅ (2026-02-18) — export.ts, notifications.ts에서 decrypt(phoneEncrypted) 전환 + PII_VIEW 감사 로그 추가
 - [x] ~~암호화 키 관리 (KMS)~~ → N/A (CF Workers Secrets 사용 — 별도 KMS 불필요)
 
 ### 11.2 접근 제어
