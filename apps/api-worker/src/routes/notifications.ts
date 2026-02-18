@@ -16,6 +16,7 @@ import {
 } from "../lib/web-push";
 import { createSmsClient } from "../lib/sms";
 import { createLogger } from "../lib/logger";
+import { decrypt } from "../lib/crypto";
 import {
   enqueueNotification,
   type NotificationQueueMessage,
@@ -341,12 +342,21 @@ async function sendSmsFallback(
   const smsClient = createSmsClient(env);
 
   const targetUsers = await db
-    .select({ id: users.id, phone: users.phone })
+    .select({ id: users.id, phoneEncrypted: users.phoneEncrypted })
     .from(users)
     .where(inArray(users.id, userIds))
     .all();
 
-  const validTargets = targetUsers.filter(
+  const decryptedUsers = await Promise.all(
+    targetUsers.map(async (u) => ({
+      id: u.id,
+      phone: u.phoneEncrypted
+        ? await decrypt(env.ENCRYPTION_KEY, u.phoneEncrypted)
+        : null,
+    })),
+  );
+
+  const validTargets = decryptedUsers.filter(
     (u): u is typeof u & { phone: string } => !!u.phone,
   );
 

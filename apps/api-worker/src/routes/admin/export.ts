@@ -4,6 +4,8 @@ import type { Env, AuthContext } from "../../types";
 import { users, posts } from "../../db/schema";
 import { error, success } from "../../lib/response";
 import { createLogger } from "../../lib/logger";
+import { decrypt } from "../../lib/crypto";
+import { logAuditWithContext } from "../../lib/audit";
 import {
   requireExportAccess,
   exportRateLimit,
@@ -48,16 +50,25 @@ app.get("/users", requireExportAccess, exportRateLimit, async (c) => {
       .select({
         id: users.id,
         name: users.name,
-        phone: users.phone,
+        phoneEncrypted: users.phoneEncrypted,
         role: users.role,
         createdAt: users.createdAt,
       })
       .from(users)
       .limit(10000);
 
+    const decryptedUsers = await Promise.all(
+      userList.map(async (u) => ({
+        ...u,
+        phone: u.phoneEncrypted
+          ? await decrypt(c.env.ENCRYPTION_KEY, u.phoneEncrypted)
+          : null,
+      })),
+    );
+
     const csv = buildCsv(
       ["ID", "이름", "전화번호", "역할", "생성일"],
-      userList.map((u) => [
+      decryptedUsers.map((u) => [
         u.id,
         u.name || "",
         u.phone || "",
@@ -65,6 +76,12 @@ app.get("/users", requireExportAccess, exportRateLimit, async (c) => {
         formatKst(u.createdAt),
       ]),
     );
+
+    await logAuditWithContext(c, db, "PII_VIEW", auth.user.id, "USER", "BULK", {
+      field: "phone",
+      reason: "CSV user export",
+      rowCount: userList.length,
+    });
 
     logger.info("User export completed", {
       userId: auth.user.id,
