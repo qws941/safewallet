@@ -8,10 +8,10 @@
 src/
 ├── index.ts           # Entry: Hono app + CRON handlers
 ├── routes/            # 19 root + 17 admin modules (12k LOC)
-├── middleware/         # 7 modules (manual invocation)
-├── db/schema.ts       # Drizzle schema (32 tables, 23 enums, 29 relations)
+├── middleware/         # 8 modules (manual invocation)
+├── db/schema.ts       # Drizzle schema (32 tables, 29 relations)
 ├── lib/               # 27 utility modules (4.5k LOC)
-├── scheduled/         # 9 CRON jobs (1.2k LOC)
+├── scheduled/         # 9 CRON jobs (1.3k LOC)
 └── validators/        # Zod request schemas
 ```
 

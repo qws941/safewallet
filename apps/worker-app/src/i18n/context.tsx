@@ -57,7 +57,9 @@ export function I18nProvider({
       setMessages(newMessages);
       localStorage.setItem("i18n-locale", newLocale);
     } catch (error) {
-      console.error("Failed to load locale:", error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to load locale:", error);
+      }
       setLocaleState(defaultLocale);
     } finally {
       setIsLoading(false);

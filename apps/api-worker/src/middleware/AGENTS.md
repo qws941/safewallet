@@ -2,19 +2,20 @@
 
 ## OVERVIEW
 
-7 middleware functions for auth, authorization, attendance verification, rate limiting, security headers, and analytics. All middleware uses **manual invocation pattern** (NOT Hono `.use()`) except `security-headers.ts` and `analytics.ts` which use global `.use()`.
+8 middleware functions for auth, authorization, attendance verification, rate limiting, security headers, analytics, and request logging. All middleware uses **manual invocation pattern** (NOT Hono `.use()`) except `security-headers.ts`, `analytics.ts`, and `request-logger.ts` which use global `.use()`.
 
 ## FILES
 
-| File                  | Lines | Purpose                                             |
-| --------------------- | ----- | --------------------------------------------------- |
-| `auth.ts`             | 40    | JWT Bearer token verification, sets `c.auth`        |
-| `attendance.ts`       | 122   | Site membership + daily attendance check            |
-| `permission.ts`       | 206   | RBAC: role-based and field-based access control     |
-| `rate-limit.ts`       | 95    | Durable Objects rate limiter (100 req/60s default)  |
-| `fas-auth.ts`         | 23    | FAS API key authentication (`X-FAS-API-Key` header) |
-| `security-headers.ts` | 22    | CSP, HSTS, X-Frame-Options, Referrer-Policy         |
-| `analytics.ts`        | 87    | Analytics Engine metrics tracking (HTTP + events)   |
+| File                  | Lines | Purpose                                               |
+| --------------------- | ----- | ----------------------------------------------------- |
+| `permission.ts`       | 206   | RBAC: role-based and field-based access control       |
+| `analytics.ts`        | 161   | Analytics Engine metrics tracking (HTTP + events)     |
+| `rate-limit.ts`       | 131   | Durable Objects rate limiter (100 req/60s default)    |
+| `attendance.ts`       | 122   | Site membership + daily attendance check              |
+| `auth.ts`             | 89    | JWT Bearer token verification, sets `c.auth`          |
+| `request-logger.ts`   | 46    | Structured request/response logging (global `.use()`) |
+| `fas-auth.ts`         | 25    | FAS API key authentication (`X-FAS-API-Key` header)   |
+| `security-headers.ts` | 21    | CSP, HSTS, X-Frame-Options, Referrer-Policy           |
 
 ## KEY PATTERNS
 

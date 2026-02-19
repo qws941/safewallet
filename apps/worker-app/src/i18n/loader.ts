@@ -12,9 +12,11 @@ export async function getLocale(locale?: Locale): Promise<Record<string, any>> {
   try {
     const loaderFn = locales[resolvedLocale];
     if (!loaderFn) {
-      console.warn(
-        `Locale ${resolvedLocale} not found, falling back to ${defaultLocale}`,
-      );
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          `Locale ${resolvedLocale} not found, falling back to ${defaultLocale}`,
+        );
+      }
       const fallbackFn = locales[defaultLocale];
       if (!fallbackFn)
         throw new Error(`Default locale ${defaultLocale} not found`);
@@ -22,7 +24,9 @@ export async function getLocale(locale?: Locale): Promise<Record<string, any>> {
     }
     return await loaderFn();
   } catch (error) {
-    console.error(`Failed to load locale ${resolvedLocale}:`, error);
+    if (process.env.NODE_ENV === "development") {
+      console.error(`Failed to load locale ${resolvedLocale}:`, error);
+    }
     const fallbackFn = locales[defaultLocale];
     if (!fallbackFn)
       throw new Error(`Default locale ${defaultLocale} not found`);

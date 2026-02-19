@@ -12,7 +12,7 @@ This package is the Source of Truth (SoT) for all TypeScript definitions used ac
 ```
 src/
 ├── index.ts              # Global barrel export (Source of Truth)
-├── enums.ts              # System-wide enum definitions (15 total)
+├── enums.ts              # System-wide enum definitions (24 total)
 ├── api.ts                # Generic API response envelopes
 └── dto/                  # Domain-specific Data Transfer Objects
     ├── action.dto.ts     # Corrective actions

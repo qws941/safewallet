@@ -19,8 +19,8 @@ app.use("*", authMiddleware);
 app.get("/", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
-  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
-  const offset = parseInt(c.req.query("offset") || "0");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20", 10) || 20, 100);
+  const offset = parseInt(c.req.query("offset") || "0", 10) || 0;
 
   if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
     const allSites = await db
@@ -114,8 +114,8 @@ app.get("/:id/members", async (c) => {
   const db = drizzle(c.env.DB);
   const { user } = c.get("auth");
   const siteId = c.req.param("id");
-  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
-  const offset = parseInt(c.req.query("offset") || "0");
+  const limit = Math.min(parseInt(c.req.query("limit") || "20", 10) || 20, 100);
+  const offset = parseInt(c.req.query("offset") || "0", 10) || 0;
 
   const membership = await db
     .select()

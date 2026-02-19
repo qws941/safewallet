@@ -2,28 +2,29 @@
 
 ## OVERVIEW
 
-Next.js 14 App Router pages for the admin dashboard. 17 feature directories + root layout files. All pages use `'use client'` — zero React Server Components.
+Next.js 14 App Router pages for the admin dashboard. 17 feature directories + `(dashboard)` route group + root layout files. All pages use `'use client'` — zero React Server Components.
 
 ## STRUCTURE
 
 | Directory          | Files | Purpose                                    |
 | ------------------ | ----- | ------------------------------------------ |
+| `(dashboard)/`     | 14    | Sidebar layout route group (8 subdirs)     |
+| `attendance/`      | 14    | Attendance records, unmatched records      |
+| `votes/`           | 8     | Monthly worker voting management           |
+| `dashboard/`       | 7     | Main dashboard with stats/charts           |
+| `education/`       | 7     | Course and material management             |
+| `posts/`           | 7     | Safety report management and review        |
+| `rewards/`         | 6     | Reward system management                   |
+| `members/`         | 2     | Site membership management                 |
 | `actions/`         | 1     | Corrective action tracking                 |
 | `announcements/`   | 1     | Site announcement management               |
-| `approvals/`       | 0     | Approval workflow (empty — may be pending) |
-| `attendance/`      | 2     | Attendance records, unmatched records      |
 | `audit/`           | 1     | Audit log viewer                           |
-| `dashboard/`       | 4     | Main dashboard with stats/charts           |
-| `education/`       | 1     | Course and material management             |
 | `login/`           | 1     | Admin login page                           |
-| `members/`         | 2     | Site membership management                 |
-| `points/`          | 1     | Point ledger and policies                  |
-| `posts/`           | 2     | Safety report management and review        |
-| `recommendations/` | 1     | Safety recommendations                     |
 | `monitoring/`      | 1     | System monitoring dashboard                |
+| `points/`          | 1     | Point ledger and policies                  |
+| `recommendations/` | 1     | Safety recommendations                     |
 | `settings/`        | 1     | Site/system settings                       |
-| `rewards/`         | 1     | Reward system management                   |
-| `votes/`           | 4     | Monthly worker voting management           |
+| `approvals/`       | 0     | Approval workflow (empty — may be pending) |
 
 ### Root Files
 

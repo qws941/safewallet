@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Admin-only API sub-routes mounted at `/admin`. 15 domain modules + shared helpers (3.8k LOC). All routes require authentication and admin role.
+Admin-only API sub-routes mounted at `/admin`. 17 modules including index and shared helpers (3.8k LOC). All routes require authentication and admin role.
 
 ## STRUCTURE
 
@@ -35,45 +35,29 @@ All other routes use manual middleware invocation inside handlers.
 
 ## HELPERS (helpers.ts)
 
-Shared utilities imported by all admin sub-modules:
-
-| Export                  | Purpose                                   |
-| ----------------------- | ----------------------------------------- |
-| `AppContext`            | Typed Hono context with `auth` variable   |
-| `DAY_CUTOFF_HOUR`       | 5 (AM KST day boundary)                   |
-| `getTodayRange()`       | Today's start/end using 5 AM KST cutoff   |
-| `getClientIp()`         | Extract client IP from CF headers         |
-| `parseDateParam()`      | Parse date string query params            |
-| `toExclusiveEndDate()`  | Adjust end date for exclusive range       |
-| `formatKst()`           | Format date to KST timezone string        |
-| `csvEscape()`           | Escape CSV cell values                    |
-| `buildCsv()`            | Build CSV with UTF-8 BOM                  |
-| `csvResponse()`         | Return CSV as downloadable response       |
-| `requireAdmin`          | Guard: ADMIN or SUPER_ADMIN role          |
-| `requireExportAccess`   | Guard: canManageUsers flag or SUPER_ADMIN |
-| `exportRateLimit`       | Rate limit: 5 requests per 60 seconds     |
-| `requireManagerOrAdmin` | Guard: site membership check              |
+Shared utilities: `AppContext`, `getTodayRange()` (5 AM KST cutoff), CSV helpers (`buildCsv`/`csvResponse` with UTF-8 BOM), guards (`requireAdmin`, `requireManagerOrAdmin`, `requireExportAccess`, `exportRateLimit`).
 
 ## MODULES BY SIZE
 
 | Module             | Lines | Key Endpoints                        |
 | ------------------ | ----- | ------------------------------------ |
-| posts.ts           | 623   | List, detail, review, reject, delete |
-| users.ts           | 465   | Search, detail, role update, suspend |
+| posts.ts           | 664   | List, detail, review, reject, delete |
+| users.ts           | 463   | Search, detail, role update, suspend |
 | votes.ts           | 409   | Vote CRUD, candidate management      |
-| fas.ts             | 399   | FAS sync trigger, status, errors     |
+| fas.ts             | 391   | FAS sync trigger, status, errors     |
 | recommendations.ts | 211   | Safety recommendation CRUD           |
 | trends.ts          | 207   | Trend analysis, statistics           |
-| helpers.ts         | 191   | Shared pagination, CSV, guards       |
+| helpers.ts         | 195   | Shared pagination, CSV, guards       |
+| export.ts          | 193   | CSV: users, posts, attendance        |
 | alerting.ts        | 182   | Alert config, webhook management     |
-| export.ts          | 176   | CSV: users, posts, attendance        |
 | monitoring.ts      | 166   | System monitoring endpoints          |
 | images.ts          | 165   | Image moderation, privacy review     |
-| sync-errors.ts     | 149   | FAS sync error list, resolve, retry  |
 | attendance.ts      | 144   | Attendance logs, manual override     |
+| sync-errors.ts     | 143   | FAS sync error list, resolve, retry  |
 | stats.ts           | 113   | Dashboard counts, category stats     |
 | access-policies.ts | 111   | Point policies, reward configuration |
 | audit.ts           | 49    | Audit log query with pagination      |
+| index.ts           | 42    | Sub-router mounts, global auth       |
 
 ## CONVENTIONS
 

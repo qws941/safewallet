@@ -10,7 +10,7 @@
 | ----------------------- | ----- | -------------------------------------------- |
 | web-push.ts             | 446   | Web Push API, subscription management        |
 | fas-mariadb.ts          | 407   | FAS MariaDB queries via Hyperdrive           |
-| fas-sync.ts             | 346   | FAS→D1 employee upsert, deactivation         |
+| fas-sync.ts             | 336   | FAS→D1 employee upsert, deactivation         |
 | alerting.ts             | 318   | Webhook dispatch (Slack/Teams) on failures   |
 | sms.ts                  | 255   | SMS sending via provider API                 |
 | workers-ai.ts           | 164   | Workers AI: hazard classification, face blur |

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env, AuthContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { rateLimitMiddleware } from "../middleware/rate-limit";
 import { success, error } from "../lib/response";
 import { processImageForPrivacy, isJpegImage } from "../lib/image-privacy";
 import { computeImageHash } from "../lib/phash";
@@ -20,6 +21,11 @@ const app = new Hono<{
 
 app.use("*", authMiddleware);
 
+const uploadRateLimit = rateLimitMiddleware({
+  maxRequests: 20,
+  windowMs: 60_000,
+});
+
 /**
  * Upload image with automatic EXIF stripping for privacy
  *
@@ -35,7 +41,7 @@ app.use("*", authMiddleware);
  *   - privacyProcessed: Whether EXIF was stripped
  *   - metadata: Privacy processing metadata
  */
-app.post("/upload", async (c) => {
+app.post("/upload", uploadRateLimit, async (c) => {
   const timer = startTimer();
   const { user } = c.get("auth");
 

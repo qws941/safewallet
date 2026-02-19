@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, desc, gte, lt } from "drizzle-orm";
 import * as schema from "../db/schema";
@@ -193,68 +195,78 @@ app.post("/:id/approve", async (c) => {
 });
 
 // Reject request
-app.post("/:id/reject", async (c) => {
-  const db = drizzle(c.env.DB, { schema });
-  const { user: approver } = c.get("auth");
-  const id = c.req.param("id");
-  const { reason } = await c.req.json<{ reason: string }>();
+app.post(
+  "/:id/reject",
+  zValidator(
+    "json",
+    z.object({
+      reason: z.string().min(1, "Rejection reason is required"),
+    }),
+  ),
+  async (c) => {
+    const db = drizzle(c.env.DB, { schema });
+    const { user: approver } = c.get("auth");
+    const id = c.req.param("id");
+    const { reason } = c.req.valid("json");
 
-  if (approver.role === "WORKER") {
-    return error(c, "FORBIDDEN", "Forbidden", 403);
-  }
+    if (approver.role === "WORKER") {
+      return error(c, "FORBIDDEN", "Forbidden", 403);
+    }
 
-  if (!reason) {
-    return error(c, "REASON_REQUIRED", "Rejection reason is required", 400);
-  }
+    const approval = await db.query.manualApprovals.findFirst({
+      where: eq(manualApprovals.id, id),
+    });
 
-  const approval = await db.query.manualApprovals.findFirst({
-    where: eq(manualApprovals.id, id),
-  });
+    if (!approval) {
+      return error(c, "NOT_FOUND", "Approval request not found", 404);
+    }
 
-  if (!approval) {
-    return error(c, "NOT_FOUND", "Approval request not found", 404);
-  }
+    if (
+      approval.siteId &&
+      !(await isSiteAdmin(db, approver.id, approval.siteId))
+    ) {
+      return error(c, "FORBIDDEN", "Forbidden", 403);
+    }
 
-  if (
-    approval.siteId &&
-    !(await isSiteAdmin(db, approver.id, approval.siteId))
-  ) {
-    return error(c, "FORBIDDEN", "Forbidden", 403);
-  }
+    if (approval.status !== "PENDING") {
+      return error(c, "INVALID_STATUS", "Request is not pending", 400);
+    }
 
-  if (approval.status !== "PENDING") {
-    return error(c, "INVALID_STATUS", "Request is not pending", 400);
-  }
+    const updatedApproval = await db
+      .update(manualApprovals)
+      .set({
+        status: "REJECTED",
+        approvedById: approver.id,
+        approvedAt: new Date(),
+        rejectionReason: reason,
+      })
+      .where(
+        and(eq(manualApprovals.id, id), eq(manualApprovals.status, "PENDING")),
+      )
+      .returning({ id: manualApprovals.id })
+      .get();
 
-  const updatedApproval = await db
-    .update(manualApprovals)
-    .set({
-      status: "REJECTED",
-      approvedById: approver.id,
-      approvedAt: new Date(),
-      rejectionReason: reason,
-    })
-    .where(
-      and(eq(manualApprovals.id, id), eq(manualApprovals.status, "PENDING")),
-    )
-    .returning({ id: manualApprovals.id })
-    .get();
+    if (!updatedApproval) {
+      return error(
+        c,
+        "CONFLICT",
+        "Approval request was already processed",
+        409,
+      );
+    }
 
-  if (!updatedApproval) {
-    return error(c, "CONFLICT", "Approval request was already processed", 409);
-  }
+    await logAuditWithContext(
+      c,
+      db,
+      "MANUAL_APPROVAL_REJECTED",
+      approver.id,
+      "MANUAL_APPROVAL",
+      id,
+      { reason },
+    );
 
-  await logAuditWithContext(
-    c,
-    db,
-    "MANUAL_APPROVAL_REJECTED",
-    approver.id,
-    "MANUAL_APPROVAL",
-    id,
-    { reason },
-  );
-
-  return success(c, { success: true });
-});
+    return success(c, { success: true });
+  },
+);
 
 export default app;

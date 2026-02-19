@@ -871,8 +871,6 @@ auth.post(
     let passwordMatch = false;
     if (ADMIN_PASSWORD_HASH) {
       passwordMatch = await verifyPassword(body.password, ADMIN_PASSWORD_HASH);
-    } else if (ADMIN_PASSWORD) {
-      passwordMatch = body.password === ADMIN_PASSWORD;
     }
 
     if (!usernameMatch || !passwordMatch) {

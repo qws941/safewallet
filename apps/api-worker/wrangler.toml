@@ -15,8 +15,13 @@ ENVIRONMENT = "production"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
 
-# Security secrets: use .dev.vars for local dev, Cloudflare Secrets for production
-# See: wrangler secret put JWT_SECRET / HMAC_SECRET / ENCRYPTION_KEY / ELASTICSEARCH_URL
+# Required secrets — use .dev.vars for local dev, `wrangler secret put <NAME>` for production:
+#   JWT_SECRET          — JWT signing key
+#   HMAC_SECRET         — HMAC-SHA256 for PII hashing
+#   ENCRYPTION_KEY      — AES encryption for phone/DOB
+#   ALERT_WEBHOOK_URL   — Webhook URL for operational alerts (cron failures, FAS down)
+#   FAS_SYNC_SECRET     — Bearer secret for POST /fas-sync admin endpoint
+#   ELASTICSEARCH_URL   — Elasticsearch endpoint (production only)
 
 # D1 Database
 [[d1_databases]]
@@ -99,8 +104,8 @@ REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
 ELASTICSEARCH_URL = "http://192.168.50.105:9200"
 
-# Security secrets: use .dev.vars for local dev, Cloudflare Secrets for staging
-# See: wrangler secret put JWT_SECRET / HMAC_SECRET / ENCRYPTION_KEY
+# Required secrets — use .dev.vars for local dev, `wrangler secret put <NAME> --env dev` for staging:
+#   JWT_SECRET / HMAC_SECRET / ENCRYPTION_KEY / ALERT_WEBHOOK_URL / FAS_SYNC_SECRET
 
 [[env.dev.d1_databases]]
 binding = "DB"
@@ -143,4 +148,14 @@ bindings = [
   { name = "RATE_LIMITER", class_name = "RateLimiter" }
 ]
 
+[[env.dev.queues.producers]]
+queue = "safework2-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+[[env.dev.queues.consumers]]
+queue = "safework2-notifications"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "safework2-notifications-dlq"
 

@@ -1,27 +1,27 @@
 # ADMIN HOOKS
 
-17 domain-specific TanStack Query hooks (2.6k LOC). Each wraps API endpoints for a single domain.
+17 domain-specific TanStack Query hooks (2.2k LOC). Each wraps API endpoints for a single domain.
 
 ## INVENTORY
 
 | Hook                   | Lines | Domain                                      |
 | ---------------------- | ----- | ------------------------------------------- |
 | use-education-api.ts   | 531   | Course/quiz/question CRUD, progress         |
-| use-admin-api.ts       | 300   | Dashboard stats, members, announcements     |
-| use-points-api.ts      | 175   | Points balance, history, settlement         |
-| use-attendance.ts      | 160   | Attendance records, overrides               |
+| use-admin-api.ts       | 326   | Dashboard stats, members, announcements     |
+| use-points-api.ts      | 181   | Points balance, history, settlement         |
+| use-attendance.ts      | 158   | Attendance records, overrides               |
 | use-votes.ts           | 139   | Vote periods, candidates, results           |
+| use-fas-sync.ts        | 129   | FAS sync trigger, status                    |
 | use-recommendations.ts | 119   | Safety recommendation CRUD                  |
 | use-rewards.ts         | 118   | Reward configuration, distribution          |
-| use-posts-api.ts       | 111   | Post review, moderation, filtering          |
-| use-monitoring-api.ts  | 97    | System metrics (60s refetch interval)       |
-| use-actions-api.ts     | 77    | Corrective action tracking                  |
+| use-posts-api.ts       | 114   | Post review, moderation, filtering          |
+| use-monitoring-api.ts  | 93    | System metrics (60s refetch interval)       |
+| use-actions-api.ts     | 82    | Corrective action tracking                  |
 | use-sync-errors.ts     | 75    | FAS sync error review, resolution           |
 | use-trends.ts          | 70    | Trend analysis, statistics                  |
 | use-sites-api.ts       | 50    | Site management                             |
-| use-fas-sync.ts        | 40    | FAS sync trigger, status                    |
-| use-stats.ts           | 33    | Dashboard statistics                        |
-| use-api.ts             | 15    | Barrel export (re-exports all domain hooks) |
+| use-stats.ts           | 24    | Dashboard statistics                        |
+| use-api.ts             | 17    | Barrel export (re-exports all domain hooks) |
 | use-api-base.ts        | 5     | Base `apiFetch` re-export                   |
 
 ## PATTERN

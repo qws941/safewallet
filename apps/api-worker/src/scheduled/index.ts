@@ -1165,7 +1165,7 @@ async function runMetricsAlertCheck(env: Env): Promise<void> {
   }
 }
 
-export async function scheduled(
+async function runScheduled(
   controller: ScheduledController,
   env: Env,
 ): Promise<void> {
@@ -1186,7 +1186,14 @@ export async function scheduled(
               env.KV,
               buildFasDownAlert(errorMsg),
               env.ALERT_WEBHOOK_URL,
-            ).catch(() => {});
+            ).catch((alertErr: unknown) => {
+              log.error("Alert webhook delivery failed", {
+                error:
+                  alertErr instanceof Error
+                    ? alertErr.message
+                    : String(alertErr),
+              });
+            });
           }
         }
       } else {
@@ -1203,38 +1210,54 @@ export async function scheduled(
               env.KV,
               buildFasDownAlert(errorMsg),
               env.ALERT_WEBHOOK_URL,
-            ).catch(() => {});
+            ).catch((alertErr: unknown) => {
+              log.error("Alert webhook delivery failed", {
+                error:
+                  alertErr instanceof Error
+                    ? alertErr.message
+                    : String(alertErr),
+              });
+            });
           }
         }
       }
 
-      await publishScheduledAnnouncements(env);
-
-      // AceTime sync with exponential backoff retry
-      try {
-        await withRetry(() => runAcetimeSyncFromR2(env), 3, 5000);
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        log.error("AceTime sync failed after 3 retries", {
-          error: errorMsg,
-          trigger,
-        });
-        if (env.KV) {
-          await fireAlert(
-            env.KV,
-            buildCronFailureAlert("AceTime R2 Sync", errorMsg),
-            env.ALERT_WEBHOOK_URL,
-          ).catch(() => {});
-        }
-      }
-
-      try {
-        await runMetricsAlertCheck(env);
-      } catch (err) {
-        log.error("Metrics alert check failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
+      // announcements, AceTime sync, and metrics check are independent — run in parallel
+      await Promise.all([
+        publishScheduledAnnouncements(env).catch((err: unknown) => {
+          log.error("Announcements publish failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }),
+        withRetry(() => runAcetimeSyncFromR2(env), 3, 5000).catch(
+          (err: unknown) => {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            log.error("AceTime sync failed after 3 retries", {
+              error: errorMsg,
+              trigger,
+            });
+            if (env.KV) {
+              fireAlert(
+                env.KV,
+                buildCronFailureAlert("AceTime R2 Sync", errorMsg),
+                env.ALERT_WEBHOOK_URL,
+              ).catch((alertErr: unknown) => {
+                log.error("Alert webhook delivery failed", {
+                  error:
+                    alertErr instanceof Error
+                      ? alertErr.message
+                      : String(alertErr),
+                });
+              });
+            }
+          },
+        ),
+        runMetricsAlertCheck(env).catch((err: unknown) => {
+          log.error("Metrics alert check failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }),
+      ]);
     }
 
     if (trigger === "0 0 1 * *") {
@@ -1272,6 +1295,7 @@ export async function scheduled(
     }
 
     if (trigger === "0 21 * * *") {
+      // FAS full sync first — overdue/PII checks benefit from fresh data
       try {
         await withRetry(() => runFasFullSync(env), 2, 5000);
       } catch (err) {
@@ -1282,25 +1306,32 @@ export async function scheduled(
             env.KV,
             buildFasDownAlert(errorMsg),
             env.ALERT_WEBHOOK_URL,
-          ).catch(() => {});
+          ).catch((alertErr: unknown) => {
+            log.error("Alert webhook delivery failed", {
+              error:
+                alertErr instanceof Error ? alertErr.message : String(alertErr),
+            });
+          });
         }
       }
 
-      try {
-        await withRetry(() => runOverdueActionCheck(env), 2, 3000);
-      } catch (err) {
-        log.error("Overdue action check failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-
-      try {
-        await withRetry(() => runPiiLifecycleCleanup(env), 2, 3000);
-      } catch (err) {
-        log.error("PII cleanup failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
+      // Overdue action check and PII cleanup are independent — run in parallel
+      await Promise.all([
+        withRetry(() => runOverdueActionCheck(env), 2, 3000).catch(
+          (err: unknown) => {
+            log.error("Overdue action check failed", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          },
+        ),
+        withRetry(() => runPiiLifecycleCleanup(env), 2, 3000).catch(
+          (err: unknown) => {
+            log.error("PII cleanup failed", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          },
+        ),
+      ]);
     }
 
     log.info("Scheduled tasks completed", { trigger });
@@ -1311,4 +1342,17 @@ export async function scheduled(
     });
     throw error;
   }
+}
+
+/**
+ * Exported scheduled handler — thin wrapper that hands async work to
+ * ctx.waitUntil() so the runtime correctly tracks the invocation lifecycle
+ * and records the correct status in "Past Cron Events".
+ */
+export function scheduled(
+  controller: ScheduledController,
+  env: Env,
+  ctx: ExecutionContext,
+): void {
+  ctx.waitUntil(runScheduled(controller, env));
 }
