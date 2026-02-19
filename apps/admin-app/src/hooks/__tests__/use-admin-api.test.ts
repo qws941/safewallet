@@ -143,7 +143,17 @@ describe("use-admin-api hooks", () => {
     const { wrapper } = createWrapper();
     mockApiFetch
       .mockResolvedValueOnce({ logs: [{ id: "log-1" }] })
-      .mockResolvedValueOnce([{ siteId: "site-1" }]);
+      .mockResolvedValueOnce({
+        memberships: [
+          {
+            id: "m-1",
+            role: "ADMIN",
+            status: "ACTIVE",
+            joinedAt: "2026-01-01",
+            site: { id: "site-1", name: "Test Site", active: true },
+          },
+        ],
+      });
 
     const audit = renderHook(() => useAuditLogs(), { wrapper });
     await waitFor(() => expect(audit.result.current.isSuccess).toBe(true));
@@ -152,6 +162,16 @@ describe("use-admin-api hooks", () => {
     const sites = renderHook(() => useMySites(), { wrapper });
     await waitFor(() => expect(sites.result.current.isSuccess).toBe(true));
     expect(mockApiFetch).toHaveBeenCalledWith("/users/me/memberships");
+    expect(sites.result.current.data).toEqual([
+      {
+        id: "m-1",
+        siteId: "site-1",
+        siteName: "Test Site",
+        status: "ACTIVE",
+        role: "ADMIN",
+        joinedAt: "2026-01-01",
+      },
+    ]);
   });
 
   it("builds manual approvals query and handles reject/create mutations", async () => {
