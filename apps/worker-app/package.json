@@ -7,7 +7,7 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "lint": "echo 'Skipping next lint due to zod/eslint-config-next conflict - using typecheck'",
+    "lint": "eslint . --ignore-pattern 'out/**'",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "pages:build": "npx @cloudflare/next-on-pages",

@@ -11,7 +11,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "echo 'Skipping lint - using typecheck instead'"
+    "lint": "npm run typecheck"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

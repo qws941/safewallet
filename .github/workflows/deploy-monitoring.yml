@@ -1,0 +1,171 @@
+name: Deployment Monitoring
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  monitor:
+    name: Endpoint Health Monitor
+    runs-on: ubuntu-latest
+    outputs:
+      failure-count: ${{ steps.health.outputs.failure_count }}
+      report-path: ${{ steps.health.outputs.report_path }}
+    steps:
+      - name: Check production endpoints
+        id: health
+        run: |
+          REPORT_FILE="deploy-monitor-report.md"
+          FAILED=0
+          STARTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          check_endpoint() {
+            name="$1"
+            url="$2"
+            expected="$3"
+
+            result=$(curl -sS -o /tmp/monitor_body -w "%{http_code} %{time_total}" \
+              --max-time 20 --retry 2 --retry-delay 2 "$url" || echo "000 999")
+            status=$(echo "$result" | cut -d' ' -f1)
+            latency=$(echo "$result" | cut -d' ' -f2)
+
+            if [ "$status" = "$expected" ]; then
+              echo "- [OK] $name | status=$status | latency=${latency}s | $url" >> "$REPORT_FILE"
+            else
+              FAILED=$((FAILED + 1))
+              echo "- [FAIL] $name | status=$status | expected=$expected | latency=${latency}s | $url" >> "$REPORT_FILE"
+            fi
+          }
+
+          {
+            echo "# Deployment Monitor Report"
+            echo ""
+            echo "- Run started (UTC): $STARTED_AT"
+            echo ""
+            echo "## Endpoint Results"
+          } > "$REPORT_FILE"
+
+          check_endpoint "Worker App" "https://safework2.jclee.me" "200"
+          check_endpoint "Admin App" "https://admin.safework2.jclee.me" "200"
+          check_endpoint "API Health" "https://safework2-api.jclee.workers.dev/api/health" "200"
+
+          echo "" >> "$REPORT_FILE"
+          echo "- Failure count: $FAILED" >> "$REPORT_FILE"
+
+          echo "failure_count=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "report_path=$REPORT_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload monitor report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-monitor-report
+          path: ${{ steps.health.outputs.report_path }}
+          retention-days: 7
+
+      - name: Notify webhook (optional)
+        if: steps.health.outputs.failure_count != '0' && secrets.DEPLOY_MONITOR_WEBHOOK_URL != ''
+        run: |
+          payload=$(printf '{"text":"[Deploy Monitor] %s failure(s) detected on safework2 production. Run: %s"}' \
+            "${{ steps.health.outputs.failure_count }}" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")
+          curl -sS -X POST "${{ secrets.DEPLOY_MONITOR_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
+  incident:
+    name: Upsert Incident Issue on Failure
+    runs-on: ubuntu-latest
+    needs: monitor
+    if: needs.monitor.outputs.failure-count != '0'
+    steps:
+      - name: Upsert incident issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const failures = `${{ needs.monitor.outputs.failure-count }}`;
+            const title = `[Deploy Monitor] ${failures} endpoint failure(s)`;
+            const body = [
+              'Automated deployment monitor detected production endpoint failure(s).',
+              '',
+              `- Failures: ${failures}`,
+              `- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+              '',
+              'Please investigate deployment health and rollback if needed.'
+            ].join('\n');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const existing = issues.find((issue) => issue.title.startsWith('[Deploy Monitor]'));
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                title,
+                body
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Repeated failure detected: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            }
+
+  recovery:
+    name: Close Incident on Recovery
+    runs-on: ubuntu-latest
+    needs: monitor
+    if: needs.monitor.outputs.failure-count == '0'
+    steps:
+      - name: Close open deploy-monitor incidents
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const incidents = issues.filter((issue) => issue.title.startsWith('[Deploy Monitor]'));
+
+            for (const issue of incidents) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Recovery detected: all monitored endpoints healthy in run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}.`
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }
+
+      - name: Mark workflow failed
+        run: |
+          echo "Deployment monitoring detected failures"
+          exit 1

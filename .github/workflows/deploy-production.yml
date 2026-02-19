@@ -15,9 +15,23 @@ env:
   NODE_VERSION: "20"
 
 jobs:
+  resolve-sha:
+    name: Resolve Deployment SHA
+    runs-on: ubuntu-latest
+    outputs:
+      deploy-sha: ${{ steps.sha.outputs.deploy_sha }}
+    steps:
+      - name: Select source commit
+        id: sha
+        run: |
+          DEPLOY_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "deploy_sha=$DEPLOY_SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploy source SHA: $DEPLOY_SHA"
+
   detect-changes:
     name: Detect Changes
     runs-on: ubuntu-latest
+    needs: resolve-sha
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -27,66 +41,26 @@ jobs:
       admin-app: ${{ steps.changes.outputs.admin-app }}
       any-app: ${{ steps.changes.outputs.any-app }}
     steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          fetch-depth: 2
-
-      - name: Detect changed paths
+      - name: Select deploy targets
         id: changes
         run: |
-          # Manual dispatch: deploy everything
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "api-worker=true" >> $GITHUB_OUTPUT
-            echo "worker-app=true" >> $GITHUB_OUTPUT
-            echo "admin-app=true" >> $GITHUB_OUTPUT
-            echo "any-app=true" >> $GITHUB_OUTPUT
-            echo "Manual dispatch — deploying all apps"
-            exit 0
-          fi
-
-          # Compare against parent commit
-          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
-          if [ -z "$CHANGED" ]; then
-            echo "Could not determine changes — deploying all apps"
-            echo "api-worker=true" >> $GITHUB_OUTPUT
-            echo "worker-app=true" >> $GITHUB_OUTPUT
-            echo "admin-app=true" >> $GITHUB_OUTPUT
-            echo "any-app=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "::group::Changed files"
-          echo "$CHANGED"
-          echo "::endgroup::"
-
-          API=$(echo "$CHANGED" | grep -qE '^(apps/api-worker/|packages/)' && echo true || echo false)
-          WORKER=$(echo "$CHANGED" | grep -qE '^(apps/worker-app/|packages/)' && echo true || echo false)
-          ADMIN=$(echo "$CHANGED" | grep -qE '^(apps/admin-app/|packages/)' && echo true || echo false)
-
-          echo "api-worker=$API" >> $GITHUB_OUTPUT
-          echo "worker-app=$WORKER" >> $GITHUB_OUTPUT
-          echo "admin-app=$ADMIN" >> $GITHUB_OUTPUT
-
-          if [ "$API" = "true" ] || [ "$WORKER" = "true" ] || [ "$ADMIN" = "true" ]; then
-            echo "any-app=true" >> $GITHUB_OUTPUT
-          else
-            echo "any-app=false" >> $GITHUB_OUTPUT
-          fi
-
-          echo "Deploy targets: api-worker=$API worker-app=$WORKER admin-app=$ADMIN"
+          echo "api-worker=true" >> $GITHUB_OUTPUT
+          echo "worker-app=true" >> $GITHUB_OUTPUT
+          echo "admin-app=true" >> $GITHUB_OUTPUT
+          echo "any-app=true" >> $GITHUB_OUTPUT
+          echo "Deploying all production targets for deterministic release"
 
   build:
     name: Build Apps
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [resolve-sha, detect-changes]
     if: >-
       needs.detect-changes.outputs.worker-app == 'true' ||
       needs.detect-changes.outputs.admin-app == 'true'
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.resolve-sha.outputs.deploy-sha }}
 
       - uses: actions/setup-node@v6
         with:
@@ -137,13 +111,13 @@ jobs:
   deploy-api-worker:
     name: Deploy API Worker
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [resolve-sha, detect-changes]
     if: needs.detect-changes.outputs.api-worker == 'true'
     environment: production
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.resolve-sha.outputs.deploy-sha }}
 
       - uses: actions/setup-node@v6
         with:
@@ -157,8 +131,7 @@ jobs:
         working-directory: apps/api-worker
         run: npx wrangler deploy
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_API || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-worker-app:
@@ -180,14 +153,12 @@ jobs:
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy out --project-name=safework2-worker --branch=master
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_WORKER || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Sync to R2 Static Bucket
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_WORKER || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           get_ct() {
@@ -242,27 +213,32 @@ jobs:
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy out --project-name=safework2-admin --branch=master
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_ADMIN || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   cache-purge:
     name: Purge Cloudflare Cache
     runs-on: ubuntu-latest
     needs:
-      [detect-changes, deploy-api-worker, deploy-worker-app, deploy-admin-app]
+      [
+        detect-changes,
+        deploy-api-worker,
+        deploy-worker-app,
+        deploy-admin-app,
+        verify,
+      ]
     if: >-
       always() && !cancelled() &&
       needs.detect-changes.outputs.any-app == 'true' &&
       needs.deploy-api-worker.result != 'failure' &&
       needs.deploy-worker-app.result != 'failure' &&
-      needs.deploy-admin-app.result != 'failure'
+      needs.deploy-admin-app.result != 'failure' &&
+      needs.verify.result == 'success'
     steps:
       - name: Purge cache for all custom domains
         run: |
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
-            -H "X-Auth-Email: ${{ secrets.CLOUDFLARE_EMAIL }}" \
-            -H "X-Auth-Key: ${{ secrets.CLOUDFLARE_API_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN_PURGE || secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"hosts":["safework2.jclee.me","admin.safework2.jclee.me"]}'
 
@@ -270,7 +246,13 @@ jobs:
     name: Post-Deploy Smoke Tests
     runs-on: ubuntu-latest
     needs:
-      [detect-changes, deploy-api-worker, deploy-worker-app, deploy-admin-app]
+      [
+        resolve-sha,
+        detect-changes,
+        deploy-api-worker,
+        deploy-worker-app,
+        deploy-admin-app,
+      ]
     if: >-
       always() && !cancelled() &&
       needs.detect-changes.outputs.any-app == 'true' &&
@@ -280,7 +262,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.resolve-sha.outputs.deploy-sha }}
 
       - uses: actions/setup-node@v6
         with:

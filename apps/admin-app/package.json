@@ -12,7 +12,7 @@
     "build": "next build",
     "test": "vitest run",
     "start": "next start -p 3001",
-    "lint": "echo 'Skipping next lint due to zod/eslint-config-next conflict - using typecheck'",
+    "lint": "eslint . --ignore-pattern 'out/**'",
     "typecheck": "tsc --noEmit",
     "pages:build": "npx @cloudflare/next-on-pages",
     "pages:preview": "npx wrangler pages dev .vercel/output/static",

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "build": "wrangler deploy --dry-run --outdir=dist",
+    "build": "wrangler deploy --env=\"\" --dry-run --outdir=dist",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "test": "vitest run",

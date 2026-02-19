@@ -25,9 +25,6 @@ jobs:
   verify:
     name: Smoke Test (${{ inputs.environment }})
     runs-on: ubuntu-latest
-    # continue-on-error when called from deploy workflows (workflow_call)
-    # fail hard when run standalone (workflow_dispatch) for clear signal
-    continue-on-error: ${{ github.event_name != 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
 

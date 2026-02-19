@@ -10,11 +10,11 @@
 name: Auto Merge
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened, labeled]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
