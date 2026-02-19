@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { useEducationContent } from "@/hooks/use-api";
 import { useTranslation } from "@/hooks/use-translation";
 import { Header } from "@/components/header";
@@ -108,10 +109,13 @@ function EducationDetailContent() {
 
         {data.contentType === "IMAGE" && data.contentUrl && (
           <div className="rounded-lg overflow-hidden border border-gray-200">
-            <img
+            <Image
               src={data.contentUrl}
               alt={data.title}
+              width={1200}
+              height={800}
               className="w-full h-auto object-contain"
+              unoptimized
             />
           </div>
         )}

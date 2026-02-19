@@ -2,6 +2,7 @@
 
 import { useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { useTranslation } from "@/hooks/use-translation";
 import {
   useAction,
@@ -373,10 +374,13 @@ function ActionDetailContent() {
               <div className="grid grid-cols-2 gap-2">
                 {beforeImages.map((img) => (
                   <div key={img.id} className="relative group">
-                    <img
+                    <Image
                       src={img.fileUrl}
                       alt={t("actions.view.beforeCaption")}
+                      width={512}
+                      height={256}
                       className="w-full h-32 object-cover rounded-md"
+                      unoptimized
                     />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -436,10 +440,13 @@ function ActionDetailContent() {
               <div className="grid grid-cols-2 gap-2">
                 {afterImages.map((img) => (
                   <div key={img.id} className="relative group">
-                    <img
+                    <Image
                       src={img.fileUrl}
                       alt={t("actions.view.afterCaption")}
+                      width={512}
+                      height={256}
                       className="w-full h-32 object-cover rounded-md"
+                      unoptimized
                     />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>

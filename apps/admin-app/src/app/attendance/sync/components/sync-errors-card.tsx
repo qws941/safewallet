@@ -74,7 +74,10 @@ export function SyncErrorsCard() {
     limit: 50,
   });
 
-  const syncErrors = syncErrorsData?.errors ?? [];
+  const syncErrors = useMemo(
+    () => syncErrorsData?.errors ?? [],
+    [syncErrorsData?.errors],
+  );
 
   const syncErrorsWithIndex = useMemo(
     () => syncErrors.map((err, i) => ({ ...err, index: i + 1 })),

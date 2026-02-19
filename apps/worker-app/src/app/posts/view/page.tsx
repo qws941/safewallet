@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { usePost } from "@/hooks/use-api";
 import { useTranslation } from "@/hooks/use-translation";
 import { Header } from "@/components/header";
@@ -200,11 +201,14 @@ function PostDetailContent() {
             <CardContent className="p-0">
               <div className="grid grid-cols-2 gap-1">
                 {post.images.map((img, idx) => (
-                  <img
+                  <Image
                     key={img.id || idx}
                     src={img.fileUrl}
                     alt={`${t("posts.view.photo")} ${idx + 1}`}
+                    width={512}
+                    height={256}
                     className="w-full h-32 object-cover rounded"
+                    unoptimized
                   />
                 ))}
               </div>

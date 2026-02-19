@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   ChevronUp,
   ChevronDown,
@@ -50,14 +50,14 @@ export function DataTable<T extends object>({
     new Set(),
   );
 
-  const getValue = (item: T, key: string): unknown => {
+  const getValue = useCallback((item: T, key: string): unknown => {
     const keys = key.split(".");
     let value: unknown = item;
     for (const k of keys) {
       value = (value as Record<string, unknown>)?.[k];
     }
     return value;
-  };
+  }, []);
 
   const filteredData = useMemo(() => {
     let result = [...data];
@@ -84,7 +84,7 @@ export function DataTable<T extends object>({
     }
 
     return result;
-  }, [data, search, sortKey, sortOrder]);
+  }, [data, getValue, search, sortKey, sortOrder]);
 
   const paginatedData = useMemo(() => {
     const start = page * pageSize;

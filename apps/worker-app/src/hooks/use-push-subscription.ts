@@ -37,6 +37,14 @@ export function usePushSubscription() {
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
+  const checkExistingSubscription = useCallback(async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      setState((prev) => ({ ...prev, isSubscribed: !!subscription }));
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const supported =
       typeof window !== "undefined" &&
@@ -49,15 +57,7 @@ export function usePushSubscription() {
     if (supported && isAuthenticated) {
       checkExistingSubscription();
     }
-  }, [isAuthenticated]);
-
-  const checkExistingSubscription = useCallback(async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      setState((prev) => ({ ...prev, isSubscribed: !!subscription }));
-    } catch {}
-  }, []);
+  }, [checkExistingSubscription, isAuthenticated]);
 
   const subscribe = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));

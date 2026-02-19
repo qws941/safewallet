@@ -32,7 +32,7 @@ export default function AttendancePage() {
   const { data: unmatchedData, isLoading: isUnmatchedLoading } =
     useUnmatchedRecords();
 
-  const allLogs = logsResponse?.logs || [];
+  const allLogs = useMemo(() => logsResponse?.logs ?? [], [logsResponse?.logs]);
 
   const stats = useMemo(
     () => ({

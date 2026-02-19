@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   MessageSquare,
 } from "lucide-react";
+import Image from "next/image";
 import { Card, Badge } from "@safetywallet/ui";
 import { ActionStatus } from "@safetywallet/types";
 import { ReviewActions } from "@/components/review-actions";
@@ -126,10 +127,13 @@ export function PostContentCard({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <img
+                  <Image
                     src={img.thumbnailUrl || img.fileUrl}
                     alt={`첨부 ${idx + 1}`}
+                    width={512}
+                    height={512}
                     className="aspect-square w-full rounded-lg border object-cover hover:opacity-80 transition-opacity"
+                    unoptimized
                   />
                 </a>
               ),

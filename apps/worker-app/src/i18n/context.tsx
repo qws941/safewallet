@@ -6,6 +6,7 @@ import {
   ReactNode,
   useEffect,
   useState,
+  useCallback,
 } from "react";
 import type { Locale } from "./config";
 import { defaultLocale, locales } from "./config";
@@ -39,17 +40,7 @@ export function I18nProvider({
   );
   const [isLoading, setIsLoading] = useState(!initialMessages);
 
-  useEffect(() => {
-    // Load messages from localStorage on mount
-    const savedLocale = localStorage.getItem("i18n-locale") as Locale | null;
-    if (savedLocale && locales.includes(savedLocale)) {
-      loadLocale(savedLocale);
-    } else if (!initialMessages) {
-      loadLocale(locale);
-    }
-  }, []);
-
-  const loadLocale = async (newLocale: Locale) => {
+  const loadLocale = useCallback(async (newLocale: Locale) => {
     setIsLoading(true);
     try {
       const newMessages = await getLocale(newLocale);
@@ -64,7 +55,16 @@ export function I18nProvider({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const savedLocale = localStorage.getItem("i18n-locale") as Locale | null;
+    if (savedLocale && locales.includes(savedLocale)) {
+      void loadLocale(savedLocale);
+    } else if (!initialMessages) {
+      void loadLocale(locale);
+    }
+  }, [initialMessages, loadLocale, locale]);
 
   const setLocale = (newLocale: Locale) => {
     loadLocale(newLocale);
