@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Hono } from "hono";
+import { verifyPassword } from "../../lib/crypto";
 
 type AppEnv = {
   Bindings: Record<string, unknown>;
@@ -229,6 +230,7 @@ async function createApp(auth?: AuthContext) {
     REQUIRE_ATTENDANCE_FOR_LOGIN: "false",
     ADMIN_USERNAME: "admin",
     ADMIN_PASSWORD: "password123",
+    ADMIN_PASSWORD_HASH: "pbkdf2:100000:dGVzdA==:dGVzdA==",
   } as Record<string, unknown>;
   return { app, env };
 }
@@ -393,6 +395,7 @@ describe("auth", () => {
     });
 
     it("succeeds with correct credentials", async () => {
+      vi.mocked(verifyPassword).mockResolvedValueOnce(true);
       mockGet.mockResolvedValueOnce({
         id: "admin-1",
         name: "관리자",

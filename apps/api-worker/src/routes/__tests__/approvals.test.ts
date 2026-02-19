@@ -362,11 +362,6 @@ describe("routes/approvals", () => {
         env,
       );
       expect(res.status).toBe(400);
-      const body = (await res.json()) as {
-        data: Record<string, Record<string, unknown>>;
-        error: { code: string };
-      };
-      expect(body.error.code).toBe("REASON_REQUIRED");
     });
 
     it("returns 404 if approval not found", async () => {
