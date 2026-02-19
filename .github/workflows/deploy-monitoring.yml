@@ -28,6 +28,7 @@ jobs:
             name="$1"
             url="$2"
             expected="$3"
+            fallback_url="$4"
 
             result=$(curl -sS -o /tmp/monitor_body -w "%{http_code} %{time_total}" \
               --max-time 20 --retry 2 --retry-delay 2 --location \
@@ -39,6 +40,22 @@ jobs:
 
             if [ "$status" = "$expected" ]; then
               echo "- [OK] $name | status=$status | latency=${latency}s | $url" >> "$REPORT_FILE"
+            elif [ -n "$fallback_url" ]; then
+              fallback_result=$(curl -sS -o /tmp/monitor_body -w "%{http_code} %{time_total}" \
+                --max-time 20 --retry 2 --retry-delay 2 --location \
+                --user-agent "Mozilla/5.0 (compatible; SafeWork2DeployMonitor/1.0)" \
+                -H "Accept: text/html,application/json;q=0.9,*/*;q=0.8" \
+                "$fallback_url" || echo "000 999")
+              fallback_status=$(echo "$fallback_result" | cut -d' ' -f1)
+              fallback_latency=$(echo "$fallback_result" | cut -d' ' -f2)
+
+              if [ "$fallback_status" = "$expected" ] && [ "$status" = "403" ]; then
+                echo "- [OK] $name | custom-domain status=403 (runner blocked), fallback status=$fallback_status | fallback latency=${fallback_latency}s | $fallback_url" >> "$REPORT_FILE"
+              else
+                FAILED=$((FAILED + 1))
+                echo "- [FAIL] $name | status=$status | expected=$expected | latency=${latency}s | $url" >> "$REPORT_FILE"
+                echo "  - fallback status=$fallback_status | expected=$expected | latency=${fallback_latency}s | $fallback_url" >> "$REPORT_FILE"
+              fi
             else
               FAILED=$((FAILED + 1))
               echo "- [FAIL] $name | status=$status | expected=$expected | latency=${latency}s | $url" >> "$REPORT_FILE"
@@ -53,9 +70,9 @@ jobs:
             echo "## Endpoint Results"
           } > "$REPORT_FILE"
 
-          check_endpoint "Worker App" "https://safework2.jclee.me" "200"
-          check_endpoint "Admin App" "https://admin.safework2.jclee.me" "200"
-          check_endpoint "API Health" "https://safework2-api.jclee.workers.dev/api/health" "200"
+          check_endpoint "Worker App" "https://safework2.jclee.me" "200" "https://safework2-worker.pages.dev"
+          check_endpoint "Admin App" "https://admin.safework2.jclee.me" "200" "https://safework2-admin.pages.dev"
+          check_endpoint "API Health" "https://safework2-api.jclee.workers.dev/api/health" "200" ""
 
           echo "" >> "$REPORT_FILE"
           echo "- Failure count: $FAILED" >> "$REPORT_FILE"
