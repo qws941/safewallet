@@ -34,3 +34,8 @@ The suite is organized into subdirectories matching the Playwright projects defi
 - Run all: `npx playwright test`
 - Specific project: `npx playwright test --project=worker-app`
 - UI Mode: `npx playwright test --ui`
+
+## SUBMODULE DOCS
+
+- `e2e/admin-app/AGENTS.md`: Admin login setup, sidebar helpers, rate-limit-safe patterns
+- `e2e/api/AGENTS.md`: API endpoint validation, serial auth flow, CORS and status checks

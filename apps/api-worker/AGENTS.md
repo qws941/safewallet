@@ -26,6 +26,15 @@ src/
 | Validation | `src/validators/`  | Zod schemas for request bodies          |
 | CRON Jobs  | `src/scheduled/`   | FAS sync, overdue checks, PII cleanup   |
 
+## SUBMODULE DOCS
+
+- `src/routes/AGENTS.md`: Root route inventory and cross-cutting route patterns
+- `src/routes/admin/AGENTS.md`: Admin-only route rules (`.use('*', authMiddleware)` exception)
+- `src/middleware/AGENTS.md`: Middleware invocation and guard patterns
+- `src/lib/AGENTS.md`: Utility module inventory by domain
+- `src/db/AGENTS.md`: Schema and migration constraints
+- `src/scheduled/AGENTS.md`: CRON schedule matrix and lock/retry rules
+
 ## SCHEDULED TASKS (9 CRON jobs)
 
 | Schedule    | Jobs                                                       |

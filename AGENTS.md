@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE: SAFEWORK2
 
 **Updated:** 2026-02-19
-**Branch:** master (a987d4b)
+**Branch:** master (11324de)
 
 ## OVERVIEW
 
@@ -37,6 +37,14 @@ safework2/
 | Admin App pages  | \`apps/admin-app/src/app/\`          | Next.js App Router               |
 | CF Bindings      | \`apps/api-worker/wrangler.toml\`    | D1, R2, KV, DO, CRON             |
 | E2E Tests        | \`e2e/\`                             | Playwright projects              |
+
+## AGENTS HIERARCHY
+
+- Root: \`AGENTS.md\`
+- App/package level: \`apps/api-worker/AGENTS.md\`, \`apps/worker-app/AGENTS.md\`, \`apps/admin-app/AGENTS.md\`, \`packages/types/AGENTS.md\`, \`packages/ui/AGENTS.md\`, \`e2e/AGENTS.md\`, \`scripts/AGENTS.md\`
+- API deep modules: \`apps/api-worker/src/routes/AGENTS.md\`, \`apps/api-worker/src/routes/admin/AGENTS.md\`, \`apps/api-worker/src/middleware/AGENTS.md\`, \`apps/api-worker/src/lib/AGENTS.md\`, \`apps/api-worker/src/db/AGENTS.md\`, \`apps/api-worker/src/scheduled/AGENTS.md\`
+- Frontend deep modules: \`apps/admin-app/src/app/AGENTS.md\`, \`apps/admin-app/src/hooks/AGENTS.md\`, \`apps/admin-app/src/components/AGENTS.md\`, \`apps/worker-app/src/lib/AGENTS.md\`
+- E2E deep modules: \`e2e/admin-app/AGENTS.md\`, \`e2e/api/AGENTS.md\`
 
 ## CODE MAP
 

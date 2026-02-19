@@ -34,6 +34,10 @@ src/
 | Image handling  | `src/lib/image-compress.ts` (Canvas-based) |
 | QR Scanning     | `src/components/qr-scanner.tsx`            |
 
+## SUBMODULE DOCS
+
+- `src/lib/AGENTS.md`: API client, offline queue, token refresh, image compression
+
 ## CONVENTIONS
 
 - **Mobile-First**: Use `pb-nav` and `safe-bottom` for notch/navbar padding.
