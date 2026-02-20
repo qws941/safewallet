@@ -24,7 +24,7 @@
     "mysql2": "^3.17.2",
     "piexifjs": "^1.0.6",
     "sql.js": "^1.14.0",
-    "zod": "3.25.76"
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241230.0",
