@@ -15,8 +15,7 @@
     "lint": "eslint . --ignore-pattern 'out/**'",
     "typecheck": "tsc --noEmit",
     "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:preview": "npx wrangler pages dev .vercel/output/static",
-    "pages:deploy": "npx wrangler pages deploy .vercel/output/static --project-name=safework2-admin"
+    "pages:preview": "npx wrangler pages dev .vercel/output/static"
   },
   "dependencies": {
     "@safetywallet/types": "*",
