@@ -18,18 +18,18 @@
     "@hono/zod-validator": "^0.7.6",
     "@safetywallet/types": "*",
     "drizzle-orm": "^0.45.1",
-    "hono": "^4.11.9",
+    "hono": "^4.12.0",
     "jose": "^5.9.0",
     "jpeg-js": "^0.4.4",
-    "mysql2": "^3.17.2",
+    "mysql2": "^3.17.4",
     "piexifjs": "^1.0.6",
     "sql.js": "^1.14.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241230.0",
+    "@cloudflare/workers-types": "^4.20260227.0",
     "drizzle-kit": "^0.31.9",
     "typescript": "^5.7.0",
-    "wrangler": "^4.66.0"
+    "wrangler": "^4.67.0"
   }
 }
