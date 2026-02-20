@@ -6,6 +6,7 @@ This index defines current documentation sources of truth.
 
 - Product requirements (master): `docs/requirements/SafetyWallet_PRD_v1.1.md`
 - Requirements gap analysis (canonical): `docs/requirements/REQUIREMENTS_CHECKLIST.md`
+- ELK logging prefix requirements: `docs/requirements/ELK_INDEX_PREFIX_REQUIREMENTS.md`
 - Feature/status tracking: `docs/FEATURE_CHECKLIST.md`
 - Cloudflare operations runbook: `docs/cloudflare-operations.md`
 

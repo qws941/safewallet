@@ -1,13 +1,13 @@
 # ADMIN-APP KNOWLEDGE BASE
 
-**Next.js 14 Dashboard** (@cloudflare/next-on-pages)
+**Next.js 14 Dashboard** (Static Export via R2)
 
 ## STRUCTURE
 
 ```
 src/
 ├── app/                  # App Router pages
-│   ├── (dashboard)/      # Sidebar layout group
+│   ├── approvals/        # Approval workflow
 │   └── [domain]/         # Domain pages (posts, members)
 ├── components/           # UI Components
 │   ├── sidebar.tsx       # Core nav (12 items)

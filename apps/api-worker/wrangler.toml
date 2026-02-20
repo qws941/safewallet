@@ -1,4 +1,4 @@
-name = "safework2-api"
+name = "safewallet"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat_v2"]
@@ -7,13 +7,14 @@ workers_dev = true
 # Custom domain routes (requires Zone permissions in API token)
 routes = [
   { pattern = "safewallet.jclee.me/*", zone_name = "jclee.me" },
-  { pattern = "admin.safewallet.jclee.me/*", zone_name = "jclee.me" }
+  { pattern = "admin.safewallet.jclee.me", custom_domain = true }
 ]
 
 [vars]
 ENVIRONMENT = "production"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
+ELASTICSEARCH_INDEX_PREFIX = "safewallet-logs"
 ALLOWED_ORIGINS = "https://safewallet.jclee.me,https://admin.safewallet.jclee.me"
 VAPID_SUBJECT = "mailto:admin@safewallet.jclee.me"
 
@@ -44,7 +45,7 @@ bucket_name = "safework2-static"
 # R2 Bucket for AceTime data (photos + DB from NAS)
 [[r2_buckets]]
 binding = "ACETIME_BUCKET"
-bucket_name = "safework2-acetime"
+bucket_name = "safewallet-acetime"
 
 # Hyperdrive — FAS MariaDB via Cloudflare Tunnel
 [[hyperdrive]]
@@ -98,13 +99,14 @@ crons = ["*/5 * * * *", "0 0 1 * *", "0 3 * * SUN", "0 21 * * *"]
 
 # Development Environment
 [env.dev]
-name = "safework2-api-dev"
+name = "safewallet-dev"
 
 [env.dev.vars]
 ENVIRONMENT = "development"
 REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
 REQUIRE_ATTENDANCE_FOR_POST = "false"
 ELASTICSEARCH_URL = "http://192.168.50.105:9200"
+ELASTICSEARCH_INDEX_PREFIX = "safewallet-logs"
 ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001"
 VAPID_SUBJECT = "mailto:admin@safewallet.jclee.me"
 
@@ -126,7 +128,7 @@ bucket_name = "safework2-static"
 
 [[env.dev.r2_buckets]]
 binding = "ACETIME_BUCKET"
-bucket_name = "safework2-acetime"
+bucket_name = "safewallet-acetime"
 
 [[env.dev.hyperdrive]]
 binding = "FAS_HYPERDRIVE"

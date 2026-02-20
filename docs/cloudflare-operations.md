@@ -4,7 +4,7 @@ This runbook is the single operational guide for Cloudflare deployment and rollb
 
 ## Scope
 
-- API Worker (Cloudflare Workers)
+- Single Worker (Cloudflare Workers)
 - Admin App (Cloudflare Pages)
 - Worker App (Cloudflare Pages + static assets)
 - D1 migrations and recovery notes
@@ -27,10 +27,12 @@ Optional scoped tokens and cache purge settings used by production workflow:
 - `CLOUDFLARE_ZONE_ID`
 - `SLACK_WEBHOOK_URL` (optional; deploy/verify notification channel)
 - `DEPLOY_MONITOR_WEBHOOK_URL` (optional legacy alias; monitoring and notification fallback)
+- `ELASTICSEARCH_URL` (required production secret for ELK shipping; deploy fails fast when missing)
+- `ELASTICSEARCH_INDEX_PREFIX` (optional plain env var; defaults to `safewallet-logs`)
 
 Production workflow uses fallback resolution per target:
 
-- API Worker: `CLOUDFLARE_API_TOKEN_API || CLOUDFLARE_API_TOKEN`
+- Worker: `CLOUDFLARE_API_TOKEN_API || CLOUDFLARE_API_TOKEN`
 - Worker App: `CLOUDFLARE_API_TOKEN_WORKER || CLOUDFLARE_API_TOKEN`
 - Admin App: `CLOUDFLARE_API_TOKEN_ADMIN || CLOUDFLARE_API_TOKEN`
 - Cache Purge: `CLOUDFLARE_API_TOKEN_PURGE || CLOUDFLARE_API_TOKEN`
@@ -40,6 +42,11 @@ Production workflow uses fallback resolution per target:
 - D1 databases: `safework2-db` (prod), `safework2-db-dev` (dev)
 - R2 buckets: `safework2-images`, `safework2-static`
 - KV namespace: `safework2-cache` (optional)
+
+Naming policy:
+
+- Runtime worker identity and hosts use `safewallet` / `safewallet-dev` only.
+- `safework2-*` resource names are legacy infrastructure identifiers and stay unchanged in this phase.
 
 The authoritative runtime binding config is `apps/api-worker/wrangler.toml`.
 
@@ -57,16 +64,16 @@ npm run git:preflight
 
 This checks remote connectivity, GitHub auth, upstream tracking, and a dry-run push.
 
-### One-Worker Deploy Path (API Worker Only)
+### One-Worker Deploy Path
 
-Single-worker runtime is active (`safework2-api` serves API + `/` + `/admin` static routes).
+Single-worker runtime is active (`safewallet` serves API + `/` + `/admin` static routes).
 Deploy execution is CI-only.
 
 ### CI/CD Production
 
 - Trigger: CI workflow success on `master` (`workflow_run`)
 - Workflow: `.github/workflows/deploy-production.yml`
-- Single-worker behavior: deploys API Worker only
+- Single-worker behavior: deploys the worker only
 - Deploy source: checked out by git ref (`github.event.workflow_run.head_sha`)
 - Pre-deploy verification: `.github/workflows/deploy-verify.yml` via `workflow_call`
 - Post-deploy verification: `.github/workflows/deploy-verify.yml` via `workflow_call`
@@ -97,7 +104,7 @@ npx wrangler d1 export safework2-db --output=backup-$(date +%Y%m%d).sql
 
 ## Rollback
 
-### API Worker
+### Worker
 
 ```bash
 npx wrangler rollback --config apps/api-worker/wrangler.toml
@@ -106,7 +113,7 @@ npx wrangler rollback --config apps/api-worker/wrangler.toml
 ### Admin/Worker App (Removed)
 
 Single-worker mode is active. Pages projects are removed from deployment scope.
-Rollback path is API Worker only.
+Rollback path is worker only.
 
 ### D1
 
@@ -125,7 +132,7 @@ Manual checks below remain required for incident triage and rollback confidence.
 
 - Verify worker app: `https://safewallet.jclee.me`
 - Verify admin app: `https://safewallet.jclee.me/admin` (custom domain `https://admin.safewallet.jclee.me` is also mapped)
-- Verify API health and smoke routes under `https://safewallet-api.jclee.workers.dev/api`
+- Verify API health and smoke routes under `https://safewallet.jclee.workers.dev/api`
 - Check errors/latency dashboards and alert channels
 
 ## Official References

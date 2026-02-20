@@ -3,7 +3,7 @@ import { log, startTimer } from "../observability";
 
 describe("observability (re-export from logger)", () => {
   beforeEach(() => {
-    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
@@ -15,8 +15,9 @@ describe("observability (re-export from logger)", () => {
   describe("log", () => {
     it("logs debug messages with metadata", () => {
       log.debug("debug-msg", { metadata: { extra: "data" } });
-      expect(console.log).toHaveBeenCalledOnce();
-      const [payload] = (console.log as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(console.info).toHaveBeenCalledOnce();
+      const [payload] = (console.info as ReturnType<typeof vi.fn>).mock
+        .calls[0];
       const entry = JSON.parse(String(payload)) as Record<string, unknown>;
       expect(entry.level).toBe("debug");
       expect(entry.message).toBe("debug-msg");
@@ -25,7 +26,8 @@ describe("observability (re-export from logger)", () => {
 
     it("logs info messages", () => {
       log.info("info-msg");
-      const [payload] = (console.log as ReturnType<typeof vi.fn>).mock.calls[0];
+      const [payload] = (console.info as ReturnType<typeof vi.fn>).mock
+        .calls[0];
       const entry = JSON.parse(String(payload)) as Record<string, unknown>;
       expect(entry.level).toBe("info");
     });
@@ -73,8 +75,9 @@ describe("observability (re-export from logger)", () => {
       const timer = startTimer();
       timer.end("my-action", { userId: "u1" });
 
-      expect(console.log).toHaveBeenCalledOnce();
-      const [payload] = (console.log as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(console.info).toHaveBeenCalledOnce();
+      const [payload] = (console.info as ReturnType<typeof vi.fn>).mock
+        .calls[0];
       const entry = JSON.parse(String(payload)) as Record<string, unknown>;
       expect(entry.level).toBe("info");
       expect(entry.action).toBe("my-action");
@@ -86,7 +89,8 @@ describe("observability (re-export from logger)", () => {
       const timer = startTimer();
       timer.end("simple-action");
 
-      const [payload] = (console.log as ReturnType<typeof vi.fn>).mock.calls[0];
+      const [payload] = (console.info as ReturnType<typeof vi.fn>).mock
+        .calls[0];
       const entry = JSON.parse(String(payload)) as Record<string, unknown>;
       expect(entry.action).toBe("simple-action");
     });

@@ -70,9 +70,9 @@ jobs:
             echo "## Endpoint Results"
           } > "$REPORT_FILE"
 
-          check_endpoint "Worker App" "https://safewallet.jclee.me" "200" "https://safework2-api.jclee.workers.dev"
-          check_endpoint "Admin App" "https://admin.safewallet.jclee.me" "200" "https://safework2-api.jclee.workers.dev"
-          check_endpoint "API Health" "https://safewallet.jclee.me/api/health" "200" "https://safework2-api.jclee.workers.dev/api/health"
+          check_endpoint "Worker App" "https://safewallet.jclee.me" "200" "https://safewallet.jclee.workers.dev"
+          check_endpoint "Admin App" "https://admin.safewallet.jclee.me" "200" "https://safewallet.jclee.workers.dev/admin"
+          check_endpoint "API Health" "https://safewallet.jclee.me/api/health" "200" "https://safewallet.jclee.workers.dev/api/health"
 
           echo "" >> "$REPORT_FILE"
           echo "- Failure count: $FAILED" >> "$REPORT_FILE"

@@ -5,7 +5,7 @@
  * Merges the former logger.ts (module-scoped, ES shipping) with
  * observability.ts (rich context fields, startTimer).
  *
- * ES index: safework2-logs-{YYYY.MM.DD}
+ * ES index: {ELASTICSEARCH_INDEX_PREFIX}-{YYYY.MM.DD}
  * See #47.
  */
 
@@ -46,7 +46,8 @@ interface LogEntry {
   metadata?: Record<string, unknown>;
 }
 
-const SERVICE_NAME = "safework2-api";
+const SERVICE_NAME = "safewallet";
+const DEFAULT_ELASTICSEARCH_INDEX_PREFIX = "safewallet-logs";
 
 function buildEntry(
   level: LogLevel,
@@ -99,7 +100,7 @@ function emit(entry: LogEntry): void {
       console.warn(json);
       break;
     default:
-      console.log(json);
+      console.info(json);
       break;
   }
 }
@@ -107,9 +108,10 @@ function emit(entry: LogEntry): void {
 function shipToElasticsearch(
   entry: LogEntry,
   elasticsearchUrl: string,
+  indexPrefix: string,
 ): Promise<void> {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
-  return fetch(`${elasticsearchUrl}/safework2-logs-${date}/_doc`, {
+  return fetch(`${elasticsearchUrl}/${indexPrefix}-${date}/_doc`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -136,6 +138,7 @@ export interface Logger {
 
 export interface LoggerOptions {
   elasticsearchUrl?: string;
+  elasticsearchIndexPrefix?: string;
   waitUntil?: (promise: Promise<unknown>) => void;
 }
 
@@ -149,7 +152,12 @@ export function createLogger(module: string, options?: LoggerOptions): Logger {
         options?.elasticsearchUrl &&
         (level === "error" || level === "warn")
       ) {
-        const p = shipToElasticsearch(entry, options.elasticsearchUrl);
+        const p = shipToElasticsearch(
+          entry,
+          options.elasticsearchUrl,
+          options.elasticsearchIndexPrefix ??
+            DEFAULT_ELASTICSEARCH_INDEX_PREFIX,
+        );
         if (options.waitUntil) {
           options.waitUntil(p);
         }
@@ -204,7 +212,11 @@ export function createLogger(module: string, options?: LoggerOptions): Logger {
     emit(entry);
 
     if (options?.elasticsearchUrl) {
-      const p = shipToElasticsearch(entry, options.elasticsearchUrl);
+      const p = shipToElasticsearch(
+        entry,
+        options.elasticsearchUrl,
+        options.elasticsearchIndexPrefix ?? DEFAULT_ELASTICSEARCH_INDEX_PREFIX,
+      );
       if (options.waitUntil) {
         options.waitUntil(p);
       }
