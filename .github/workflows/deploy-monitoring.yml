@@ -81,7 +81,7 @@ jobs:
           echo "report_path=$REPORT_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Upload monitor report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deploy-monitor-report
           path: ${{ steps.health.outputs.report_path }}
