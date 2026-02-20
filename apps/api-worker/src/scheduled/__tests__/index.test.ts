@@ -240,7 +240,7 @@ describe("scheduled helpers", () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, init] = fetchSpy.mock.calls[0];
       expect(String(url)).toBe(
-        "https://elastic.example/safework2-logs-2026.02.20/_doc/FAS_ATTENDANCE-corr-123",
+        "https://elastic.example/safewallet-logs-2026.02.20/_doc/FAS_ATTENDANCE-corr-123",
       );
       expect(init?.method).toBe("PUT");
 
@@ -250,6 +250,33 @@ describe("scheduled helpers", () => {
       expect(body.metadata.correlationId).toBe("corr-123");
       expect(body.metadata.eventId).toBe("FAS_ATTENDANCE-corr-123");
       expect(body.metadata.lockName).toBe("fas-attendance");
+    });
+
+    it("uses overridden Elasticsearch index prefix when provided", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 201 }));
+
+      await emitSyncFailureToElk(
+        {
+          ELASTICSEARCH_URL: "https://elastic.example",
+          ELASTICSEARCH_INDEX_PREFIX: "safework2-logs",
+        } as Env,
+        {
+          timestamp: "2026-02-20T02:03:04.567Z",
+          correlationId: "corr-123",
+          syncType: "FAS_WORKER",
+          errorCode: "FULL_SYNC_FAILED",
+          errorMessage: "boom",
+          lockName: "fas-full",
+        },
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url] = fetchSpy.mock.calls[0];
+      expect(String(url)).toBe(
+        "https://elastic.example/safework2-logs-2026.02.20/_doc/FAS_WORKER-corr-123",
+      );
     });
 
     it("retries once when first ELK request fails", async () => {

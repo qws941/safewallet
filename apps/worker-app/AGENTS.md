@@ -5,7 +5,7 @@
 Mobile-first safety reporting PWA for construction workers.
 
 - **Tech Stack**: Next.js 14 (Client-only), Zustand, TanStack Query.
-- **Deployment**: Cloudflare Pages (Static Export: `output: 'export'`).
+- **Deployment**: Single CF Worker (static assets served via R2, `output: 'export'`).
 - **Domain**: High-frequency reporting, attendance, and education (Korean UI).
 
 ## STRUCTURE

@@ -13,8 +13,8 @@ SafetyWallet - Construction site safety reporting PWA. A high-performance Turbor
 safework2/
 ├── apps/
 │ ├── api-worker/ # Cloudflare Workers API (Hono + Drizzle)
-│ ├── worker-app/ # Next.js 14 Worker PWA (CF Pages, port 3000)
-│ └── admin-app/ # Next.js 14 Admin Dashboard (CF Pages, port 3001)
+│ ├── worker-app/ # Next.js 14 Worker PWA (R2 static, port 3000)
+│ └── admin-app/ # Next.js 14 Admin Dashboard (R2 static, port 3001)
 ├── packages/
 │ ├── types/ # Shared TS types, enums, and DTOs
 │ └── ui/ # Shared shadcn/ui component library

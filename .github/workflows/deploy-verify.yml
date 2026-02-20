@@ -38,13 +38,13 @@ jobs:
         id: urls
         run: |
           if [ "${{ inputs.environment }}" = "staging" ]; then
-            echo "worker_url=https://safewallet-api-dev.jclee.workers.dev" >> "$GITHUB_OUTPUT"
-            echo "admin_url=https://safewallet-api-dev.jclee.workers.dev/admin" >> "$GITHUB_OUTPUT"
-            echo "api_url=https://safewallet-api-dev.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
+            echo "worker_url=https://safewallet-dev.jclee.workers.dev" >> "$GITHUB_OUTPUT"
+            echo "admin_url=https://safewallet-dev.jclee.workers.dev/admin" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://safewallet-dev.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           else
             echo "worker_url=https://safewallet.jclee.me" >> "$GITHUB_OUTPUT"
             echo "admin_url=https://safewallet.jclee.me/admin" >> "$GITHUB_OUTPUT"
-            echo "api_url=https://safewallet.jclee.me/api" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://safewallet.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run smoke tests
