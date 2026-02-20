@@ -1,0 +1,148 @@
+name = "safewallet"
+main = "apps/api-worker/src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat_v2"]
+workers_dev = true
+
+routes = [
+  { pattern = "safewallet.jclee.me/*", zone_name = "jclee.me" },
+  { pattern = "admin.safewallet.jclee.me", custom_domain = true }
+]
+
+[vars]
+ENVIRONMENT = "production"
+REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
+REQUIRE_ATTENDANCE_FOR_POST = "false"
+ELASTICSEARCH_INDEX_PREFIX = "safewallet-logs"
+ALLOWED_ORIGINS = "https://safewallet.jclee.me,https://admin.safewallet.jclee.me"
+VAPID_SUBJECT = "mailto:admin@safewallet.jclee.me"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "safewallet-db"
+database_id = "9d62c0d4-b264-4378-8219-da540f35d9d9"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "safewallet-images"
+
+[[r2_buckets]]
+binding = "STATIC"
+bucket_name = "safewallet-static"
+
+[[r2_buckets]]
+binding = "ACETIME_BUCKET"
+bucket_name = "safewallet-acetime"
+
+[[hyperdrive]]
+binding = "FAS_HYPERDRIVE"
+id = "83c32c884d3b42b18c4b0601c0e2e0dc"
+localConnectionString = "postgresql://root:root@localhost:5432/fas_local"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "57ab28dca9dd4193a8f59f93e57122d8"
+
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+
+[[queues.producers]]
+queue = "safewallet-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+[[queues.consumers]]
+queue = "safewallet-notifications"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "safewallet-notifications-dlq"
+
+[ai]
+binding = "AI"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+destinations = ["elk-traces"]
+persist = true
+
+[durable_objects]
+bindings = [
+  { name = "RATE_LIMITER", class_name = "RateLimiter" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
+
+
+[triggers]
+crons = ["*/5 * * * *", "0 0 1 * *", "0 3 * * SUN", "0 21 * * *"]
+
+[env.dev]
+name = "safewallet-dev"
+
+[env.dev.vars]
+ENVIRONMENT = "development"
+REQUIRE_ATTENDANCE_FOR_LOGIN = "false"
+REQUIRE_ATTENDANCE_FOR_POST = "false"
+ELASTICSEARCH_URL = "http://192.168.50.105:9200"
+ELASTICSEARCH_INDEX_PREFIX = "safewallet-logs"
+ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001"
+VAPID_SUBJECT = "mailto:admin@safewallet.jclee.me"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "safewallet-db-dev"
+database_id = "edeb67f3-0135-4ccc-bf5c-dd1914460b06"
+
+[[env.dev.r2_buckets]]
+binding = "R2"
+bucket_name = "safewallet-images"
+
+[[env.dev.r2_buckets]]
+binding = "STATIC"
+bucket_name = "safewallet-static"
+
+[[env.dev.r2_buckets]]
+binding = "ACETIME_BUCKET"
+bucket_name = "safewallet-acetime"
+
+[[env.dev.hyperdrive]]
+binding = "FAS_HYPERDRIVE"
+id = "83c32c884d3b42b18c4b0601c0e2e0dc"
+localConnectionString = "postgresql://root:root@localhost:5432/fas_local"
+
+[[env.dev.kv_namespaces]]
+binding = "KV"
+id = "57ab28dca9dd4193a8f59f93e57122d8"
+
+[[env.dev.analytics_engine_datasets]]
+binding = "ANALYTICS"
+
+[env.dev.ai]
+binding = "AI"
+
+[env.dev.observability]
+enabled = true
+head_sampling_rate = 1
+
+[env.dev.durable_objects]
+bindings = [
+  { name = "RATE_LIMITER", class_name = "RateLimiter" }
+]
+
+[[env.dev.queues.producers]]
+queue = "safewallet-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+[[env.dev.queues.consumers]]
+queue = "safewallet-notifications"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "safewallet-notifications-dlq"
