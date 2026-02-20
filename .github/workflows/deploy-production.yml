@@ -5,7 +5,6 @@ on:
     workflows: ["CI"]
     branches: [master]
     types: [completed]
-  workflow_dispatch:
 
 concurrency:
   group: deploy-production
@@ -24,17 +23,25 @@ jobs:
       - name: Select source commit
         id: sha
         run: |
-          DEPLOY_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          DEPLOY_SHA="${{ github.event.workflow_run.head_sha }}"
           echo "deploy_sha=$DEPLOY_SHA" >> "$GITHUB_OUTPUT"
           echo "Deploy source SHA: $DEPLOY_SHA"
+
+  verify-before-deploy:
+    name: Verify Production Before Deploy
+    needs: [resolve-sha]
+    if: github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/deploy-verify.yml
+    with:
+      environment: production
+      ref: ${{ needs.resolve-sha.outputs.deploy-sha }}
+    secrets: inherit
 
   deploy-api-worker:
     name: Deploy API Worker (Single Worker Mode)
     runs-on: ubuntu-latest
-    needs: resolve-sha
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+    needs: [resolve-sha, verify-before-deploy]
+    if: github.event.workflow_run.conclusion == 'success'
     environment: production
     steps:
       - uses: actions/checkout@v6
@@ -85,7 +92,7 @@ jobs:
           find out -type f | while IFS= read -r file; do
             key="${file#out/}"
             ct=$(get_ct "$file")
-            npx wrangler r2 object put "safework2-static/$key" --file="$file" --content-type="$ct"
+            npx wrangler r2 object put "safework2-static/$key" --file="$file" --content-type="$ct" --remote
           done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_API || secrets.CLOUDFLARE_API_TOKEN }}
@@ -118,7 +125,7 @@ jobs:
           find out -type f | while IFS= read -r file; do
             key="admin/${file#out/}"
             ct=$(get_ct "$file")
-            npx wrangler r2 object put "safework2-static/$key" --file="$file" --content-type="$ct"
+            npx wrangler r2 object put "safework2-static/$key" --file="$file" --content-type="$ct" --remote
           done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_API || secrets.CLOUDFLARE_API_TOKEN }}
@@ -134,17 +141,28 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_API || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+  verify-production:
+    name: Verify Production After Deploy
+    needs: [resolve-sha, deploy-api-worker]
+    uses: ./.github/workflows/deploy-verify.yml
+    with:
+      environment: production
+      ref: ${{ needs.resolve-sha.outputs.deploy-sha }}
+    secrets: inherit
+
   notify-slack:
     name: Notify Slack
     runs-on: ubuntu-latest
-    needs: [deploy-api-worker]
+    needs: [verify-before-deploy, deploy-api-worker, verify-production]
     if: always() && !cancelled()
     steps:
       - name: Send deploy status to Slack (optional)
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || secrets.DEPLOY_MONITOR_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VERIFY_BEFORE_RESULT: ${{ needs.verify-before-deploy.result }}
           API_RESULT: ${{ needs.deploy-api-worker.result }}
+          VERIFY_RESULT: ${{ needs.verify-production.result }}
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
             echo "Slack webhook not configured. Skipping notification."
@@ -155,18 +173,18 @@ jobs:
           icon=":white_check_mark:"
           color="#2eb886"
 
-          if [ "$API_RESULT" = "failure" ]; then
+          if [ "$VERIFY_BEFORE_RESULT" = "failure" ] || [ "$API_RESULT" = "failure" ] || [ "$VERIFY_RESULT" = "failure" ]; then
             status="FAILED"
             icon=":x:"
             color="#d40e0d"
-          elif [ "$API_RESULT" = "cancelled" ]; then
+          elif [ "$VERIFY_BEFORE_RESULT" = "cancelled" ] || [ "$API_RESULT" = "cancelled" ] || [ "$VERIFY_RESULT" = "cancelled" ]; then
             status="CANCELLED"
             icon=":warning:"
             color="#daa038"
           fi
 
-          payload=$(printf '{"attachments":[{"color":"%s","text":"%s Production deploy %s\\n- API Worker: %s\\n- Run: %s"}]}' \
-            "$color" "$icon" "$status" "$API_RESULT" "$RUN_URL")
+          payload=$(printf '{"attachments":[{"color":"%s","text":"%s Production deploy %s\\n- Verify before deploy: %s\\n- API Worker: %s\\n- Verify after deploy: %s\\n- Run: %s"}]}' \
+            "$color" "$icon" "$status" "$VERIFY_BEFORE_RESULT" "$API_RESULT" "$VERIFY_RESULT" "$RUN_URL")
 
           if ! curl -sS --fail-with-body --retry 3 --retry-all-errors --retry-delay 2 --max-time 30 -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
