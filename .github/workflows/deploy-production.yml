@@ -142,7 +142,7 @@ jobs:
     environment: production
     steps:
       - name: Download Worker App artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: worker-app-pages
           path: out
@@ -202,7 +202,7 @@ jobs:
     environment: production
     steps:
       - name: Download Admin App artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: admin-app-pages
           path: out
