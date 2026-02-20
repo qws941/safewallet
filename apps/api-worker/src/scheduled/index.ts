@@ -54,6 +54,7 @@ import {
 import { apiMetrics } from "../db/schema";
 
 const log = createLogger("scheduled");
+const DEFAULT_ELASTICSEARCH_INDEX_PREFIX = "safewallet-logs";
 
 interface SyncFailureTelemetry {
   timestamp: string;
@@ -87,7 +88,9 @@ export async function emitSyncFailureToElk(
 
   const indexDate = getElkDailyIndexDate(telemetry.timestamp);
   const eventId = buildSyncFailureEventId(telemetry);
-  const endpoint = `${env.ELASTICSEARCH_URL}/safework2-logs-${indexDate}/_doc/${eventId}`;
+  const indexPrefix =
+    env.ELASTICSEARCH_INDEX_PREFIX ?? DEFAULT_ELASTICSEARCH_INDEX_PREFIX;
+  const endpoint = `${env.ELASTICSEARCH_URL}/${indexPrefix}-${indexDate}/_doc/${eventId}`;
 
   await withRetry(
     async () => {
@@ -97,7 +100,7 @@ export async function emitSyncFailureToElk(
         body: JSON.stringify({
           level: "error",
           module: "scheduled",
-          service: "safework2-api",
+          service: "safewallet",
           message: `Scheduled sync failed (${telemetry.syncType})`,
           msg: `Scheduled sync failed (${telemetry.syncType})`,
           timestamp: telemetry.timestamp,

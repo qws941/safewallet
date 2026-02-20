@@ -306,6 +306,7 @@ app.get("*", async (c) => {
 app.onError((err, c) => {
   const log = createLogger("onError", {
     elasticsearchUrl: c.env.ELASTICSEARCH_URL,
+    elasticsearchIndexPrefix: c.env.ELASTICSEARCH_INDEX_PREFIX,
     waitUntil: (p) => c.executionCtx.waitUntil(p),
   });
 

@@ -149,7 +149,7 @@ function formatSlackPayload(alert: AlertPayload): Record<string, unknown> {
 function formatGenericPayload(alert: AlertPayload): Record<string, unknown> {
   return {
     ...alert,
-    service: "safework2-api",
+    service: "safewallet",
   };
 }
 

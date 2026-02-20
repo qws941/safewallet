@@ -3,7 +3,7 @@
 > **Version**: v1.0  
 > **Date**: 2026-02-17  
 > **Status**: ✅ 구현 완료 / 배포 완료 (2026-02-17)  
-> **Scope**: Worker App (PWA) + API Worker
+> **Scope**: Worker App (PWA) + Single Worker
 
 ---
 

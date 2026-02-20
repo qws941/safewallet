@@ -1144,8 +1144,8 @@ _Based on: 10,000 daily active users, 500GB storage, 50GB/day bandwidth_
 ### 13.8 Wrangler Configuration Reference
 
 ```toml
-# Complete wrangler.toml for API Worker
-name = "safetywallet-api"
+# Complete wrangler.toml for Single Worker
+name = "safetywallet"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 

@@ -14,6 +14,7 @@ export async function requestLoggerMiddleware(
 ): Promise<void> {
   const log = createLogger("request", {
     elasticsearchUrl: c.env.ELASTICSEARCH_URL,
+    elasticsearchIndexPrefix: c.env.ELASTICSEARCH_INDEX_PREFIX,
     waitUntil: (p) => c.executionCtx.waitUntil(p),
   });
 
