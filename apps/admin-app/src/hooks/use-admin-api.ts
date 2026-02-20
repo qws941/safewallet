@@ -220,8 +220,12 @@ export function useAuditLogs() {
 }
 
 export function useMySites() {
+  const userRole = useAuthStore((s) => s.user?.role);
+  const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+
   return useQuery({
-    queryKey: ["admin", "my-sites"],
+    queryKey: ["admin", "my-sites", userRole],
     queryFn: async () => {
       const res = await apiFetch<{
         memberships: Array<{
@@ -232,7 +236,7 @@ export function useMySites() {
           site: { id: string; name: string; active: boolean };
         }>;
       }>("/users/me/memberships");
-      return res.memberships.map((m) => ({
+      const memberships = res.memberships.map((m) => ({
         id: m.id,
         siteId: m.site.id,
         siteName: m.site.name,
@@ -240,7 +244,28 @@ export function useMySites() {
         role: m.role,
         joinedAt: m.joinedAt,
       }));
+
+      if (memberships.length > 0) {
+        return memberships;
+      }
+
+      if (userRole === "SUPER_ADMIN") {
+        const sitesRes = await apiFetch<{
+          data: Array<{ id: string; name: string }>;
+        }>("/sites");
+        return sitesRes.data.map((site) => ({
+          id: `super-admin-${site.id}`,
+          siteId: site.id,
+          siteName: site.name,
+          status: "ACTIVE",
+          role: "SUPER_ADMIN",
+          joinedAt: new Date(0).toISOString(),
+        }));
+      }
+
+      return memberships;
     },
+    enabled: hasHydrated && isAdmin,
   });
 }
 

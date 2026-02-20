@@ -354,7 +354,10 @@ describe("routes/acetime", () => {
         employees: [],
         total: 0,
       });
-      mockAcquireSyncLock.mockResolvedValue(null);
+      mockAcquireSyncLock.mockResolvedValue({
+        acquired: false,
+        holder: "existing-holder",
+      });
       const env = makeEnv();
       const res = await app.request(
         "/acetime/sync-db",

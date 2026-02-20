@@ -5,7 +5,7 @@
 Mobile-first safety reporting PWA for construction workers.
 
 - **Tech Stack**: Next.js 14 (Client-only), Zustand, TanStack Query.
-- **Deployment**: Cloudflare Pages (Static Export: `output: 'export'`).
+- **Deployment**: Single CF Worker (static assets served via R2, `output: 'export'`).
 - **Domain**: High-frequency reporting, attendance, and education (Korean UI).
 
 ## STRUCTURE
@@ -37,6 +37,11 @@ src/
 ## SUBMODULE DOCS
 
 - `src/lib/AGENTS.md`: API client, offline queue, token refresh, image compression
+- `src/app/AGENTS.md`: Page-router structure, guarded routes, and page-level patterns
+- `src/hooks/AGENTS.md`: TanStack Query conventions and API hook invalidation rules
+- `src/components/AGENTS.md`: Reusable mobile UI, guard components, and provider boundaries
+- `src/stores/AGENTS.md`: Persisted auth/session state and hydration constraints
+- `src/i18n/AGENTS.md`: Locale loading, translation keys, and fallback rules
 
 ## CONVENTIONS
 

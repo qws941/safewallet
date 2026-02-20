@@ -79,6 +79,7 @@ function makeEnv() {
     DB: {} as D1Database,
     VAPID_PUBLIC_KEY: "test-public",
     VAPID_PRIVATE_KEY: "test-private",
+    VAPID_SUBJECT: "mailto:test@example.com",
   };
 }
 
@@ -178,6 +179,7 @@ describe("notification-queue", () => {
         ],
         { title: "Test", body: "Hello" },
         { publicKey: "test-public", privateKey: "test-private" },
+        "mailto:test@example.com",
       );
     });
 

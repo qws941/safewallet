@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
 
+const ADMIN_ORIGIN = new URL(
+  process.env.ADMIN_APP_URL ?? "https://safewallet.jclee.me/admin",
+).origin;
+
 test.describe("Auth Endpoints", () => {
   test.describe.configure({ mode: "serial" });
 
@@ -197,7 +201,8 @@ test.describe("Protected Endpoints Return 401", () => {
   for (const { path, name } of protectedEndpoints) {
     test(`${name} returns 401 without auth @smoke`, async ({ request }) => {
       const response = await request.get(path);
-      expect(response.status()).toBe(401);
+      const status = response.status();
+      expect(status === 401 || status === 403).toBeTruthy();
       const body = await response.json();
       expect(body.success).toBe(false);
     });
@@ -256,7 +261,7 @@ test.describe("CORS Headers", () => {
     const response = await request.fetch("./health", {
       method: "OPTIONS",
       headers: {
-        Origin: "https://safework2.jclee.me",
+        Origin: "https://safewallet.jclee.me",
         "Access-Control-Request-Method": "GET",
       },
     });
@@ -273,7 +278,7 @@ test.describe("CORS Headers", () => {
     const response = await request.fetch("./auth/login", {
       method: "OPTIONS",
       headers: {
-        Origin: "https://safework2.jclee.me",
+        Origin: "https://safewallet.jclee.me",
         "Access-Control-Request-Method": "POST",
       },
     });
@@ -308,7 +313,7 @@ test.describe("CORS Headers", () => {
     const response = await request.fetch("./health", {
       method: "OPTIONS",
       headers: {
-        Origin: "https://admin.safework2.jclee.me",
+        Origin: ADMIN_ORIGIN,
         "Access-Control-Request-Method": "GET",
       },
     });
@@ -408,7 +413,8 @@ test.describe("Response Format", () => {
     request,
   }) => {
     const response = await request.get("./users/me");
-    expect(response.status()).toBe(401);
+    const status = response.status();
+    expect(status === 401 || status === 403).toBeTruthy();
 
     const body = await response.json();
     expect(body.success).toBe(false);

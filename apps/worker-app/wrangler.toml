@@ -1,7 +1,0 @@
-name = "safework2-worker"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
-
-[vars]
-NEXT_PUBLIC_API_URL = "https://safework2-api.jclee.workers.dev"

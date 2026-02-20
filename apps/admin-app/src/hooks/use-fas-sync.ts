@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 export interface FasSyncUserStats {
   total: number;
@@ -34,7 +34,16 @@ export interface FasSyncStatusResponse {
 export function useFasSyncStatus() {
   return useQuery({
     queryKey: ["admin", "fas-sync-status"],
-    queryFn: () => apiFetch<FasSyncStatusResponse>("/admin/fas/sync-status"),
+    queryFn: async () => {
+      try {
+        return await apiFetch<FasSyncStatusResponse>("/admin/fas/sync-status");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          return apiFetch<FasSyncStatusResponse>("/admin/sync-status");
+        }
+        throw err;
+      }
+    },
     refetchInterval: 30_000,
   });
 }

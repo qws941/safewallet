@@ -35,7 +35,7 @@ test.describe("API - Smoke Tests", () => {
     const response = await request.fetch("./health", {
       method: "OPTIONS",
       headers: {
-        Origin: "https://safework2.jclee.me",
+        Origin: "https://safewallet.jclee.me",
         "Access-Control-Request-Method": "GET",
       },
     });

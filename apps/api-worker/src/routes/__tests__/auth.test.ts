@@ -213,7 +213,10 @@ function makeAuth(role = "WORKER"): AuthContext {
   };
 }
 
-async function createApp(auth?: AuthContext) {
+async function createApp(
+  auth?: AuthContext,
+  envOverrides?: Partial<Record<string, unknown>>,
+) {
   const { default: route } = await import("../auth");
   const app = new Hono<AppEnv>();
   app.use("*", async (c, next) => {
@@ -231,6 +234,7 @@ async function createApp(auth?: AuthContext) {
     ADMIN_USERNAME: "admin",
     ADMIN_PASSWORD: "password123",
     ADMIN_PASSWORD_HASH: "pbkdf2:100000:dGVzdA==:dGVzdA==",
+    ...envOverrides,
   } as Record<string, unknown>;
   return { app, env };
 }
@@ -415,6 +419,32 @@ describe("auth", () => {
         env,
       );
       expect(res.status).toBe(200);
+    });
+
+    it("succeeds with plain ADMIN_PASSWORD when hash is not set", async () => {
+      mockGet.mockResolvedValueOnce({
+        id: "admin-1",
+        name: "관리자",
+        nameMasked: "관*자",
+        role: "SUPER_ADMIN",
+        piiViewFull: true,
+      });
+      mockRun.mockResolvedValueOnce(undefined);
+
+      const { app, env } = await createApp(undefined, {
+        ADMIN_PASSWORD_HASH: undefined,
+      });
+      const res = await app.request(
+        "/admin/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "admin", password: "password123" }),
+        },
+        env,
+      );
+      expect(res.status).toBe(200);
+      expect(verifyPassword).not.toHaveBeenCalled();
     });
   });
 

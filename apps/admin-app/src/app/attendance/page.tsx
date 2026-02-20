@@ -11,8 +11,6 @@ import { AttendanceStats } from "./components/attendance-stats";
 import { AttendanceLogsTab } from "./components/attendance-logs-tab";
 import { UnmatchedTab } from "./components/unmatched-tab";
 
-export const runtime = "edge";
-
 export default function AttendancePage() {
   const siteId = useAuthStore((s) => s.currentSiteId);
   const [activeTab, setActiveTab] = useState<"logs" | "unmatched">("logs");

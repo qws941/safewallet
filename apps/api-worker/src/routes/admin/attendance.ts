@@ -4,7 +4,11 @@ import { eq, and, desc, gte, lt, isNull, sql } from "drizzle-orm";
 import type { Env, AuthContext } from "../../types";
 import { attendance, users, sites } from "../../db/schema";
 import { success, error } from "../../lib/response";
-import { AppContext, requireManagerOrAdmin, parseDateParam } from "./helpers";
+import {
+  AppContext,
+  requireManagerOrAdmin,
+  getKstDayRangeFromDate,
+} from "./helpers";
 
 const app = new Hono<{
   Bindings: Env;
@@ -29,12 +33,10 @@ app.get("/attendance-logs", requireManagerOrAdmin, async (c) => {
   const conditions = [eq(attendance.siteId, siteId)];
 
   if (dateStr) {
-    const date = parseDateParam(dateStr);
-    if (date) {
-      const nextDay = new Date(date);
-      nextDay.setDate(nextDay.getDate() + 1);
-      conditions.push(gte(attendance.checkinAt, date));
-      conditions.push(lt(attendance.checkinAt, nextDay));
+    const dateRange = getKstDayRangeFromDate(dateStr);
+    if (dateRange) {
+      conditions.push(gte(attendance.checkinAt, dateRange.start));
+      conditions.push(lt(attendance.checkinAt, dateRange.end));
     }
   }
 
@@ -97,12 +99,10 @@ app.get("/attendance/unmatched", requireManagerOrAdmin, async (c) => {
   const conditions = [eq(attendance.siteId, siteId), isNull(attendance.userId)];
 
   if (dateStr) {
-    const date = parseDateParam(dateStr);
-    if (date) {
-      const nextDay = new Date(date);
-      nextDay.setDate(nextDay.getDate() + 1);
-      conditions.push(gte(attendance.checkinAt, date));
-      conditions.push(lt(attendance.checkinAt, nextDay));
+    const dateRange = getKstDayRangeFromDate(dateStr);
+    if (dateRange) {
+      conditions.push(gte(attendance.checkinAt, dateRange.start));
+      conditions.push(lt(attendance.checkinAt, dateRange.end));
     }
   }
 

@@ -13,23 +13,30 @@ export type AppContext = Context<{
 
 export const DAY_CUTOFF_HOUR = 5;
 export const EXPORT_RATE_LIMIT = { maxRequests: 5, windowMs: 60 * 1000 };
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 export function getTodayRange(): { start: Date; end: Date } {
   const now = new Date();
-  const koreaTime = new Date(
-    now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }),
+  const kstNow = new Date(now.getTime() + KST_OFFSET_MS);
+
+  const kstBoundary = new Date(
+    Date.UTC(
+      kstNow.getUTCFullYear(),
+      kstNow.getUTCMonth(),
+      kstNow.getUTCDate(),
+      DAY_CUTOFF_HOUR,
+      0,
+      0,
+      0,
+    ),
   );
 
-  if (koreaTime.getHours() < DAY_CUTOFF_HOUR) {
-    koreaTime.setDate(koreaTime.getDate() - 1);
+  if (kstNow.getUTCHours() < DAY_CUTOFF_HOUR) {
+    kstBoundary.setUTCDate(kstBoundary.getUTCDate() - 1);
   }
 
-  const start = new Date(koreaTime);
-  start.setHours(DAY_CUTOFF_HOUR, 0, 0, 0);
-
-  const end = new Date(koreaTime);
-  end.setDate(end.getDate() + 1);
-  end.setHours(DAY_CUTOFF_HOUR, 0, 0, 0);
+  const start = new Date(kstBoundary.getTime() - KST_OFFSET_MS);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
   return { start, end };
 }
@@ -51,6 +58,40 @@ export function parseDateParam(value?: string): Date | null {
     return null;
   }
   return parsed;
+}
+
+export function getKstDayRangeFromDate(value?: string): {
+  start: Date;
+  end: Date;
+} | null {
+  if (!value) {
+    return null;
+  }
+
+  const dateOnly = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+    return null;
+  }
+
+  const year = Number(dateOnly.slice(0, 4));
+  const month = Number(dateOnly.slice(5, 7));
+  const day = Number(dateOnly.slice(8, 10));
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const start = new Date(Date.UTC(year, month - 1, day, -9, 0, 0, 0));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
 }
 
 export function toExclusiveEndDate(value?: string): Date | null {
