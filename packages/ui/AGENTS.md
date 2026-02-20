@@ -18,6 +18,10 @@ src/
 └── globals.css       # Tailwind v4 directives and base styles
 ```
 
+## SUBMODULE DOCS
+
+- `src/components/AGENTS.md`: Shared primitive component boundaries and anti-patterns
+
 ## CONVENTIONS
 
 ### Component Standards

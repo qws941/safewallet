@@ -10,6 +10,7 @@ import { UserRole } from "@safetywallet/types";
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
+  const logout = useAuthStore((s) => s.logout);
   const setSiteId = useAuthStore((s) => s.setSiteId);
   const user = useAuthStore((s) => s.user);
   const isAdmin = useAuthStore((s) => s.isAdmin);
@@ -25,6 +26,37 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const resolveDefaultSiteId = async (accessToken: string) => {
+    const membershipsResult = await apiFetch<{
+      memberships: Array<{
+        site: { id: string; name: string; active: boolean };
+      }>;
+    }>("/users/me/memberships", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (membershipsResult.memberships.length > 0) {
+      return membershipsResult.memberships[0].site.id;
+    }
+
+    const sitesResult = await apiFetch<Array<{ id: string; name: string }>>(
+      "/sites",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+    if (sitesResult.length > 0) {
+      return sitesResult[0].id;
+    }
+
+    return null;
+  };
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -54,18 +86,17 @@ export default function LoginPage() {
       login(result.user, result.tokens);
 
       try {
-        const sitesResult = await apiFetch<{
-          data: Array<{ id: string; name: string }>;
-        }>("/sites", {
-          headers: {
-            Authorization: `Bearer ${result.tokens.accessToken}`,
-          },
-        });
-        if (sitesResult.data?.length > 0) {
-          setSiteId(sitesResult.data[0].id);
+        const defaultSiteId = await resolveDefaultSiteId(
+          result.tokens.accessToken,
+        );
+
+        if (defaultSiteId) {
+          setSiteId(defaultSiteId);
         }
       } catch {
-        // Site fetch failed — non-blocking, admin proceeds without default site
+        setError(
+          "현장 정보 초기화에 실패했습니다. 대시보드에서 다시 시도해주세요.",
+        );
       }
 
       router.push("/dashboard");
@@ -104,8 +135,14 @@ export default function LoginPage() {
 
         <div className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium">아이디</label>
+            <label
+              htmlFor="admin-username"
+              className="mb-2 block text-sm font-medium"
+            >
+              아이디
+            </label>
             <Input
+              id="admin-username"
               type="text"
               placeholder="admin"
               value={username}
@@ -116,8 +153,14 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">비밀번호</label>
+            <label
+              htmlFor="admin-password"
+              className="mb-2 block text-sm font-medium"
+            >
+              비밀번호
+            </label>
             <Input
+              id="admin-password"
               type="password"
               placeholder="••••••••"
               value={password}

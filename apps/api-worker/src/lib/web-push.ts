@@ -310,7 +310,7 @@ export async function sendPushNotification(
   subscription: PushSubscription,
   message: PushMessage,
   vapidKeys: VapidKeys,
-  subject: string = "mailto:admin@safework2.jclee.me",
+  subject: string = "mailto:admin@safewallet.jclee.me",
 ): Promise<PushResult> {
   try {
     const endpointUrl = new URL(subscription.endpoint);

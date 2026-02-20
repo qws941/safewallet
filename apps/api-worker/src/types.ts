@@ -48,9 +48,14 @@ export interface Env {
   // Analytics Engine for observability
   ANALYTICS?: AnalyticsEngineDataset;
   ELASTICSEARCH_URL?: string;
+  ELASTICSEARCH_INDEX_PREFIX?: string;
   ALERT_WEBHOOK_URL?: string;
   NOTIFICATION_QUEUE?: Queue;
   AI?: Ai;
+  // Comma-separated allowed CORS origins
+  ALLOWED_ORIGINS?: string;
+  // VAPID contact for web push
+  VAPID_SUBJECT?: string;
 }
 
 export interface User {

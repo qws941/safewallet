@@ -11,6 +11,7 @@ Utility scripts for data migration, test seeding, and infrastructure tasks.
 ```
 scripts/
 ├── create-cf-token.sh    # Generate Cloudflare tokens
+├── git-preflight.sh       # Git remote/auth/upstream/push preflight
 ├── sync-r2.sh            # Sync R2 buckets
 ├── create-test-user.ts   # Seed test data (TS)
 ├── import-aceviewer.ts   # Import legacy AceViewer data

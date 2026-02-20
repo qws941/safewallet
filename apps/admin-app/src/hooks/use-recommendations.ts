@@ -99,11 +99,9 @@ export function useExportRecommendations() {
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
 
-    const API_BASE =
-      process.env.NEXT_PUBLIC_API_URL ||
-      "https://safework2-api.jclee.workers.dev/api";
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "/api";
     const res = await fetch(
-      `${API_BASE}/admin/recommendations/export?${params}`,
+      `${apiBase}/admin/recommendations/export?${params}`,
       {
         headers: { Authorization: `Bearer ${tokens?.accessToken}` },
       },

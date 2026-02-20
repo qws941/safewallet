@@ -46,6 +46,13 @@ Next.js 14 App Router pages for the admin dashboard. 17 feature directories + `(
 - **Port 3001** in development
 - **Deployed via `@cloudflare/next-on-pages`** to CF Pages
 
+## SUBMODULE DOCS
+
+- `attendance/AGENTS.md`: Attendance tabs, sync workflows, unmatched-record handling
+- `posts/AGENTS.md`: Review queue and report lifecycle handling
+- `votes/AGENTS.md`: Voting period setup, candidate/results workflows
+- `education/AGENTS.md`: Course/material/quiz management flows
+
 ## ADDING A PAGE
 
 1. Create directory under `src/app/{feature}/`

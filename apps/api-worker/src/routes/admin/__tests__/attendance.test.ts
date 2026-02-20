@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Hono } from "hono";
+import { gte, lt } from "drizzle-orm";
 
 type AppEnv = {
   Bindings: Record<string, unknown>;
@@ -171,6 +172,30 @@ describe("admin/attendance", () => {
       const { app, env } = await createApp(makeAuth("WORKER"));
       const res = await app.request("/attendance-logs?siteId=site-1", {}, env);
       expect(res.status).toBe(403);
+    });
+
+    it("applies KST date range filter when date is provided", async () => {
+      thenableResults = [
+        [{ count: 1 }],
+        [{ id: "a-1", siteId: "site-1", userName: "Kim**" }],
+      ];
+      const { app, env } = await createApp(makeAuth());
+
+      const res = await app.request(
+        "/attendance-logs?siteId=site-1&date=2026-02-20",
+        {},
+        env,
+      );
+
+      expect(res.status).toBe(200);
+      expect(gte).toHaveBeenCalledWith(
+        "checkinAt",
+        new Date("2026-02-19T15:00:00.000Z"),
+      );
+      expect(lt).toHaveBeenCalledWith(
+        "checkinAt",
+        new Date("2026-02-20T15:00:00.000Z"),
+      );
     });
   });
 

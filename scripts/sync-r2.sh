@@ -46,7 +46,7 @@ find "$SOURCE_DIR" -type f | while read -r file; do
   key="${file#$SOURCE_DIR/}"
   ct=$(get_content_type "$file")
 
-  if wrangler r2 object put "$BUCKET/$key" --file "$file" --content-type "$ct" 2>/dev/null; then
+  if wrangler r2 object put "$BUCKET/$key" --file "$file" --content-type "$ct" --remote 2>/dev/null; then
     uploaded=$((uploaded + 1))
     echo "[$uploaded/$total] $key ($ct)"
   else

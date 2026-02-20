@@ -35,6 +35,7 @@ function makeEnv(): Env {
     REQUIRE_ATTENDANCE_FOR_POST: "false",
     ENVIRONMENT: "test",
     ELASTICSEARCH_URL: "http://localhost:9200",
+    ELASTICSEARCH_INDEX_PREFIX: "safework2-logs",
   } as unknown as Env;
 }
 
@@ -55,6 +56,7 @@ describe("requestLoggerMiddleware", () => {
       "request",
       expect.objectContaining({
         elasticsearchUrl: "http://localhost:9200",
+        elasticsearchIndexPrefix: "safework2-logs",
       }),
     );
   });

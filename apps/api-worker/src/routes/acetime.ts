@@ -92,8 +92,8 @@ app.post("/sync-db", async (c) => {
     const db = drizzle(c.env.DB);
 
     // Acquire lock to prevent concurrent sync (#48)
-    const locked = await acquireSyncLock(c.env.KV, "acetime");
-    if (!locked) {
+    const lock = await acquireSyncLock(c.env.KV, "acetime");
+    if (!lock.acquired) {
       return error(
         c,
         "SYNC_IN_PROGRESS",

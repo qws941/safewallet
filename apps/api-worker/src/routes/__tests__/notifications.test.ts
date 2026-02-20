@@ -25,16 +25,17 @@ const mockAll = vi.fn();
 const mockInsertValues = vi.fn();
 const mockUpdateSet = vi.fn();
 const mockDeleteWhere = vi.fn();
-
-const mockDb = {
-  select: vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        get: mockGet,
-        all: mockAll,
-      })),
+const mockSelect = vi.fn((_projection?: unknown) => ({
+  from: vi.fn(() => ({
+    where: vi.fn(() => ({
+      get: mockGet,
+      all: mockAll,
     })),
   })),
+}));
+
+const mockDb = {
+  select: mockSelect,
   insert: vi.fn(() => ({
     values: mockInsertValues.mockResolvedValue(undefined),
   })),
@@ -71,7 +72,7 @@ vi.mock("../../db/schema", () => ({
     userAgent: "userAgent",
     expiresAt: "expiresAt",
   },
-  users: { id: "id" },
+  users: { id: "id", phoneEncrypted: "phoneEncrypted" },
 }));
 
 vi.mock("../../lib/web-push", () => ({
@@ -158,6 +159,17 @@ async function createApp(auth?: AuthContext) {
   });
   app.route("/notifications", notificationsRoute);
   return app;
+}
+
+function countSmsFallbackUserLookupSelects(): number {
+  return mockSelect.mock.calls.filter((args) => {
+    const projection = (args as [unknown?])[0];
+    if (!projection || typeof projection !== "object") {
+      return false;
+    }
+
+    return "phoneEncrypted" in projection;
+  }).length;
 }
 
 describe("routes/notifications", () => {
@@ -398,6 +410,126 @@ describe("routes/notifications", () => {
       expect(body.data.noSubscriptions).toBe(true);
       expect(body.data.smsFallback).toBe(1);
       expect(mockSmsSendBulk).toHaveBeenCalledWith([
+        expect.objectContaining({ to: "010-1234-5678" }),
+      ]);
+    });
+
+    it("chunks SMS fallback user lookup for large recipient lists", async () => {
+      const userIds = Array.from({ length: 51 }, (_, i) => `user-${i + 1}`);
+      mockAll
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: "user-1", phoneEncrypted: "encrypted-1" },
+        ])
+        .mockResolvedValueOnce([
+          { id: "user-2", phoneEncrypted: "encrypted-2" },
+        ]);
+
+      mockSmsSendBulk.mockResolvedValueOnce({
+        totalRequested: 2,
+        successCount: 2,
+        failureCount: 0,
+        results: [{ success: true }, { success: true }],
+      });
+
+      const app = await createApp(makeAuth("ADMIN"));
+      const res = await app.request(
+        "/notifications/send",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userIds,
+            message: { title: "Batch", body: "Chunked fallback" },
+          }),
+        },
+        makeEnv(),
+      );
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        data: { smsFallback: number; noSubscriptions: boolean };
+      };
+
+      expect(body.data.noSubscriptions).toBe(true);
+      expect(body.data.smsFallback).toBe(2);
+      expect(countSmsFallbackUserLookupSelects()).toBe(2);
+      expect(mockSmsSendBulk).toHaveBeenCalledWith([
+        expect.objectContaining({ to: "010-1234-5678" }),
+        expect.objectContaining({ to: "010-1234-5678" }),
+      ]);
+    });
+
+    it("keeps SMS fallback lookup chunked at 2 queries for 100 recipients", async () => {
+      const userIds = Array.from({ length: 100 }, (_, i) => `user-${i + 1}`);
+
+      mockAll
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: "user-1", phoneEncrypted: "encrypted-1" },
+        ])
+        .mockResolvedValueOnce([
+          { id: "user-2", phoneEncrypted: "encrypted-2" },
+        ]);
+
+      mockSmsSendBulk.mockResolvedValueOnce({
+        totalRequested: 2,
+        successCount: 2,
+        failureCount: 0,
+        results: [{ success: true }, { success: true }],
+      });
+
+      const app = await createApp(makeAuth("ADMIN"));
+      const res = await app.request(
+        "/notifications/send",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userIds,
+            message: { title: "Boundary", body: "Chunked fallback" },
+          }),
+        },
+        makeEnv(),
+      );
+
+      expect(res.status).toBe(200);
+      expect(countSmsFallbackUserLookupSelects()).toBe(2);
+    });
+
+    it("deduplicates user IDs before SMS fallback lookup", async () => {
+      mockAll.mockResolvedValueOnce([]).mockResolvedValueOnce([
+        { id: "user-1", phoneEncrypted: "encrypted-1" },
+        { id: "user-2", phoneEncrypted: "encrypted-2" },
+      ]);
+
+      mockSmsSendBulk.mockResolvedValueOnce({
+        totalRequested: 2,
+        successCount: 2,
+        failureCount: 0,
+        results: [{ success: true }, { success: true }],
+      });
+
+      const app = await createApp(makeAuth("ADMIN"));
+      const res = await app.request(
+        "/notifications/send",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userIds: ["user-1", "user-1", "user-2"],
+            message: { title: "Dedupe", body: "Chunked fallback" },
+          }),
+        },
+        makeEnv(),
+      );
+
+      expect(res.status).toBe(200);
+      expect(countSmsFallbackUserLookupSelects()).toBe(1);
+      expect(mockSmsSendBulk).toHaveBeenCalledWith([
+        expect.objectContaining({ to: "010-1234-5678" }),
         expect.objectContaining({ to: "010-1234-5678" }),
       ]);
     });

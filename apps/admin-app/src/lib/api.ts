@@ -1,8 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://safework2-api.jclee.workers.dev/api";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 export class ApiError extends Error {
   constructor(

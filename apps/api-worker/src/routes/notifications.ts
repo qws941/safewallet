@@ -24,6 +24,16 @@ import {
 
 const log = createLogger("notifications");
 
+const IN_QUERY_CHUNK_SIZE = 50;
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 const app = new Hono<{
   Bindings: Env;
   Variables: { auth: AuthContext };
@@ -176,33 +186,34 @@ app.post("/send", zValidator("json", SendPushSchema), async (c) => {
   }
 
   const body = c.req.valid("json");
+  const userIds = [...new Set(body.userIds)];
   const vapidKeys: VapidKeys = {
     publicKey: c.env.VAPID_PUBLIC_KEY,
     privateKey: c.env.VAPID_PRIVATE_KEY,
   };
 
   const allSubs = [];
-  for (const userId of body.userIds) {
-    const subs = await db
+  for (const userIdChunk of chunkArray(userIds, IN_QUERY_CHUNK_SIZE)) {
+    const chunkSubs = await db
       .select({
         id: pushSubscriptions.id,
+        userId: pushSubscriptions.userId,
         endpoint: pushSubscriptions.endpoint,
         p256dh: pushSubscriptions.p256dh,
         auth: pushSubscriptions.auth,
         failCount: pushSubscriptions.failCount,
       })
       .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.userId, userId))
+      .where(inArray(pushSubscriptions.userId, userIdChunk))
       .all();
 
-    for (const sub of subs) {
-      allSubs.push({ ...sub, userId });
-    }
+    allSubs.push(...chunkSubs);
   }
 
+  const usersWithSubs = new Set(allSubs.map((s) => s.userId));
   const usersWithNoSubs = new Set<string>();
-  for (const userId of body.userIds) {
-    if (!allSubs.some((s) => s.userId === userId)) {
+  for (const userId of userIds) {
+    if (!usersWithSubs.has(userId)) {
       usersWithNoSubs.add(userId);
     }
   }
@@ -211,7 +222,7 @@ app.post("/send", zValidator("json", SendPushSchema), async (c) => {
     const smsFallbackCount = await sendSmsFallback(
       c.env,
       db,
-      body.userIds,
+      userIds,
       body.message,
     );
 
@@ -270,7 +281,12 @@ app.post("/send", zValidator("json", SendPushSchema), async (c) => {
     keys: { p256dh: s.p256dh, auth: s.auth },
   }));
 
-  const results = await sendPushBulk(pushSubs, body.message, vapidKeys);
+  const results = await sendPushBulk(
+    pushSubs,
+    body.message,
+    vapidKeys,
+    c.env.VAPID_SUBJECT,
+  );
 
   let sent = 0;
   let failed = 0;
@@ -304,7 +320,7 @@ app.post("/send", zValidator("json", SendPushSchema), async (c) => {
   }
 
   const smsFallbackUserIds: string[] = [...usersWithNoSubs];
-  for (const userId of body.userIds) {
+  for (const userId of userIds) {
     if (!usersWithNoSubs.has(userId) && !userPushSuccess.get(userId)) {
       smsFallbackUserIds.push(userId);
     }
@@ -341,11 +357,22 @@ async function sendSmsFallback(
 ): Promise<number> {
   const smsClient = createSmsClient(env);
 
-  const targetUsers = await db
-    .select({ id: users.id, phoneEncrypted: users.phoneEncrypted })
-    .from(users)
-    .where(inArray(users.id, userIds))
-    .all();
+  const uniqueUserIds = [...new Set(userIds)];
+  if (uniqueUserIds.length === 0) {
+    return 0;
+  }
+
+  const targetUsers: { id: string; phoneEncrypted: string | null }[] = [];
+
+  for (const userIdChunk of chunkArray(uniqueUserIds, IN_QUERY_CHUNK_SIZE)) {
+    const chunkUsers = await db
+      .select({ id: users.id, phoneEncrypted: users.phoneEncrypted })
+      .from(users)
+      .where(inArray(users.id, userIdChunk))
+      .all();
+
+    targetUsers.push(...chunkUsers);
+  }
 
   const decryptedUsers = await Promise.all(
     targetUsers.map(async (u) => ({

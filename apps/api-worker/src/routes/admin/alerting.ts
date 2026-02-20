@@ -84,7 +84,7 @@ app.post("/alerting/test", requireAdmin, async (c: AppContext) => {
   const testPayload = {
     type: "HIGH_ERROR_RATE" as const,
     severity: "info" as const,
-    title: "Test Alert from SafeWork2",
+    title: "Test Alert from SafetyWallet",
     message: "This is a test alert to verify webhook connectivity.",
     timestamp: new Date().toISOString(),
     metadata: { test: true, triggeredBy: c.var.auth.user.name },

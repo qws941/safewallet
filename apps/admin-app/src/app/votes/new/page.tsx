@@ -12,8 +12,6 @@ import {
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-export const runtime = "edge";
-
 export default function NewVotePage() {
   const router = useRouter();
   const [month, setMonth] = useState("");

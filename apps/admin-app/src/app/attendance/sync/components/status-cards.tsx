@@ -16,6 +16,27 @@ interface StatusCardsProps {
   isHealthy: boolean;
 }
 
+function formatFasStatus(rawStatus: string | null): string {
+  if (!rawStatus || rawStatus.trim() === "") {
+    return "Hyperdrive 연결 정상";
+  }
+
+  const normalized = rawStatus.trim().toLowerCase();
+  if (normalized === "down" || normalized === "1") {
+    return "연동 장애 감지";
+  }
+  if (
+    normalized === "up" ||
+    normalized === "ok" ||
+    normalized === "healthy" ||
+    normalized === "0"
+  ) {
+    return "연동 정상";
+  }
+
+  return `상태 코드: ${rawStatus}`;
+}
+
 export function StatusCards({ syncStatus, isHealthy }: StatusCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -35,9 +56,7 @@ export function StatusCards({ syncStatus, isHealthy }: StatusCardsProps) {
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {syncStatus.fasStatus
-              ? `상태: ${syncStatus.fasStatus}`
-              : "Hyperdrive 연결 정상"}
+            {formatFasStatus(syncStatus.fasStatus)}
           </p>
         </CardContent>
       </Card>

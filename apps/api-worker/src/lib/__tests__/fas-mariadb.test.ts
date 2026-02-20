@@ -219,6 +219,12 @@ describe("fas-mariadb", () => {
       });
       expect(result[1].inTime).toBeNull();
       expect(result[1].outTime).toBeNull();
+
+      const queryStr = mockQuery.mock.calls[0][0] as string;
+      const params = mockQuery.mock.calls[0][1] as string[];
+      expect(queryStr).toContain("WHERE ad.accs_day = ?");
+      expect(queryStr).not.toContain("ad.site_cd = ?");
+      expect(params).toEqual(["20260206"]);
     });
   });
 

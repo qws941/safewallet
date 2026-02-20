@@ -47,9 +47,7 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         const currentRefreshToken = get().refreshToken;
         if (currentRefreshToken) {
-          const apiUrl =
-            process.env.NEXT_PUBLIC_API_URL ||
-            "https://safework2-api.jclee.workers.dev/api";
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
           fetch(`${apiUrl}/auth/logout`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

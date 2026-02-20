@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@safetywallet/ui";
 import { DataTable, type Column } from "@/components/data-table";
 import { useMembers } from "@/hooks/use-api";
+import { useAuthStore } from "@/stores/auth";
 
 interface Member {
   id: string;
@@ -21,6 +22,8 @@ const statusLabels: Record<string, string> = {
 
 export default function MembersPage() {
   const router = useRouter();
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
+  const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const { data: members = [], isLoading } = useMembers();
 
   const columns: Column<Member>[] = [
@@ -62,7 +65,13 @@ export default function MembersPage() {
         searchable
         searchPlaceholder="이름 검색..."
         onRowClick={(item) => router.push(`/members/${item.id}`)}
-        emptyMessage={isLoading ? "로딩 중..." : "회원이 없습니다"}
+        emptyMessage={
+          !hasHydrated || !currentSiteId
+            ? "현장 정보를 준비하는 중입니다..."
+            : isLoading
+              ? "로딩 중..."
+              : "회원이 없습니다"
+        }
       />
     </div>
   );

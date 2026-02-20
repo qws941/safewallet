@@ -3,6 +3,7 @@ import {
   DAY_CUTOFF_HOUR,
   getTodayRange,
   parseDateParam,
+  getKstDayRangeFromDate,
   toExclusiveEndDate,
   formatKst,
   formatYearMonth,
@@ -74,6 +75,27 @@ describe("toExclusiveEndDate", () => {
     expect(result).toBeInstanceOf(Date);
     expect(result?.getMonth()).toBe(1);
     expect(result?.getDate()).toBe(1);
+  });
+});
+
+describe("getKstDayRangeFromDate", () => {
+  it("returns KST day range in UTC for date-only input", () => {
+    const range = getKstDayRangeFromDate("2026-02-20");
+    expect(range).not.toBeNull();
+    expect(range?.start.toISOString()).toBe("2026-02-19T15:00:00.000Z");
+    expect(range?.end.toISOString()).toBe("2026-02-20T15:00:00.000Z");
+  });
+
+  it("accepts datetime input and uses its date part", () => {
+    const range = getKstDayRangeFromDate("2026-02-20T08:00:00Z");
+    expect(range).not.toBeNull();
+    expect(range?.start.toISOString()).toBe("2026-02-19T15:00:00.000Z");
+    expect(range?.end.toISOString()).toBe("2026-02-20T15:00:00.000Z");
+  });
+
+  it("returns null for invalid values", () => {
+    expect(getKstDayRangeFromDate(undefined)).toBeNull();
+    expect(getKstDayRangeFromDate("bad")).toBeNull();
   });
 });
 
@@ -207,6 +229,10 @@ describe("getTodayRange", () => {
     vi.useRealTimers();
   });
 
+  function toKst(date: Date): Date {
+    return new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  }
+
   it("returns start and end as Date objects", () => {
     const { start, end } = getTodayRange();
     expect(start).toBeInstanceOf(Date);
@@ -219,10 +245,31 @@ describe("getTodayRange", () => {
     expect(diffMs).toBe(24 * 60 * 60 * 1000);
   });
 
-  it("start hour is DAY_CUTOFF_HOUR (5)", () => {
+  it("start aligns to 5 AM KST cutoff", () => {
     const { start } = getTodayRange();
-    expect(start.getHours()).toBe(DAY_CUTOFF_HOUR);
-    expect(start.getMinutes()).toBe(0);
-    expect(start.getSeconds()).toBe(0);
+    const startKst = toKst(start);
+    expect(startKst.getUTCHours()).toBe(DAY_CUTOFF_HOUR);
+    expect(startKst.getUTCMinutes()).toBe(0);
+    expect(startKst.getUTCSeconds()).toBe(0);
+  });
+
+  it("uses previous logical day before 5 AM KST", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-19T18:30:00.000Z"));
+
+    const { start, end } = getTodayRange();
+
+    expect(start.toISOString()).toBe("2026-02-18T20:00:00.000Z");
+    expect(end.toISOString()).toBe("2026-02-19T20:00:00.000Z");
+  });
+
+  it("uses current logical day at or after 5 AM KST", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-19T21:30:00.000Z"));
+
+    const { start, end } = getTodayRange();
+
+    expect(start.toISOString()).toBe("2026-02-19T20:00:00.000Z");
+    expect(end.toISOString()).toBe("2026-02-20T20:00:00.000Z");
   });
 });
