@@ -44,7 +44,7 @@ jobs:
           else
             echo "worker_url=https://safewallet.jclee.me" >> "$GITHUB_OUTPUT"
             echo "admin_url=https://safewallet.jclee.me/admin" >> "$GITHUB_OUTPUT"
-            echo "api_url=https://safewallet.jclee.me/api" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://safewallet.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run smoke tests
