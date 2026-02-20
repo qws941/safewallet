@@ -1,22 +1,15 @@
 name: Deploy Verification
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment to verify"
-        required: true
-        default: "production"
-        type: choice
-        options:
-          - production
-          - staging
   workflow_call:
     inputs:
       environment:
         required: true
         type: string
         default: "production"
+      ref:
+        required: true
+        type: string
 
 env:
   NODE_VERSION: "20"
@@ -27,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-node@v6
         with:
@@ -44,17 +39,16 @@ jobs:
         run: |
           if [ "${{ inputs.environment }}" = "staging" ]; then
             echo "worker_url=https://safewallet-api-dev.jclee.workers.dev" >> "$GITHUB_OUTPUT"
-            echo "admin_url=https://safewallet-api-dev.jclee.workers.dev" >> "$GITHUB_OUTPUT"
+            echo "admin_url=https://safewallet-api-dev.jclee.workers.dev/admin" >> "$GITHUB_OUTPUT"
             echo "api_url=https://safewallet-api-dev.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           else
             echo "worker_url=https://safewallet.jclee.me" >> "$GITHUB_OUTPUT"
-            echo "admin_url=https://admin.safewallet.jclee.me" >> "$GITHUB_OUTPUT"
+            echo "admin_url=https://safewallet.jclee.me/admin" >> "$GITHUB_OUTPUT"
             echo "api_url=https://safewallet.jclee.me/api" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run smoke tests
-        working-directory: e2e
-        run: npx playwright test --grep @smoke
+        run: npx playwright test --grep @smoke --project=api --project=worker-app --project=cross-app
         env:
           CI: "true"
           WORKER_APP_URL: ${{ steps.urls.outputs.worker_url }}
