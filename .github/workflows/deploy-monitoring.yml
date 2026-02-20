@@ -32,7 +32,7 @@ jobs:
 
             result=$(curl -sS -o /tmp/monitor_body -w "%{http_code} %{time_total}" \
               --max-time 20 --retry 2 --retry-delay 2 --location \
-              --user-agent "Mozilla/5.0 (compatible; SafeWork2DeployMonitor/1.0)" \
+              --user-agent "Mozilla/5.0 (compatible; SafeWalletDeployMonitor/1.0)" \
               -H "Accept: text/html,application/json;q=0.9,*/*;q=0.8" \
               "$url" || echo "000 999")
             status=$(echo "$result" | cut -d' ' -f1)
@@ -43,7 +43,7 @@ jobs:
             elif [ -n "$fallback_url" ]; then
               fallback_result=$(curl -sS -o /tmp/monitor_body -w "%{http_code} %{time_total}" \
                 --max-time 20 --retry 2 --retry-delay 2 --location \
-                --user-agent "Mozilla/5.0 (compatible; SafeWork2DeployMonitor/1.0)" \
+                --user-agent "Mozilla/5.0 (compatible; SafeWalletDeployMonitor/1.0)" \
                 -H "Accept: text/html,application/json;q=0.9,*/*;q=0.8" \
                 "$fallback_url" || echo "000 999")
               fallback_status=$(echo "$fallback_result" | cut -d' ' -f1)
@@ -70,9 +70,9 @@ jobs:
             echo "## Endpoint Results"
           } > "$REPORT_FILE"
 
-          check_endpoint "Worker App" "https://safework2.jclee.me" "200" "https://safework2-worker.pages.dev"
-          check_endpoint "Admin App" "https://admin.safework2.jclee.me" "200" "https://safework2-admin.pages.dev"
-          check_endpoint "API Health" "https://safework2-api.jclee.workers.dev/api/health" "200" ""
+          check_endpoint "Worker App" "https://safewallet.jclee.me" "200" "https://safewallet.jclee.workers.dev"
+          check_endpoint "Admin App" "https://admin.safewallet.jclee.me" "200" "https://safewallet.jclee.workers.dev/admin"
+          check_endpoint "API Health" "https://safewallet.jclee.me/api/health" "200" "https://safewallet.jclee.workers.dev/api/health"
 
           echo "" >> "$REPORT_FILE"
           echo "- Failure count: $FAILED" >> "$REPORT_FILE"
@@ -90,17 +90,19 @@ jobs:
       - name: Notify webhook (optional)
         if: steps.health.outputs.failure_count != '0'
         env:
-          DEPLOY_MONITOR_WEBHOOK_URL: ${{ secrets.DEPLOY_MONITOR_WEBHOOK_URL }}
+          DEPLOY_MONITOR_WEBHOOK_URL: ${{ secrets.DEPLOY_MONITOR_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
         run: |
           if [ -z "$DEPLOY_MONITOR_WEBHOOK_URL" ]; then
             echo "Webhook URL not configured. Skipping notification."
             exit 0
           fi
-          payload=$(printf '{"text":"[Deploy Monitor] %s failure(s) detected on safework2 production. Run: %s"}' \
+          payload=$(printf '{"text":"[Deploy Monitor] %s failure(s) detected on safewallet production. Run: %s"}' \
             "${{ steps.health.outputs.failure_count }}" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")
-          curl -sS -X POST "$DEPLOY_MONITOR_WEBHOOK_URL" \
+          if ! curl -sS --fail-with-body --retry 3 --retry-all-errors --retry-delay 2 --max-time 30 -X POST "$DEPLOY_MONITOR_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "$payload"
+            -d "$payload"; then
+            echo "::warning::Failed to deliver deploy-monitor webhook notification"
+          fi
 
   incident:
     name: Upsert Incident Issue on Failure

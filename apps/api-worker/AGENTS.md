@@ -34,6 +34,8 @@ src/
 - `src/lib/AGENTS.md`: Utility module inventory by domain
 - `src/db/AGENTS.md`: Schema and migration constraints
 - `src/scheduled/AGENTS.md`: CRON schedule matrix and lock/retry rules
+- `src/validators/AGENTS.md`: Zod schema conventions and enum parity checks
+- `src/durable-objects/AGENTS.md`: Durable Object rate limiter rules and state model
 
 ## SCHEDULED TASKS (9 CRON jobs)
 

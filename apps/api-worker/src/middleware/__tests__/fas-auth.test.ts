@@ -15,6 +15,7 @@ function createApp() {
 function makeEnv(overrides?: Partial<Env>): Env {
   return {
     FAS_API_KEY: "valid-api-key",
+    FAS_SYNC_SECRET: "valid-sync-secret",
     DB: {} as D1Database,
     KV: {} as KVNamespace,
     R2: {} as R2Bucket,
@@ -71,7 +72,7 @@ describe("fasAuthMiddleware", () => {
 
   it("returns 500 when FAS_API_KEY is not configured", async () => {
     const app = createApp();
-    const env = makeEnv({ FAS_API_KEY: "" });
+    const env = makeEnv({ FAS_API_KEY: "", FAS_SYNC_SECRET: "" });
 
     const res = await app.request(
       "http://localhost/fas/test",
@@ -82,5 +83,23 @@ describe("fasAuthMiddleware", () => {
     expect(res.status).toBe(500);
     const body = (await res.json()) as { error: { message: string } };
     expect(body.error.message).toContain("not configured");
+  });
+
+  it("falls back to FAS_SYNC_SECRET when FAS_API_KEY is missing", async () => {
+    const app = createApp();
+    const env = makeEnv({
+      FAS_API_KEY: "",
+      FAS_SYNC_SECRET: "fallback-secret",
+    });
+
+    const res = await app.request(
+      "http://localhost/fas/test",
+      { headers: { "X-FAS-API-Key": "fallback-secret" } },
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean };
+    expect(body.ok).toBe(true);
   });
 });

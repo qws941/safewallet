@@ -4,7 +4,7 @@ import { eq, gte, lt, and, sql } from "drizzle-orm";
 import type { Env, AuthContext } from "../../types";
 import { users, sites, posts, attendance } from "../../db/schema";
 import { success } from "../../lib/response";
-import { requireAdmin } from "./helpers";
+import { requireAdmin, getTodayRange } from "./helpers";
 
 const app = new Hono<{
   Bindings: Env;
@@ -14,10 +14,7 @@ const app = new Hono<{
 app.get("/stats", requireAdmin, async (c) => {
   const db = drizzle(c.env.DB);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const { start: todayStart, end: todayEnd } = getTodayRange();
 
   const [
     userCount,
@@ -47,8 +44,8 @@ app.get("/stats", requireAdmin, async (c) => {
       .from(attendance)
       .where(
         and(
-          gte(attendance.checkinAt, today),
-          lt(attendance.checkinAt, tomorrow),
+          gte(attendance.checkinAt, todayStart),
+          lt(attendance.checkinAt, todayEnd),
         ),
       )
       .get(),
@@ -85,7 +82,9 @@ app.get("/stats", requireAdmin, async (c) => {
     db
       .select({ count: sql<number>`COUNT(*)` })
       .from(posts)
-      .where(and(gte(posts.createdAt, today), lt(posts.createdAt, tomorrow)))
+      .where(
+        and(gte(posts.createdAt, todayStart), lt(posts.createdAt, todayEnd)),
+      )
       .get(),
   ]);
 

@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildSyncFailureEventId,
+  emitSyncFailureToElk,
   formatSettleMonth,
+  getElkDailyIndexDate,
   getKSTDate,
   getMonthRange,
   withRetry,
 } from "../index";
+import type { Env } from "../../types";
 
 describe("scheduled helpers", () => {
   // ---------- getKSTDate ----------
@@ -174,6 +178,126 @@ describe("scheduled helpers", () => {
       const fn = vi.fn().mockResolvedValue(42);
       const result = await withRetry(fn);
       expect(result).toBe(42);
+    });
+  });
+
+  describe("ELK telemetry helpers", () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("builds daily index date from ISO timestamp", () => {
+      expect(getElkDailyIndexDate("2026-02-20T02:03:04.567Z")).toBe(
+        "2026.02.20",
+      );
+    });
+
+    it("builds deterministic sync failure event id", () => {
+      const eventId = buildSyncFailureEventId({
+        timestamp: "2026-02-20T02:03:04.567Z",
+        correlationId: "corr-123",
+        syncType: "FAS_WORKER",
+        errorCode: "FULL_SYNC_FAILED",
+        errorMessage: "boom",
+        lockName: "fas-full",
+      });
+
+      expect(eventId).toBe("FAS_WORKER-corr-123");
+    });
+
+    it("skips ELK emission when ELASTICSEARCH_URL is missing", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+      await emitSyncFailureToElk({} as Env, {
+        timestamp: "2026-02-20T02:03:04.567Z",
+        correlationId: "corr-123",
+        syncType: "FAS_WORKER",
+        errorCode: "FULL_SYNC_FAILED",
+        errorMessage: "boom",
+        lockName: "fas-full",
+      });
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("emits PUT request with deterministic _doc id", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 201 }));
+
+      await emitSyncFailureToElk(
+        { ELASTICSEARCH_URL: "https://elastic.example" } as Env,
+        {
+          timestamp: "2026-02-20T02:03:04.567Z",
+          correlationId: "corr-123",
+          syncType: "FAS_ATTENDANCE",
+          errorCode: "FAS_ATTENDANCE_SYNC_FAILED",
+          errorMessage: "attendance down",
+          lockName: "fas-attendance",
+        },
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchSpy.mock.calls[0];
+      expect(String(url)).toBe(
+        "https://elastic.example/safewallet-logs-2026.02.20/_doc/FAS_ATTENDANCE-corr-123",
+      );
+      expect(init?.method).toBe("PUT");
+
+      const body = JSON.parse(String(init?.body)) as {
+        metadata: { correlationId: string; eventId: string; lockName: string };
+      };
+      expect(body.metadata.correlationId).toBe("corr-123");
+      expect(body.metadata.eventId).toBe("FAS_ATTENDANCE-corr-123");
+      expect(body.metadata.lockName).toBe("fas-attendance");
+    });
+
+    it("uses overridden Elasticsearch index prefix when provided", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 201 }));
+
+      await emitSyncFailureToElk(
+        {
+          ELASTICSEARCH_URL: "https://elastic.example",
+          ELASTICSEARCH_INDEX_PREFIX: "safework2-logs",
+        } as Env,
+        {
+          timestamp: "2026-02-20T02:03:04.567Z",
+          correlationId: "corr-123",
+          syncType: "FAS_WORKER",
+          errorCode: "FULL_SYNC_FAILED",
+          errorMessage: "boom",
+          lockName: "fas-full",
+        },
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url] = fetchSpy.mock.calls[0];
+      expect(String(url)).toBe(
+        "https://elastic.example/safework2-logs-2026.02.20/_doc/FAS_WORKER-corr-123",
+      );
+    });
+
+    it("retries once when first ELK request fails", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockRejectedValueOnce(new Error("network fail"))
+        .mockResolvedValueOnce(new Response(null, { status: 201 }));
+
+      await emitSyncFailureToElk(
+        { ELASTICSEARCH_URL: "https://elastic.example" } as Env,
+        {
+          timestamp: "2026-02-20T02:03:04.567Z",
+          correlationId: "corr-123",
+          syncType: "FAS_WORKER",
+          errorCode: "FULL_SYNC_FAILED",
+          errorMessage: "boom",
+          lockName: "fas-full",
+        },
+      );
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
   });
 });

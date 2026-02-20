@@ -1,38 +1,32 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Sidebar, MobileHeader, MobileSidebar } from "@/components/sidebar";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { MobileHeader, MobileSidebar, Sidebar } from "@/components/sidebar";
 import { useAuthStore } from "@/stores/auth";
-import { useMySites } from "@/hooks/use-admin-api";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function AdminShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const router = useRouter();
-  const { user, isAdmin, _hasHydrated, currentSiteId, setSiteId } =
-    useAuthStore();
+  const { user, isAdmin, _hasHydrated } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { data: sites } = useMySites();
+
+  const isLoginPage = pathname === "/login";
 
   const handleMobileMenuChange = useCallback((open: boolean) => {
     setMobileMenuOpen(open);
   }, []);
 
   useEffect(() => {
-    if (!_hasHydrated) return;
+    if (isLoginPage || !_hasHydrated) return;
     if (!user || !isAdmin) {
       router.push("/login");
     }
-  }, [user, isAdmin, _hasHydrated, router]);
+  }, [isLoginPage, _hasHydrated, user, isAdmin, router]);
 
-  useEffect(() => {
-    if (!currentSiteId && sites && sites.length > 0) {
-      setSiteId(sites[0].siteId);
-    }
-  }, [currentSiteId, sites, setSiteId]);
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (!_hasHydrated || !user || !isAdmin) {
     return null;

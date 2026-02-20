@@ -1,22 +1,15 @@
 name: Deploy Verification
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment to verify"
-        required: true
-        default: "production"
-        type: choice
-        options:
-          - production
-          - staging
   workflow_call:
     inputs:
       environment:
         required: true
         type: string
         default: "production"
+      ref:
+        required: true
+        type: string
 
 env:
   NODE_VERSION: "20"
@@ -27,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-node@v6
         with:
@@ -43,18 +38,17 @@ jobs:
         id: urls
         run: |
           if [ "${{ inputs.environment }}" = "staging" ]; then
-            echo "worker_url=https://safework2-api-dev.jclee.workers.dev" >> "$GITHUB_OUTPUT"
-            echo "admin_url=https://staging.safework2-admin.pages.dev" >> "$GITHUB_OUTPUT"
-            echo "api_url=https://safework2-api-dev.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
+            echo "worker_url=https://safewallet-dev.jclee.workers.dev" >> "$GITHUB_OUTPUT"
+            echo "admin_url=https://safewallet-dev.jclee.workers.dev/admin" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://safewallet-dev.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           else
-            echo "worker_url=https://safework2.jclee.me" >> "$GITHUB_OUTPUT"
-            echo "admin_url=https://admin.safework2.jclee.me" >> "$GITHUB_OUTPUT"
-            echo "api_url=https://safework2-api.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
+            echo "worker_url=https://safewallet.jclee.me" >> "$GITHUB_OUTPUT"
+            echo "admin_url=https://safewallet.jclee.me/admin" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://safewallet.jclee.workers.dev/api" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run smoke tests
-        working-directory: e2e
-        run: npx playwright test --grep @smoke
+        run: npx playwright test --grep @smoke --project=api --project=worker-app --project=cross-app
         env:
           CI: "true"
           WORKER_APP_URL: ${{ steps.urls.outputs.worker_url }}
@@ -68,3 +62,47 @@ jobs:
           name: playwright-report-${{ inputs.environment }}
           path: e2e/playwright-report/
           retention-days: 7
+
+  notify-slack:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+    needs: verify
+    if: always() && !cancelled()
+    steps:
+      - name: Send verify status to Slack (optional)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || secrets.DEPLOY_MONITOR_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "Slack webhook not configured. Skipping notification."
+            exit 0
+          fi
+
+          status="SUCCESS"
+          icon=":white_check_mark:"
+          color="#2eb886"
+          if [ "$VERIFY_RESULT" = "failure" ]; then
+            status="FAILED"
+            icon=":x:"
+            color="#d40e0d"
+          elif [ "$VERIFY_RESULT" = "cancelled" ]; then
+            status="CANCELLED"
+            icon=":warning:"
+            color="#daa038"
+          elif [ "$VERIFY_RESULT" = "skipped" ]; then
+            status="SKIPPED"
+            icon=":warning:"
+            color="#daa038"
+          fi
+
+          payload=$(printf '{"attachments":[{"color":"%s","text":"%s Deploy verification (%s) %s\\n- Smoke test: %s\\n- Run: %s"}]}' \
+            "$color" "$icon" "$ENVIRONMENT" "$status" "$VERIFY_RESULT" "$RUN_URL")
+
+          if ! curl -sS --fail-with-body --retry 3 --retry-all-errors --retry-delay 2 --max-time 30 -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload"; then
+            echo "::warning::Failed to deliver verify Slack notification"
+          fi

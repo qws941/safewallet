@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Hono } from "hono";
+import { gte, lt } from "drizzle-orm";
 
 type AppEnv = {
   Bindings: Record<string, unknown>;
@@ -12,8 +13,16 @@ vi.mock("../../../middleware/auth", () => ({
   ),
 }));
 
+const fixedStart = new Date("2026-02-19T05:00:00.000Z");
+const fixedEnd = new Date("2026-02-20T05:00:00.000Z");
+const mockGetTodayRange = vi.fn(() => ({
+  start: fixedStart,
+  end: fixedEnd,
+}));
+
 vi.mock("../helpers", () => ({
   requireAdmin: vi.fn(async (_c: unknown, next: () => Promise<void>) => next()),
+  getTodayRange: mockGetTodayRange,
 }));
 
 const mockGet = vi.fn();
@@ -130,6 +139,11 @@ describe("admin/stats", () => {
       expect(body.data.stats).toBeDefined();
       expect(body.data.stats.totalUsers).toBeDefined();
       expect(body.data.stats.categoryDistribution).toBeDefined();
+      expect(mockGetTodayRange).toHaveBeenCalledTimes(1);
+      expect(gte).toHaveBeenCalledWith("checkinAt", fixedStart);
+      expect(lt).toHaveBeenCalledWith("checkinAt", fixedEnd);
+      expect(gte).toHaveBeenCalledWith("createdAt", fixedStart);
+      expect(lt).toHaveBeenCalledWith("createdAt", fixedEnd);
     });
 
     it("handles empty data gracefully", async () => {

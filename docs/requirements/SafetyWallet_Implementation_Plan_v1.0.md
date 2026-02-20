@@ -2,7 +2,7 @@
 
 > **사유**: 이 계획은 NestJS + PostgreSQL 아키텍처 기반으로 작성되었으나, 실제 구현은 Cloudflare Workers + D1 + Hono로 완전히 변경되었습니다.
 >
-> **현재 아키텍처 참조**: [`AGENTS.md`](../../AGENTS.md), [`docs/FEATURE_CHECKLIST.md`](../FEATURE_CHECKLIST.md)
+> **현재 아키텍처 참조**: [`AGENTS.md`](../../AGENTS.md), [`docs/FEATURE_CHECKLIST.md`](../FEATURE_CHECKLIST.md), [`docs/cloudflare-operations.md`](../cloudflare-operations.md)
 >
 > 기록 보존 목적으로만 유지합니다.
 

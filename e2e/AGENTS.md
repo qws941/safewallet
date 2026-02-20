@@ -15,7 +15,7 @@ The suite is organized into subdirectories matching the Playwright projects defi
 
 ## CONVENTIONS
 
-- **Production-First**: Tests target production URLs (safework2.jclee.me). Never mock the backend.
+- **Production-First**: Tests target production URLs (safewallet.jclee.me). Never mock the backend.
 - **Execution Modes**:
   - Use `test.describe.configure({ mode: 'serial' })` for dependent sequences (Auth flow).
   - Use `parallel` mode for independent smoke and page navigation tests.
@@ -39,3 +39,5 @@ The suite is organized into subdirectories matching the Playwright projects defi
 
 - `e2e/admin-app/AGENTS.md`: Admin login setup, sidebar helpers, rate-limit-safe patterns
 - `e2e/api/AGENTS.md`: API endpoint validation, serial auth flow, CORS and status checks
+- `e2e/worker-app/AGENTS.md`: Korean UI flows, mobile-first assertions, and auth-edge handling
+- `e2e/cross-app/AGENTS.md`: Multi-service health, CORS checks, and cross-app smoke patterns

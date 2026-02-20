@@ -19,20 +19,37 @@ import { createWrapper } from "@/hooks/__tests__/test-utils";
 
 const mockApiFetch = vi.fn();
 let currentSiteId: string | null = "site-1";
+let hasHydrated = true;
+let isAdmin = true;
+let userRole: string | null = "SITE_ADMIN";
 
 vi.mock("@/hooks/use-api-base", () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),
 }));
 vi.mock("@/stores/auth", () => ({
   useAuthStore: (
-    selector: (state: { currentSiteId: string | null }) => unknown,
-  ) => selector({ currentSiteId }),
+    selector: (state: {
+      currentSiteId: string | null;
+      _hasHydrated: boolean;
+      isAdmin: boolean;
+      user: { role: string } | null;
+    }) => unknown,
+  ) =>
+    selector({
+      currentSiteId,
+      _hasHydrated: hasHydrated,
+      isAdmin,
+      user: userRole ? { role: userRole } : null,
+    }),
 }));
 
 describe("use-admin-api hooks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentSiteId = "site-1";
+    hasHydrated = true;
+    isAdmin = true;
+    userRole = "SITE_ADMIN";
   });
 
   it("uses dashboard query key and calls stats endpoint", async () => {

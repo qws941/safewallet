@@ -43,18 +43,16 @@ app.use("*", securityHeaders);
 app.use("*", requestLoggerMiddleware);
 app.use("*", analyticsMiddleware);
 app.use("*", honoLogger());
-app.use(
-  "*",
-  cors({
+app.use("*", async (c, next) => {
+  const allowedCsv = c.env.ALLOWED_ORIGINS ?? "";
+  const allowedOrigins = allowedCsv
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const corsMiddleware = cors({
     origin: (origin) => {
-      const allowed = [
-        "https://safework2.jclee.me",
-        "https://admin.safework2.jclee.me",
-        "https://safework2-api.jclee.workers.dev",
-        "https://safework2-admin.pages.dev",
-        "https://safework2-worker.pages.dev",
-      ];
-      if (allowed.includes(origin)) return origin;
+      if (allowedOrigins.includes(origin)) return origin;
       if (
         origin.startsWith("http://localhost:") ||
         origin.startsWith("http://127.0.0.1:")
@@ -66,8 +64,9 @@ app.use(
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "Device-Id", "X-Device-Id"],
     credentials: true,
-  }),
-);
+  });
+  return corsMiddleware(c, next);
+});
 
 const api = new Hono<{ Bindings: Env }>();
 
@@ -249,8 +248,15 @@ function getMimeType(path: string): string {
   return MIME_TYPES[ext] || "application/octet-stream";
 }
 
+// Static SPA serving — hostname-based routing:
+//   admin.safewallet.jclee.me → R2 "admin/" prefix (admin-app)
+//   safewallet.jclee.me       → R2 root (worker-app)
 app.get("*", async (c) => {
   const url = new URL(c.req.url);
+  const isAdmin = url.hostname.startsWith("admin.");
+  const keyPrefix = isAdmin ? "admin/" : "";
+  const spaFallbackKey = isAdmin ? "admin/index.html" : "index.html";
+
   let path = url.pathname;
 
   if (path.endsWith("/")) {
@@ -259,7 +265,8 @@ app.get("*", async (c) => {
     path += "/index.html";
   }
 
-  const key = path.startsWith("/") ? path.slice(1) : path;
+  const rawKey = path.startsWith("/") ? path.slice(1) : path;
+  const key = `${keyPrefix}${rawKey}`;
 
   try {
     const object = await c.env.STATIC.get(key);
@@ -276,7 +283,7 @@ app.get("*", async (c) => {
       return new Response(object.body, { headers });
     }
 
-    const indexObject = await c.env.STATIC.get("index.html");
+    const indexObject = await c.env.STATIC.get(spaFallbackKey);
     if (indexObject) {
       return new Response(indexObject.body, {
         headers: {
@@ -290,6 +297,7 @@ app.get("*", async (c) => {
   } catch (err) {
     logger.error("Static serve error", {
       error: err instanceof Error ? err.message : String(err),
+      hostname: url.hostname,
     });
     return c.json({ error: "Internal Server Error" }, 500);
   }
@@ -298,6 +306,7 @@ app.get("*", async (c) => {
 app.onError((err, c) => {
   const log = createLogger("onError", {
     elasticsearchUrl: c.env.ELASTICSEARCH_URL,
+    elasticsearchIndexPrefix: c.env.ELASTICSEARCH_INDEX_PREFIX,
     waitUntil: (p) => c.executionCtx.waitUntil(p),
   });
 
