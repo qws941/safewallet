@@ -69,7 +69,7 @@ export async function processNotificationBatch(
 
   for (const message of batch.messages) {
     try {
-      await processOneMessage(message.body, vapidKeys, db);
+      await processOneMessage(message.body, vapidKeys, db, env.VAPID_SUBJECT);
       message.ack();
     } catch (err) {
       logger.error("Queue message processing failed", {
@@ -90,13 +90,19 @@ async function processOneMessage(
   msg: NotificationQueueMessage,
   vapidKeys: VapidKeys,
   db: ReturnType<typeof drizzle>,
+  vapidSubject?: string,
 ): Promise<void> {
   const pushSubs = msg.subscriptions.map((s) => ({
     endpoint: s.endpoint,
     keys: { p256dh: s.p256dh, auth: s.auth },
   }));
 
-  const results = await sendPushBulk(pushSubs, msg.message, vapidKeys);
+  const results = await sendPushBulk(
+    pushSubs,
+    msg.message,
+    vapidKeys,
+    vapidSubject,
+  );
 
   let sent = 0;
   let failed = 0;

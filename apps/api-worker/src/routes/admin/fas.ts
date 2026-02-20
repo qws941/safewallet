@@ -28,6 +28,16 @@ interface SyncFasWorkersBody {
   workers: FasWorkerInput[];
 }
 
+const IN_QUERY_CHUNK_SIZE = 50;
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 const app = new Hono<{
   Bindings: Env;
   Variables: { auth: AuthContext };
@@ -120,16 +130,45 @@ app.post(
         ...new Set(processedWorkers.map((worker) => worker.phoneHash)),
       ];
 
-      const existingUsers = await db
-        .select()
-        .from(users)
-        .where(
-          or(
-            inArray(users.externalWorkerId, externalWorkerIds),
-            inArray(users.phoneHash, phoneHashes),
-          ),
-        )
-        .all();
+      const existingUsers: (typeof users.$inferSelect)[] = [];
+
+      if (
+        externalWorkerIds.length <= IN_QUERY_CHUNK_SIZE &&
+        phoneHashes.length <= IN_QUERY_CHUNK_SIZE
+      ) {
+        const chunkUsers = await db
+          .select()
+          .from(users)
+          .where(
+            or(
+              inArray(users.externalWorkerId, externalWorkerIds),
+              inArray(users.phoneHash, phoneHashes),
+            ),
+          )
+          .all();
+        existingUsers.push(...chunkUsers);
+      } else {
+        for (const workerChunk of chunkArray(
+          externalWorkerIds,
+          IN_QUERY_CHUNK_SIZE,
+        )) {
+          const chunkUsers = await db
+            .select()
+            .from(users)
+            .where(inArray(users.externalWorkerId, workerChunk))
+            .all();
+          existingUsers.push(...chunkUsers);
+        }
+
+        for (const phoneChunk of chunkArray(phoneHashes, IN_QUERY_CHUNK_SIZE)) {
+          const chunkUsers = await db
+            .select()
+            .from(users)
+            .where(inArray(users.phoneHash, phoneChunk))
+            .all();
+          existingUsers.push(...chunkUsers);
+        }
+      }
 
       const userByExternalWorkerId = new Map<
         string,
@@ -237,16 +276,24 @@ app.post(
 
       if (membershipCandidateUserIds.size > 0) {
         const candidateUserIds = Array.from(membershipCandidateUserIds);
-        const existingMemberships = await db
-          .select()
-          .from(siteMemberships)
-          .where(
-            and(
-              eq(siteMemberships.siteId, body.siteId),
-              inArray(siteMemberships.userId, candidateUserIds),
-            ),
-          )
-          .all();
+        const existingMemberships: (typeof siteMemberships.$inferSelect)[] = [];
+
+        for (const userIdChunk of chunkArray(
+          candidateUserIds,
+          IN_QUERY_CHUNK_SIZE,
+        )) {
+          const chunkMemberships = await db
+            .select()
+            .from(siteMemberships)
+            .where(
+              and(
+                eq(siteMemberships.siteId, body.siteId),
+                inArray(siteMemberships.userId, userIdChunk),
+              ),
+            )
+            .all();
+          existingMemberships.push(...chunkMemberships);
+        }
 
         const existingMembershipUserIds = new Set(
           existingMemberships.map((membership) => membership.userId),
@@ -383,7 +430,7 @@ app.get("/fas/sync-status", requireAdmin, async (c) => {
     syncErrorCounts,
     recentSyncLogs: recentSyncLogs.map((log) => ({
       ...log,
-      createdAt: log.createdAt?.toISOString() ?? null,
+      createdAt: log.createdAt ? new Date(log.createdAt).toISOString() : null,
     })),
   });
 });

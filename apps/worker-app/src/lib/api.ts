@@ -1,8 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://safework2-api.jclee.workers.dev/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 interface FetchOptions extends RequestInit {
   skipAuth?: boolean;

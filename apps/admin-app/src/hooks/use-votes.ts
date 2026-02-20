@@ -112,9 +112,7 @@ export function useExportVoteResultsCsv() {
 
   return async (month: string) => {
     const { tokens } = useAuthStore.getState();
-    const apiBase =
-      process.env.NEXT_PUBLIC_API_URL ||
-      "https://safework2-api.jclee.workers.dev/api";
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "/api";
     const res = await fetch(
       `${apiBase}/admin/votes/results?siteId=${siteId}&month=${month}&format=csv`,
       {

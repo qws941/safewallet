@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AdminShell } from "@/components/admin-shell";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
@@ -24,7 +25,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen bg-background font-sans antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <AdminShell>{children}</AdminShell>
+        </Providers>
       </body>
     </html>
   );

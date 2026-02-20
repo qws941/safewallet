@@ -4,6 +4,9 @@
 > **Date**: 2025-02-05  
 > **Audience**: Development Team (Frontend/Backend), PM, Site Operations  
 > **Platform**: Mobile Web (PWA) + Admin Web (PC)
+>
+> **Baseline Note**: This PRD is the baseline requirements document and may contain historical options (for example OTP-first onboarding) that were superseded during implementation.
+> For live implementation truth, use `docs/requirements/REQUIREMENTS_CHECKLIST.md`, `docs/FEATURE_CHECKLIST.md`, and `AGENTS.md`.
 
 ---
 
@@ -51,7 +54,7 @@
                       [Admin Action/Feedback Sharing]
 ```
 
-- **Safety Wallet**: Accumulate points for worker safety activities
+- **SafetyWallet**: Accumulate points for worker safety activities
 - **Feedback Loop**: Share completed actions to sustain engagement
 
 ---
@@ -1141,8 +1144,8 @@ _Based on: 10,000 daily active users, 500GB storage, 50GB/day bandwidth_
 ### 13.8 Wrangler Configuration Reference
 
 ```toml
-# Complete wrangler.toml for API Worker
-name = "safetywallet-api"
+# Complete wrangler.toml for Single Worker
+name = "safetywallet"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 

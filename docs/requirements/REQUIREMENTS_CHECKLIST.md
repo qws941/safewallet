@@ -5,6 +5,8 @@
 **Implementation Status**: 99% complete  
 **Last Updated**: 2026-02-18
 
+> Note: This file compares PRD baseline vs implementation history. If a row conflicts with current FAS-based login behavior, use `docs/FEATURE_CHECKLIST.md` and `AGENTS.md` as the operational source of truth.
+
 ---
 
 ## Executive Summary

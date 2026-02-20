@@ -1,5 +1,8 @@
 import { type Page, expect } from "@playwright/test";
 
+const ADMIN_USERNAME = process.env.E2E_ADMIN_USERNAME ?? "admin";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "admin123";
+
 /**
  * Admin login helper — reusable across all admin E2E tests.
  * Minimizes login calls to respect rate limiting (5 req/60s).
@@ -7,8 +10,8 @@ import { type Page, expect } from "@playwright/test";
 export async function adminLogin(page: Page): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
     await page.goto("/login");
-    await page.getByPlaceholder("admin").fill("admin");
-    await page.getByPlaceholder("••••••••").fill("admin123");
+    await page.getByPlaceholder("admin").fill(ADMIN_USERNAME);
+    await page.getByPlaceholder("••••••••").fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "로그인" }).click();
 
     try {

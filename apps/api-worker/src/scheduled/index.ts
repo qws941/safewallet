@@ -22,12 +22,13 @@ import {
   posts,
   announcements,
   voteCandidates,
+  attendance,
 } from "../db/schema";
 import { dbBatchChunked } from "../db/helpers";
 import {
   fasGetUpdatedEmployees,
-  fasGetEmployeeInfo,
   fasGetEmployeesBatch,
+  fasGetDailyAttendance,
   testConnection as testFasConnection,
   type FasEmployee,
 } from "../lib/fas-mariadb";
@@ -53,6 +54,137 @@ import {
 import { apiMetrics } from "../db/schema";
 
 const log = createLogger("scheduled");
+const DEFAULT_ELASTICSEARCH_INDEX_PREFIX = "safewallet-logs";
+
+interface SyncFailureTelemetry {
+  timestamp: string;
+  correlationId: string;
+  syncType: "FAS_WORKER" | "FAS_ATTENDANCE";
+  errorCode: string;
+  errorMessage: string;
+  lockName: string;
+}
+
+/** @internal Exported for testing */
+export function getElkDailyIndexDate(timestamp: string): string {
+  return timestamp.slice(0, 10).replace(/-/g, ".");
+}
+
+/** @internal Exported for testing */
+export function buildSyncFailureEventId(
+  telemetry: SyncFailureTelemetry,
+): string {
+  return `${telemetry.syncType}-${telemetry.correlationId}`;
+}
+
+/** @internal Exported for testing */
+export async function emitSyncFailureToElk(
+  env: Env,
+  telemetry: SyncFailureTelemetry,
+): Promise<void> {
+  if (!env.ELASTICSEARCH_URL) {
+    return;
+  }
+
+  const indexDate = getElkDailyIndexDate(telemetry.timestamp);
+  const eventId = buildSyncFailureEventId(telemetry);
+  const indexPrefix =
+    env.ELASTICSEARCH_INDEX_PREFIX ?? DEFAULT_ELASTICSEARCH_INDEX_PREFIX;
+  const endpoint = `${env.ELASTICSEARCH_URL}/${indexPrefix}-${indexDate}/_doc/${eventId}`;
+
+  await withRetry(
+    async () => {
+      const response = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          level: "error",
+          module: "scheduled",
+          service: "safewallet",
+          message: `Scheduled sync failed (${telemetry.syncType})`,
+          msg: `Scheduled sync failed (${telemetry.syncType})`,
+          timestamp: telemetry.timestamp,
+          "@timestamp": telemetry.timestamp,
+          action: "SYNC_FAILURE",
+          metadata: {
+            correlationId: telemetry.correlationId,
+            syncType: telemetry.syncType,
+            errorCode: telemetry.errorCode,
+            errorMessage: telemetry.errorMessage,
+            lockName: telemetry.lockName,
+            eventId,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`ELK ingest failed with status ${response.status}`);
+      }
+    },
+    2,
+    500,
+  );
+}
+
+interface PersistSyncFailureOptions {
+  syncType: "FAS_WORKER" | "FAS_ATTENDANCE";
+  errorCode: string;
+  errorMessage: string;
+  lockName: string;
+  setFasDownStatus?: boolean;
+}
+
+async function persistSyncFailure(
+  env: Env,
+  options: PersistSyncFailureOptions,
+): Promise<void> {
+  const db = drizzle(env.DB);
+  const timestamp = new Date().toISOString();
+  const correlationId = crypto.randomUUID();
+
+  try {
+    await emitSyncFailureToElk(env, {
+      timestamp,
+      correlationId,
+      syncType: options.syncType,
+      errorCode: options.errorCode,
+      errorMessage: options.errorMessage,
+      lockName: options.lockName,
+    });
+  } catch (elkErr) {
+    log.warn("Failed to emit scheduled sync failure to ELK", {
+      elkErrorMessage:
+        elkErr instanceof Error ? elkErr.message : String(elkErr),
+      correlationId,
+      syncType: options.syncType,
+      lockName: options.lockName,
+    });
+  }
+
+  if (options.setFasDownStatus) {
+    try {
+      await env.KV.put("fas-status", "down", { expirationTtl: 600 });
+    } catch {
+      /* KV write failure is non-critical */
+    }
+  }
+
+  try {
+    await db.insert(syncErrors).values({
+      syncType: options.syncType,
+      status: "OPEN",
+      errorCode: options.errorCode,
+      errorMessage: options.errorMessage,
+      payload: JSON.stringify({
+        timestamp,
+        correlationId,
+        lockName: options.lockName,
+      }),
+    });
+  } catch {
+    /* sync_errors insert failure is non-critical */
+  }
+}
 
 /** @internal Exported for testing */
 export function getKSTDate(): Date {
@@ -73,6 +205,58 @@ export function getMonthRange(date: Date): { start: Date; end: Date } {
 /** @internal Exported for testing */
 export function formatSettleMonth(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatAccsDayFromKst(kstDate: Date): string {
+  const y = kstDate.getFullYear();
+  const m = String(kstDate.getMonth() + 1).padStart(2, "0");
+  const d = String(kstDate.getDate()).padStart(2, "0");
+  return `${y}${m}${d}`;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function parseFasKstCheckin(accsDay: string, inTime: string): Date | null {
+  if (!/^\d{8}$/.test(accsDay)) {
+    return null;
+  }
+
+  const hhmm = inTime.padStart(4, "0");
+  if (!/^\d{4}$/.test(hhmm)) {
+    return null;
+  }
+
+  const year = Number(accsDay.slice(0, 4));
+  const month = Number(accsDay.slice(4, 6));
+  const day = Number(accsDay.slice(6, 8));
+  const hour = Number(hhmm.slice(0, 2));
+  const minute = Number(hhmm.slice(2, 4));
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute, 0));
 }
 
 /** @internal Exported for testing */
@@ -127,6 +311,8 @@ async function ensureSiteMemberships(
   userIds: string[],
 ): Promise<number> {
   if (userIds.length === 0) return 0;
+  const uniqueUserIds = [...new Set(userIds)];
+  if (uniqueUserIds.length === 0) return 0;
 
   const activeSites = await db
     .select({ id: sites.id })
@@ -141,8 +327,8 @@ async function ensureSiteMemberships(
 
   for (const site of activeSites) {
     const existingSet = new Set<string>();
-    for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
-      const chunk = userIds.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < uniqueUserIds.length; i += CHUNK_SIZE) {
+      const chunk = uniqueUserIds.slice(i, i + CHUNK_SIZE);
       const existing = await db
         .select({ userId: siteMemberships.userId })
         .from(siteMemberships)
@@ -156,7 +342,7 @@ async function ensureSiteMemberships(
       for (const m of existing) existingSet.add(m.userId);
     }
 
-    const toInsert = userIds
+    const toInsert = uniqueUserIds
       .filter((id) => !existingSet.has(id))
       .map((userId) => ({
         userId,
@@ -168,7 +354,7 @@ async function ensureSiteMemberships(
     if (toInsert.length > 0) {
       for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
         const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-        await db.insert(siteMemberships).values(chunk);
+        await db.insert(siteMemberships).values(chunk).onConflictDoNothing();
       }
       totalCreated += toInsert.length;
     }
@@ -442,8 +628,8 @@ export async function runFasFullSync(env: Env): Promise<void> {
     return;
   }
 
-  const locked = await acquireSyncLock(env.KV, "fas-full", 600);
-  if (!locked) {
+  const lock = await acquireSyncLock(env.KV, "fas-full", 600);
+  if (!lock.acquired) {
     log.info("FAS full sync already in progress, skipping");
     return;
   }
@@ -454,8 +640,7 @@ export async function runFasFullSync(env: Env): Promise<void> {
   try {
     const isConnected = await testFasConnection(env.FAS_HYPERDRIVE);
     if (!isConnected) {
-      log.error("FAS MariaDB connection failed during full sync");
-      return;
+      throw new Error("FAS MariaDB connection failed during full sync");
     }
 
     const allEmployees = await withRetry(() =>
@@ -546,25 +731,16 @@ export async function runFasFullSync(env: Env): Promise<void> {
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    log.error("FAS full sync failed", { error: errorMessage });
+    const errorCode = "FULL_SYNC_FAILED";
 
-    try {
-      await env.KV.put("fas-status", "down", { expirationTtl: 600 });
-    } catch {
-      /* KV write failure is non-critical */
-    }
-
-    try {
-      await db.insert(syncErrors).values({
-        syncType: "FAS_WORKER",
-        status: "OPEN",
-        errorCode: "FULL_SYNC_FAILED",
-        errorMessage,
-        payload: JSON.stringify({ timestamp: new Date().toISOString() }),
-      });
-    } catch {
-      /* sync_errors insert failure is non-critical */
-    }
+    log.error("FAS full sync failed", {
+      error: {
+        name: "SyncFailureError",
+        message: errorMessage,
+      },
+      errorCode,
+      syncType: "FAS_WORKER",
+    });
 
     throw err;
   } finally {
@@ -578,8 +754,8 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
     return;
   }
 
-  const locked = await acquireSyncLock(env.KV, "fas", 240);
-  if (!locked) {
+  const lock = await acquireSyncLock(env.KV, "fas", 240);
+  if (!lock.acquired) {
     log.info("FAS sync already in progress, skipping");
     return;
   }
@@ -593,17 +769,12 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
     since: fiveMinutesAgo.toISOString(),
   });
 
-  const isConnected = await testFasConnection(env.FAS_HYPERDRIVE);
-  if (!isConnected) {
-    log.error("FAS MariaDB connection failed");
-    await releaseSyncLock(env.KV, "fas");
-    if (env.KV) {
-      await env.KV.put("fas-status", "down", { expirationTtl: 600 });
-    }
-    return;
-  }
-
   try {
+    const isConnected = await testFasConnection(env.FAS_HYPERDRIVE);
+    if (!isConnected) {
+      throw new Error("FAS MariaDB connection failed during incremental sync");
+    }
+
     // FAS expects "YYYY-MM-DD HH:MM:SS" (no T, no Z, no millis)
     const sinceStr = fiveMinutesAgo
       .toISOString()
@@ -648,21 +819,24 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
         .filter((e) => e.stateFlag === "W")
         .map((e) => e.emplCd);
       if (activeEmplCds.length > 0) {
-        const syncedUsers = await db
-          .select({ id: users.id })
-          .from(users)
-          .where(
-            and(
-              eq(users.externalSystem, "FAS"),
-              inArray(users.externalWorkerId, activeEmplCds),
-              isNull(users.deletedAt),
-            ),
-          )
-          .all();
-        membershipCreated = await ensureSiteMemberships(
-          db,
-          syncedUsers.map((u) => u.id),
-        );
+        const syncedUserIds: string[] = [];
+        for (const workerIdChunk of chunkArray(activeEmplCds, 50)) {
+          const chunkUsers = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.externalSystem, "FAS"),
+                inArray(users.externalWorkerId, workerIdChunk),
+                isNull(users.deletedAt),
+              ),
+            )
+            .all();
+          syncedUserIds.push(...chunkUsers.map((u) => u.id));
+        }
+        membershipCreated = await ensureSiteMemberships(db, [
+          ...new Set(syncedUserIds),
+        ]);
       }
     } catch (err) {
       log.error("Failed to ensure site memberships during incremental sync", {
@@ -706,39 +880,290 @@ async function runFasSyncIncremental(env: Env): Promise<void> {
         : "UNKNOWN";
 
     log.error("FAS incremental sync failed", {
-      error: errorMessage,
-      code: errorCode,
-    });
-
-    try {
-      await env.KV.put("fas-status", "down", { expirationTtl: 600 });
-    } catch {
-      /* KV write failure is non-critical */
-    }
-
-    try {
-      await db.insert(syncErrors).values({
-        syncType: "FAS_WORKER",
-        status: "OPEN",
-        errorCode,
-        errorMessage,
-        payload: JSON.stringify({ timestamp: new Date().toISOString() }),
-      });
-    } catch {
-      /* sync_errors insert failure is non-critical */
-    }
-
-    await db.insert(auditLogs).values({
-      actorId: systemUserId,
-      action: "FAS_SYNC_FAILED",
-      targetType: "FAS_SYNC",
-      targetId: "cron",
-      reason: JSON.stringify({ errorCode, errorMessage }),
+      error: {
+        name: "SyncFailureError",
+        message: errorMessage,
+      },
+      errorCode,
+      syncType: "FAS_WORKER",
     });
 
     throw err;
   } finally {
     await releaseSyncLock(env.KV, "fas");
+  }
+}
+
+async function runFasAttendanceSync(env: Env): Promise<void> {
+  if (!env.FAS_HYPERDRIVE) {
+    log.info("FAS_HYPERDRIVE not configured, skipping attendance sync");
+    return;
+  }
+
+  const lock = await acquireSyncLock(env.KV, "fas-attendance", 240);
+  if (!lock.acquired) {
+    log.info("FAS attendance sync already in progress, skipping");
+    return;
+  }
+
+  const db = drizzle(env.DB);
+  const systemUserId = await getOrCreateSystemUser(db);
+
+  try {
+    const kstNow = getKSTDate();
+    const accsDay = formatAccsDayFromKst(kstNow);
+
+    const dailyAttendance = await withRetry(() =>
+      fasGetDailyAttendance(env.FAS_HYPERDRIVE!, accsDay),
+    );
+
+    const checkins = dailyAttendance.filter((row) => Boolean(row.inTime));
+    if (checkins.length === 0) {
+      log.info("FAS attendance sync: no checkins", { accsDay });
+      return;
+    }
+
+    const uniqueWorkerIds = [...new Set(checkins.map((row) => row.emplCd))];
+    const linkedUsers: { id: string; externalWorkerId: string | null }[] = [];
+    for (const workerIdChunk of chunkArray(uniqueWorkerIds, 50)) {
+      const chunkUsers = await db
+        .select({ id: users.id, externalWorkerId: users.externalWorkerId })
+        .from(users)
+        .where(
+          and(
+            eq(users.externalSystem, "FAS"),
+            inArray(users.externalWorkerId, workerIdChunk),
+            isNull(users.deletedAt),
+          ),
+        )
+        .all();
+      linkedUsers.push(...chunkUsers);
+    }
+
+    const userByExternalWorkerId = new Map<string, string>();
+    for (const user of linkedUsers) {
+      if (user.externalWorkerId) {
+        userByExternalWorkerId.set(user.externalWorkerId, user.id);
+      }
+    }
+
+    const activeSites = await db
+      .select({ id: sites.id })
+      .from(sites)
+      .where(eq(sites.active, true))
+      .all();
+
+    if (activeSites.length === 0) {
+      log.info("FAS attendance sync: no active sites", { accsDay });
+      return;
+    }
+
+    const defaultSiteId = activeSites.length === 1 ? activeSites[0].id : null;
+    const userToSite = new Map<string, string>();
+
+    if (!defaultSiteId && linkedUsers.length > 0) {
+      const linkedUserIds = linkedUsers.map((u) => u.id);
+      for (const userIdChunk of chunkArray(linkedUserIds, 50)) {
+        const chunkMemberships = await db
+          .select({
+            userId: siteMemberships.userId,
+            siteId: siteMemberships.siteId,
+            joinedAt: siteMemberships.joinedAt,
+          })
+          .from(siteMemberships)
+          .where(
+            and(
+              eq(siteMemberships.status, "ACTIVE"),
+              inArray(siteMemberships.userId, userIdChunk),
+            ),
+          )
+          .orderBy(desc(siteMemberships.joinedAt))
+          .all();
+        for (const membership of chunkMemberships) {
+          if (!userToSite.has(membership.userId)) {
+            userToSite.set(membership.userId, membership.siteId);
+          }
+        }
+      }
+    }
+
+    const valuesToInsert: (typeof attendance.$inferInsert)[] = [];
+    const seenAttendanceKeys = new Set<string>();
+    let missingUser = 0;
+    let missingSite = 0;
+    let invalidTime = 0;
+    let duplicateInPayload = 0;
+
+    for (const row of checkins) {
+      if (!row.inTime) {
+        continue;
+      }
+
+      const userId = userByExternalWorkerId.get(row.emplCd);
+      if (!userId) {
+        missingUser++;
+        continue;
+      }
+
+      const siteId = defaultSiteId ?? userToSite.get(userId);
+      if (!siteId) {
+        missingSite++;
+        continue;
+      }
+
+      const checkinAt = parseFasKstCheckin(row.accsDay, row.inTime);
+      if (!checkinAt) {
+        invalidTime++;
+        continue;
+      }
+
+      const dedupeKey = `${row.emplCd}|${siteId}|${checkinAt.getTime()}`;
+      if (seenAttendanceKeys.has(dedupeKey)) {
+        duplicateInPayload++;
+        continue;
+      }
+
+      seenAttendanceKeys.add(dedupeKey);
+      valuesToInsert.push({
+        siteId,
+        userId,
+        externalWorkerId: row.emplCd,
+        checkinAt,
+        result: "SUCCESS",
+        source: "FAS",
+      });
+    }
+
+    const existingAttendanceKeys = new Set<string>();
+    if (valuesToInsert.length > 0) {
+      const uniqueExternalWorkerIds = [
+        ...new Set(
+          valuesToInsert
+            .map((value) => value.externalWorkerId)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ];
+      const uniqueSiteIds = [
+        ...new Set(
+          valuesToInsert
+            .map((value) => value.siteId)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ];
+
+      if (uniqueExternalWorkerIds.length > 0 && uniqueSiteIds.length > 0) {
+        const dayStartUtc = new Date(
+          Date.UTC(
+            Number(accsDay.slice(0, 4)),
+            Number(accsDay.slice(4, 6)) - 1,
+            Number(accsDay.slice(6, 8)),
+            -9,
+            0,
+            0,
+            0,
+          ),
+        );
+        const dayEndUtc = new Date(dayStartUtc.getTime() + 24 * 60 * 60 * 1000);
+
+        const existingAttendances: {
+          externalWorkerId: string | null;
+          siteId: string;
+          checkinAt: Date;
+        }[] = [];
+        for (const workerIdChunk of chunkArray(uniqueExternalWorkerIds, 50)) {
+          for (const siteIdChunk of chunkArray(uniqueSiteIds, 50)) {
+            const chunkRows = await db
+              .select({
+                externalWorkerId: attendance.externalWorkerId,
+                siteId: attendance.siteId,
+                checkinAt: attendance.checkinAt,
+              })
+              .from(attendance)
+              .where(
+                and(
+                  inArray(attendance.externalWorkerId, workerIdChunk),
+                  inArray(attendance.siteId, siteIdChunk),
+                  gte(attendance.checkinAt, dayStartUtc),
+                  lt(attendance.checkinAt, dayEndUtc),
+                ),
+              );
+            existingAttendances.push(...chunkRows);
+          }
+        }
+
+        for (const existing of existingAttendances) {
+          if (
+            existing.externalWorkerId &&
+            existing.siteId &&
+            existing.checkinAt
+          ) {
+            existingAttendanceKeys.add(
+              `${existing.externalWorkerId}|${existing.siteId}|${existing.checkinAt.getTime()}`,
+            );
+          }
+        }
+      }
+    }
+
+    const insertableValues = valuesToInsert.filter(
+      (value) =>
+        !existingAttendanceKeys.has(
+          `${value.externalWorkerId}|${value.siteId}|${value.checkinAt?.getTime()}`,
+        ),
+    );
+
+    if (insertableValues.length > 0) {
+      const ops = insertableValues.map((value) =>
+        db.insert(attendance).values(value).onConflictDoNothing(),
+      );
+      await dbBatchChunked(db, ops);
+    }
+
+    await db.insert(auditLogs).values({
+      actorId: systemUserId,
+      action: "ATTENDANCE_SYNCED",
+      targetType: "ATTENDANCE",
+      targetId: accsDay,
+      reason: JSON.stringify({
+        accsDay,
+        fetched: dailyAttendance.length,
+        checkins: checkins.length,
+        attemptedInsert: insertableValues.length,
+        duplicateInPayload,
+        duplicateInDb: valuesToInsert.length - insertableValues.length,
+        missingUser,
+        missingSite,
+        invalidTime,
+      }),
+    });
+
+    log.info("FAS attendance sync complete", {
+      accsDay,
+      fetched: dailyAttendance.length,
+      checkins: checkins.length,
+      attemptedInsert: insertableValues.length,
+      duplicateInPayload,
+      duplicateInDb: valuesToInsert.length - insertableValues.length,
+      missingUser,
+      missingSite,
+      invalidTime,
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorCode = "FAS_ATTENDANCE_SYNC_FAILED";
+
+    log.error("FAS attendance sync failed", {
+      error: {
+        name: "SyncFailureError",
+        message: errorMessage,
+      },
+      errorCode,
+      syncType: "FAS_ATTENDANCE",
+    });
+
+    throw err;
+  } finally {
+    await releaseSyncLock(env.KV, "fas-attendance");
   }
 }
 
@@ -870,8 +1295,8 @@ async function runAcetimeSyncFromR2(env: Env): Promise<void> {
     return;
   }
 
-  const locked = await acquireSyncLock(env.KV, "acetime", 240);
-  if (!locked) {
+  const lock = await acquireSyncLock(env.KV, "acetime", 240);
+  if (!lock.acquired) {
     log.info("AceTime sync already in progress, skipping");
     return;
   }
@@ -1181,6 +1606,13 @@ async function runScheduled(
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           log.error("FAS bootstrap full sync failed", { error: errorMsg });
+          await persistSyncFailure(env, {
+            syncType: "FAS_WORKER",
+            errorCode: "FULL_SYNC_FAILED",
+            errorMessage: errorMsg,
+            lockName: "fas-full",
+            setFasDownStatus: true,
+          });
           if (env.KV) {
             await fireAlert(
               env.KV,
@@ -1201,9 +1633,24 @@ async function runScheduled(
           await withRetry(() => runFasSyncIncremental(env), 3, 5000);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
+          const errorCode =
+            typeof err === "object" &&
+            err !== null &&
+            "code" in err &&
+            typeof err.code === "string"
+              ? err.code
+              : "UNKNOWN";
           log.error("FAS sync failed after 3 retries", {
             error: errorMsg,
+            errorCode,
             trigger,
+          });
+          await persistSyncFailure(env, {
+            syncType: "FAS_WORKER",
+            errorCode,
+            errorMessage: errorMsg,
+            lockName: "fas",
+            setFasDownStatus: true,
           });
           if (env.KV) {
             await fireAlert(
@@ -1224,6 +1671,35 @@ async function runScheduled(
 
       // announcements, AceTime sync, and metrics check are independent — run in parallel
       await Promise.all([
+        withRetry(() => runFasAttendanceSync(env), 3, 5000).catch(
+          async (err: unknown) => {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            log.error("FAS attendance sync failed after 3 retries", {
+              error: errorMsg,
+              trigger,
+            });
+            await persistSyncFailure(env, {
+              syncType: "FAS_ATTENDANCE",
+              errorCode: "FAS_ATTENDANCE_SYNC_FAILED",
+              errorMessage: errorMsg,
+              lockName: "fas-attendance",
+            });
+            if (env.KV) {
+              fireAlert(
+                env.KV,
+                buildCronFailureAlert("FAS Attendance Sync", errorMsg),
+                env.ALERT_WEBHOOK_URL,
+              ).catch((alertErr: unknown) => {
+                log.error("Alert webhook delivery failed", {
+                  error:
+                    alertErr instanceof Error
+                      ? alertErr.message
+                      : String(alertErr),
+                });
+              });
+            }
+          },
+        ),
         publishScheduledAnnouncements(env).catch((err: unknown) => {
           log.error("Announcements publish failed", {
             error: err instanceof Error ? err.message : String(err),
@@ -1301,6 +1777,13 @@ async function runScheduled(
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         log.error("FAS daily full sync failed", { error: errorMsg });
+        await persistSyncFailure(env, {
+          syncType: "FAS_WORKER",
+          errorCode: "FULL_SYNC_FAILED",
+          errorMessage: errorMsg,
+          lockName: "fas-full",
+          setFasDownStatus: true,
+        });
         if (env.KV) {
           await fireAlert(
             env.KV,

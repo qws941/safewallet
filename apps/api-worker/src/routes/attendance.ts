@@ -9,24 +9,25 @@ import { logAuditWithContext } from "../lib/audit";
 import { success, error } from "../lib/response";
 import type { Env, AuthContext } from "../types";
 import { getTodayRange } from "../utils/common";
-import { ManualCheckinSchema } from "../validators/schemas";
+import {
+  AttendanceSyncBodySchema,
+  type AttendanceSyncEvent,
+} from "../validators/fas-sync";
 import { createLogger } from "../lib/logger";
 import { dbBatchChunked } from "../db/helpers";
-
-interface SyncEvent {
-  fasEventId: string;
-  fasUserId: string;
-  checkinAt: string;
-  siteId?: string;
-}
-
-interface SyncBody {
-  events: SyncEvent[];
-}
 
 // KV-based idempotency cache (CF Workers isolates don't share memory,
 // so in-memory Map is useless — each request runs in a fresh isolate)
 const IDEMPOTENCY_TTL = 3600; // 1 hour in seconds
+const IN_QUERY_CHUNK_SIZE = 50;
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
 
 const attendanceRoute = new Hono<{
   Bindings: Env;
@@ -36,7 +37,7 @@ const attendanceRoute = new Hono<{
 attendanceRoute.post(
   "/sync",
   fasAuthMiddleware,
-  zValidator("json", ManualCheckinSchema as never),
+  zValidator("json", AttendanceSyncBodySchema),
   async (c) => {
     const logger = createLogger("attendance");
     const idempotencyKey = c.req.header("Idempotency-Key");
@@ -49,8 +50,14 @@ attendanceRoute.post(
       }
     }
 
-    c.req.valid("json");
-    const body = (await c.req.raw.clone().json()) as SyncBody;
+    const validatedBody = c.req.valid("json") as
+      | { events?: AttendanceSyncEvent[] }
+      | undefined;
+    const body =
+      validatedBody ??
+      ((await c.req.raw.clone().json()) as {
+        events?: AttendanceSyncEvent[];
+      });
 
     if (!body.events || !Array.isArray(body.events)) {
       return error(c, "MISSING_EVENTS", "events array is required", 400);
@@ -69,14 +76,19 @@ attendanceRoute.post(
     const userMap = new Map<string, typeof users.$inferSelect>();
 
     if (uniqueWorkerIds.length > 0) {
-      const userRecords = await db
-        .select()
-        .from(users)
-        .where(inArray(users.externalWorkerId, uniqueWorkerIds));
+      for (const workerIdChunk of chunkArray(
+        uniqueWorkerIds,
+        IN_QUERY_CHUNK_SIZE,
+      )) {
+        const userRecords = await db
+          .select()
+          .from(users)
+          .where(inArray(users.externalWorkerId, workerIdChunk));
 
-      for (const user of userRecords) {
-        if (user.externalWorkerId) {
-          userMap.set(user.externalWorkerId, user);
+        for (const user of userRecords) {
+          if (user.externalWorkerId) {
+            userMap.set(user.externalWorkerId, user);
+          }
         }
       }
     }
@@ -92,28 +104,33 @@ attendanceRoute.post(
 
     const existingSet = new Set<string>();
     if (attendanceKeys.length > 0) {
-      const conditions = attendanceKeys.map((key) =>
-        and(
-          eq(attendance.externalWorkerId, key.workerId),
-          eq(attendance.siteId, key.siteId),
-          eq(attendance.checkinAt, key.checkinAt),
-        ),
-      );
+      for (const attendanceChunk of chunkArray(
+        attendanceKeys,
+        IN_QUERY_CHUNK_SIZE,
+      )) {
+        const conditions = attendanceChunk.map((key) =>
+          and(
+            eq(attendance.externalWorkerId, key.workerId),
+            eq(attendance.siteId, key.siteId),
+            eq(attendance.checkinAt, key.checkinAt),
+          ),
+        );
 
-      const existing = await db
-        .select({
-          workerId: attendance.externalWorkerId,
-          siteId: attendance.siteId,
-          checkinAt: attendance.checkinAt,
-        })
-        .from(attendance)
-        .where(or(...conditions));
+        const existing = await db
+          .select({
+            workerId: attendance.externalWorkerId,
+            siteId: attendance.siteId,
+            checkinAt: attendance.checkinAt,
+          })
+          .from(attendance)
+          .where(or(...conditions));
 
-      for (const record of existing) {
-        if (record.workerId && record.siteId && record.checkinAt) {
-          existingSet.add(
-            `${record.workerId}|${record.siteId}|${record.checkinAt.getTime()}`,
-          );
+        for (const record of existing) {
+          if (record.workerId && record.siteId && record.checkinAt) {
+            existingSet.add(
+              `${record.workerId}|${record.siteId}|${record.checkinAt.getTime()}`,
+            );
+          }
         }
       }
     }

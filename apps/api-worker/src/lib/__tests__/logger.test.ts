@@ -7,7 +7,9 @@ describe("createLogger", () => {
   });
 
   it("emits structured info logs with context fields", () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const logSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => undefined);
     const logger = createLogger("unit-test");
 
     logger.info("hello", { userId: "u-1", action: "test_action" });
@@ -20,7 +22,7 @@ describe("createLogger", () => {
       level: "info",
       module: "unit-test",
       message: "hello",
-      service: "safework2-api",
+      service: "safewallet",
       userId: "u-1",
       action: "test_action",
     });
@@ -43,7 +45,7 @@ describe("createLogger", () => {
     expect(errorSpy).toHaveBeenCalledOnce();
   });
 
-  it("ships warn/error logs to safework2-logs-* index and uses waitUntil", async () => {
+  it("ships warn/error logs to safewallet-logs-* index and uses waitUntil", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const waitUntil = vi.fn<(promise: Promise<unknown>) => void>();
     const fetchSpy = vi
@@ -60,7 +62,7 @@ describe("createLogger", () => {
     expect(waitUntil).toHaveBeenCalledOnce();
 
     const [url, init] = fetchSpy.mock.calls[0];
-    expect(String(url)).toContain("https://elastic.example/safework2-logs-");
+    expect(String(url)).toContain("https://elastic.example/safewallet-logs-");
     expect(init?.method).toBe("POST");
 
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -68,6 +70,23 @@ describe("createLogger", () => {
     expect(body.module).toBe("unit-test");
     expect(body.msg).toBe("index-me");
     expect(Number.isNaN(Date.parse(String(body["@timestamp"])))).toBe(false);
+  });
+
+  it("uses overridden Elasticsearch index prefix when provided", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 201 }));
+    const logger = createLogger("unit-test", {
+      elasticsearchUrl: "https://elastic.example",
+      elasticsearchIndexPrefix: "safework2-logs",
+    });
+
+    logger.warn("index-me-override");
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const [url] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain("https://elastic.example/safework2-logs-");
   });
 
   it("handles Elasticsearch fetch rejection gracefully", async () => {
@@ -87,7 +106,7 @@ describe("createLogger", () => {
   });
 
   it("does not ship info logs to Elasticsearch", () => {
-    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const logger = createLogger("unit-test", {
       elasticsearchUrl: "https://elastic.example",
@@ -175,7 +194,9 @@ describe("startTimer", () => {
   });
 
   it("logs duration when end is called", () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const logSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => undefined);
     const logger = createLogger("timer-test");
     const timer = startTimer(logger);
 
@@ -190,7 +211,9 @@ describe("startTimer", () => {
   });
 
   it("uses default logger when none provided", () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const logSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => undefined);
     const timer = startTimer();
 
     timer.end("default-action");
@@ -216,7 +239,9 @@ describe("log (default singleton)", () => {
   });
 
   it("logs with module 'app'", () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const logSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => undefined);
     log.info("singleton-test");
 
     const [payload] = logSpy.mock.calls[0];

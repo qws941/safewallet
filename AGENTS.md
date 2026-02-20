@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE: SAFEWORK2
 
 **Updated:** 2026-02-19
-**Branch:** master (11324de)
+**Branch:** master (ed1e783)
 
 ## OVERVIEW
 
@@ -13,8 +13,8 @@ SafetyWallet - Construction site safety reporting PWA. A high-performance Turbor
 safework2/
 ├── apps/
 │ ├── api-worker/ # Cloudflare Workers API (Hono + Drizzle)
-│ ├── worker-app/ # Next.js 14 Worker PWA (CF Pages, port 3000)
-│ └── admin-app/ # Next.js 14 Admin Dashboard (CF Pages, port 3001)
+│ ├── worker-app/ # Next.js 14 Worker PWA (R2 static, port 3000)
+│ └── admin-app/ # Next.js 14 Admin Dashboard (R2 static, port 3001)
 ├── packages/
 │ ├── types/ # Shared TS types, enums, and DTOs
 │ └── ui/ # Shared shadcn/ui component library
@@ -42,9 +42,9 @@ safework2/
 
 - Root: \`AGENTS.md\`
 - App/package level: \`apps/api-worker/AGENTS.md\`, \`apps/worker-app/AGENTS.md\`, \`apps/admin-app/AGENTS.md\`, \`packages/types/AGENTS.md\`, \`packages/ui/AGENTS.md\`, \`e2e/AGENTS.md\`, \`scripts/AGENTS.md\`
-- API deep modules: \`apps/api-worker/src/routes/AGENTS.md\`, \`apps/api-worker/src/routes/admin/AGENTS.md\`, \`apps/api-worker/src/middleware/AGENTS.md\`, \`apps/api-worker/src/lib/AGENTS.md\`, \`apps/api-worker/src/db/AGENTS.md\`, \`apps/api-worker/src/scheduled/AGENTS.md\`
-- Frontend deep modules: \`apps/admin-app/src/app/AGENTS.md\`, \`apps/admin-app/src/hooks/AGENTS.md\`, \`apps/admin-app/src/components/AGENTS.md\`, \`apps/worker-app/src/lib/AGENTS.md\`
-- E2E deep modules: \`e2e/admin-app/AGENTS.md\`, \`e2e/api/AGENTS.md\`
+- API deep modules: \`apps/api-worker/src/routes/AGENTS.md\`, \`apps/api-worker/src/routes/admin/AGENTS.md\`, \`apps/api-worker/src/middleware/AGENTS.md\`, \`apps/api-worker/src/lib/AGENTS.md\`, \`apps/api-worker/src/db/AGENTS.md\`, \`apps/api-worker/src/scheduled/AGENTS.md\`, \`apps/api-worker/src/validators/AGENTS.md\`, \`apps/api-worker/src/durable-objects/AGENTS.md\`
+- Frontend deep modules: \`apps/admin-app/src/app/AGENTS.md\`, \`apps/admin-app/src/app/attendance/AGENTS.md\`, \`apps/admin-app/src/app/posts/AGENTS.md\`, \`apps/admin-app/src/app/votes/AGENTS.md\`, \`apps/admin-app/src/app/education/AGENTS.md\`, \`apps/admin-app/src/hooks/AGENTS.md\`, \`apps/admin-app/src/components/AGENTS.md\`, \`apps/worker-app/src/lib/AGENTS.md\`, \`apps/worker-app/src/app/AGENTS.md\`, \`apps/worker-app/src/hooks/AGENTS.md\`, \`apps/worker-app/src/components/AGENTS.md\`
+- E2E deep modules: \`e2e/admin-app/AGENTS.md\`, \`e2e/api/AGENTS.md\`, \`e2e/worker-app/AGENTS.md\`, \`e2e/cross-app/AGENTS.md\`
 
 ## CODE MAP
 

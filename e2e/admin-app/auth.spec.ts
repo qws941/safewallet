@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+const ADMIN_USERNAME = process.env.E2E_ADMIN_USERNAME ?? "admin";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "admin123";
+
 test.describe("Admin Auth Flow", () => {
   test.describe.configure({ mode: "serial" });
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -15,8 +18,8 @@ test.describe("Admin Auth Flow", () => {
     await page.goto("/login");
     await expect(page).toHaveURL(/\/login/);
 
-    await page.getByPlaceholder("admin").fill("admin");
-    await page.getByPlaceholder("••••••••").fill("admin123");
+    await page.getByPlaceholder("admin").fill(ADMIN_USERNAME);
+    await page.getByPlaceholder("••••••••").fill(ADMIN_PASSWORD);
 
     // Wait for the login API response before asserting navigation
     await Promise.all([
@@ -36,8 +39,8 @@ test.describe("Admin Auth Flow", () => {
 
   test("should maintain auth state across navigations", async ({ page }) => {
     await page.goto("/login");
-    await page.getByPlaceholder("admin").fill("admin");
-    await page.getByPlaceholder("••••••••").fill("admin123");
+    await page.getByPlaceholder("admin").fill(ADMIN_USERNAME);
+    await page.getByPlaceholder("••••••••").fill(ADMIN_PASSWORD);
 
     await Promise.all([
       page.waitForResponse(

@@ -10,10 +10,10 @@ export async function fasAuthMiddleware(
   next: Next,
 ) {
   const apiKey = c.req.header("X-FAS-API-Key");
-  const expectedKey = c.env.FAS_API_KEY;
+  const expectedKey = c.env.FAS_API_KEY || c.env.FAS_SYNC_SECRET;
 
   if (!expectedKey) {
-    logger.error("FAS_API_KEY not configured");
+    logger.error("FAS_API_KEY/FAS_SYNC_SECRET not configured");
     return error(c, "SERVER_ERROR", "API key not configured", 500);
   }
 

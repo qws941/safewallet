@@ -78,6 +78,13 @@
       "when": 1771433000000,
       "tag": "0009_drop_dead_pii_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1771850400000,
+      "tag": "0010_add_attendance_unique_constraint",
+      "breakpoints": true
     }
   ]
 }

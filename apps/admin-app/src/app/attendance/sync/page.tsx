@@ -9,8 +9,6 @@ import { FasSearchCard } from "./components/fas-search-card";
 import { SyncErrorsCard } from "./components/sync-errors-card";
 import { SyncLogsCard } from "./components/sync-logs-card";
 
-export const runtime = "edge";
-
 export default function AttendanceSyncPage() {
   const { data: syncStatus, isLoading } = useFasSyncStatus();
 
@@ -28,7 +26,15 @@ export default function AttendanceSyncPage() {
     );
   }
 
-  const isHealthy = syncStatus?.fasStatus !== "down";
+  const normalizedFasStatus = (syncStatus?.fasStatus ?? "")
+    .trim()
+    .toLowerCase();
+  const isHealthy =
+    normalizedFasStatus === "" ||
+    normalizedFasStatus === "0" ||
+    normalizedFasStatus === "up" ||
+    normalizedFasStatus === "ok" ||
+    normalizedFasStatus === "healthy";
 
   return (
     <div className="space-y-6">

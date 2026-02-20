@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+const ADMIN_USERNAME = process.env.E2E_ADMIN_USERNAME ?? "admin";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "admin123";
+
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Admin Login Page", () => {
@@ -63,8 +66,8 @@ test.describe("Admin Login Page", () => {
   test("should redirect to dashboard on successful login @smoke", async ({
     page,
   }) => {
-    await page.getByPlaceholder("admin").fill("admin");
-    await page.getByPlaceholder("••••••••").fill("admin123");
+    await page.getByPlaceholder("admin").fill(ADMIN_USERNAME);
+    await page.getByPlaceholder("••••••••").fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "로그인" }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
   });

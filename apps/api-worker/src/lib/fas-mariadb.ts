@@ -3,7 +3,6 @@ import type { HyperdriveBinding } from "../types";
 import { FasGetUpdatedEmployeesParamsSchema } from "../validators/fas-sync";
 
 // AceTime MariaDB uses EUC-KR charset (jeil_cmi database)
-// site_cd is always '10' at this construction site
 const SITE_CD = "10";
 
 // mysql2/promise의 createConnection은 Connection 타입을 반환하지만
@@ -297,11 +296,11 @@ export async function fasGetDailyAttendance(
   try {
     const [rows] = await conn.query(
       `SELECT ad.empl_cd, ad.accs_day, ad.in_time, ad.out_time,
-              ad.state, ad.part_cd
-       FROM access_daily ad
-       WHERE ad.site_cd = ? AND ad.accs_day = ?
-       ORDER BY ad.in_time ASC`,
-      [SITE_CD, accsDay],
+               ad.state, ad.part_cd
+        FROM access_daily ad
+        WHERE ad.accs_day = ?
+        ORDER BY ad.in_time ASC`,
+      [accsDay],
     );
     const results = rows as Array<Record<string, unknown>>;
     return results.map(mapToFasAttendance);
