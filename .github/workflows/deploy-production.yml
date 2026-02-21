@@ -60,7 +60,7 @@ jobs:
       - name: Wait until production API responds healthy
         run: |
           for i in $(seq 1 30); do
-            code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 10 https://safewallet.jclee.me/api/health || true)
+            code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 10 https://safewallet.jclee.workers.dev/api/health || true)
             if [ "$code" = "200" ] && grep -Eq '"status"[[:space:]]*:[[:space:]]*"healthy"' /tmp/health.json; then
               echo "Cloudflare deployment appears available"
               exit 0
