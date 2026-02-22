@@ -27,6 +27,8 @@ jobs:
       - name: Detect changed paths for E2E
         id: scope
         run: |
+          set -o pipefail
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.event.pull_request.head.sha }}"
@@ -40,9 +42,13 @@ jobs:
             exit 0
           fi
 
-          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          if ! CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>&1); then
+            echo "::warning::git diff failed: $CHANGED"
+            echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
-          if echo "$CHANGED" | grep -qE '^(apps/|packages/|e2e/|playwright.config.ts|package.json|turbo.json)'; then
+          if echo "$CHANGED" | grep -qE '^(\.github/workflows/|apps/|packages/|e2e/|playwright.config.ts|package.json|turbo.json|scripts/|docs/cloudflare-operations.md)'; then
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
           else
             echo "run_e2e=false" >> "$GITHUB_OUTPUT"

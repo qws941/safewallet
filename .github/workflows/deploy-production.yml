@@ -59,14 +59,17 @@ jobs:
     steps:
       - name: Wait until production API responds healthy
         run: |
-          for i in $(seq 1 30); do
+          max_attempts=45
+          sleep_seconds=20
+          for i in $(seq 1 "$max_attempts"); do
             code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 10 https://safewallet.jclee.workers.dev/api/health || true)
-            if [ "$code" = "200" ] && grep -Eq '"status"[[:space:]]*:[[:space:]]*"healthy"' /tmp/health.json; then
+            health_status=$(node -e 'const fs=require("fs"); try { const data=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); process.stdout.write(data && data.status ? String(data.status) : ""); } catch { process.stdout.write(""); }')
+            if [ "$code" = "200" ] && [ "$health_status" = "healthy" ]; then
               echo "Cloudflare deployment appears available"
               exit 0
             fi
-            echo "Waiting for Cloudflare deploy... attempt $i/30"
-            sleep 20
+            echo "Waiting for Cloudflare deploy... attempt $i/$max_attempts (http=$code status=$health_status)"
+            sleep "$sleep_seconds"
           done
           echo "::error::Timed out waiting for production health endpoint"
           exit 1
