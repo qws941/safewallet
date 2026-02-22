@@ -175,7 +175,7 @@ jobs:
           ADMIN_APP_URL: https://safewallet.jclee.me/admin
 
       - name: Upload report on failure
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-report
